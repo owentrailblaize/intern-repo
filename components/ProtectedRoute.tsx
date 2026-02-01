@@ -32,6 +32,19 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
 
   // Authenticated but no profile found - account setup issue
   if (!profile) {
+    const handleSignOut = () => {
+      // Clear all Supabase auth data from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
+      // Also try the normal signOut
+      signOut().finally(() => {
+        window.location.href = '/nucleus';
+      });
+    };
+
     return (
       <div className="nucleus-access-denied">
         <div className="nucleus-access-denied-content">
@@ -46,10 +59,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
           <p className="nucleus-access-denied-email">Signed in as: {user.email}</p>
           <div className="nucleus-access-denied-actions">
             <button 
-              onClick={async () => {
-                await signOut();
-                window.location.href = '/nucleus';
-              }} 
+              onClick={handleSignOut}
               className="nucleus-access-denied-btn secondary"
             >
               Sign Out
