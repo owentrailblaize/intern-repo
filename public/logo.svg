@@ -1,0 +1,13 @@
+<svg viewBox="0 0 200 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Flag icon -->
+  <g transform="translate(0, 2)">
+    <!-- Flag pole -->
+    <path d="M8 5C7 8 5 28 4 33" stroke="#1a2744" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Flag top section -->
+    <path d="M10 4C10 4 14 3 18 4C22 5 26 4 30 5C30 5 28 9 30 12C26 11 22 12 18 11C14 10 10 11 10 11V4Z" fill="#1a2744"/>
+    <!-- Flag bottom section -->
+    <path d="M10 14C10 14 14 13 18 14C22 15 26 14 30 15C32 15 34 17 33 20C31 22 28 23 25 22C21 21 17 22 13 21C10 20 10 18 10 18V14Z" fill="#1a2744"/>
+  </g>
+  <!-- Text "Trailblaize" -->
+  <text x="42" y="29" font-family="Georgia, serif" font-size="24" font-weight="400" fill="#1a2744" font-style="italic">Trailblaize</text>
+</svg>
