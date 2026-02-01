@@ -1,14 +1,152 @@
 'use client';
 
-import React from 'react';
-import { ArrowLeft, TrendingUp, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
 import Link from 'next/link';
+import { supabase, Deal } from '@/lib/supabase';
 
 export default function PipelineModule() {
-  // Placeholder data - will be replaced with real data
-  const deals = [
-    { id: 1, name: 'Deal Name', organization: 'Organization', value: '$0', stage: 'Discovery', probability: '0%' },
-  ];
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    organization: '',
+    contact_name: '',
+    value: 0,
+    stage: 'discovery' as Deal['stage'],
+    probability: 10,
+    expected_close: '',
+  });
+
+  // Fetch deals
+  useEffect(() => {
+    fetchDeals();
+  }, []);
+
+  async function fetchDeals() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('deals')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching deals:', error);
+    } else {
+      setDeals(data || []);
+    }
+    setLoading(false);
+  }
+
+  // Create deal
+  async function createDeal() {
+    const { error } = await supabase
+      .from('deals')
+      .insert([formData]);
+
+    if (error) {
+      console.error('Error creating deal:', error);
+      alert('Failed to create deal');
+    } else {
+      resetForm();
+      fetchDeals();
+    }
+  }
+
+  // Update deal
+  async function updateDeal() {
+    if (!editingDeal) return;
+
+    const { error } = await supabase
+      .from('deals')
+      .update(formData)
+      .eq('id', editingDeal.id);
+
+    if (error) {
+      console.error('Error updating deal:', error);
+      alert('Failed to update deal');
+    } else {
+      resetForm();
+      fetchDeals();
+    }
+  }
+
+  // Delete deal
+  async function deleteDeal(id: string) {
+    if (!confirm('Are you sure you want to delete this deal?')) return;
+
+    const { error } = await supabase
+      .from('deals')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting deal:', error);
+      alert('Failed to delete deal');
+    } else {
+      fetchDeals();
+    }
+  }
+
+  function resetForm() {
+    setFormData({
+      name: '',
+      organization: '',
+      contact_name: '',
+      value: 0,
+      stage: 'discovery',
+      probability: 10,
+      expected_close: '',
+    });
+    setEditingDeal(null);
+    setShowModal(false);
+  }
+
+  function openEditModal(deal: Deal) {
+    setEditingDeal(deal);
+    setFormData({
+      name: deal.name,
+      organization: deal.organization || '',
+      contact_name: deal.contact_name || '',
+      value: deal.value,
+      stage: deal.stage,
+      probability: deal.probability,
+      expected_close: deal.expected_close || '',
+    });
+    setShowModal(true);
+  }
+
+  // Filter deals
+  const filteredDeals = deals.filter(d =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (d.organization && d.organization.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Calculate stats
+  const pipelineValue = deals.reduce((sum, d) => sum + (d.value || 0), 0);
+  const activeDeals = deals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage)).length;
+  const wonThisMonth = deals.filter(d => {
+    if (d.stage !== 'closed_won') return false;
+    const created = new Date(d.created_at);
+    const now = new Date();
+    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+  }).length;
+  const avgDealSize = deals.length > 0 ? pipelineValue / deals.length : 0;
+
+  const stageLabels: Record<Deal['stage'], string> = {
+    discovery: 'Discovery',
+    proposal: 'Proposal',
+    negotiation: 'Negotiation',
+    closed_won: 'Closed Won',
+    closed_lost: 'Closed Lost',
+  };
+
+  function formatCurrency(value: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+  }
 
   return (
     <div className="module-page">
@@ -36,19 +174,19 @@ export default function PipelineModule() {
         {/* Stats Row */}
         <div className="module-stats-row">
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{formatCurrency(pipelineValue)}</span>
             <span className="module-stat-label">Pipeline Value</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{activeDeals}</span>
             <span className="module-stat-label">Active Deals</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{wonThisMonth}</span>
             <span className="module-stat-label">Won This Month</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{formatCurrency(avgDealSize)}</span>
             <span className="module-stat-label">Avg Deal Size</span>
           </div>
         </div>
@@ -57,14 +195,19 @@ export default function PipelineModule() {
         <div className="module-actions-bar">
           <div className="module-search">
             <Search size={18} />
-            <input type="text" placeholder="Search deals..." />
+            <input
+              type="text"
+              placeholder="Search deals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
           <div className="module-actions">
             <button className="module-filter-btn">
               <Filter size={16} />
               Filter
             </button>
-            <button className="module-primary-btn">
+            <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Create Deal
             </button>
@@ -73,41 +216,150 @@ export default function PipelineModule() {
 
         {/* Table */}
         <div className="module-table-container">
-          <table className="module-table">
-            <thead>
-              <tr>
-                <th>Deal</th>
-                <th>Organization</th>
-                <th>Value</th>
-                <th>Stage</th>
-                <th>Probability</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deals.map((deal) => (
-                <tr key={deal.id}>
-                  <td className="module-table-name">{deal.name}</td>
-                  <td>{deal.organization}</td>
-                  <td>{deal.value}</td>
-                  <td>
-                    <span className="module-status pending">{deal.stage}</span>
-                  </td>
-                  <td>{deal.probability}</td>
-                  <td>
-                    <button className="module-table-action">View</button>
-                  </td>
+          {loading ? (
+            <div className="module-loading">Loading...</div>
+          ) : filteredDeals.length > 0 ? (
+            <table className="module-table">
+              <thead>
+                <tr>
+                  <th>Deal</th>
+                  <th>Organization</th>
+                  <th>Value</th>
+                  <th>Stage</th>
+                  <th>Probability</th>
+                  <th>Expected Close</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="module-empty-state">
-            <TrendingUp size={48} />
-            <h3>No deals in pipeline</h3>
-            <p>Create your first deal to start tracking</p>
-          </div>
+              </thead>
+              <tbody>
+                {filteredDeals.map((deal) => (
+                  <tr key={deal.id}>
+                    <td className="module-table-name">{deal.name}</td>
+                    <td>{deal.organization}</td>
+                    <td>{formatCurrency(deal.value)}</td>
+                    <td>
+                      <span className={`module-status ${deal.stage}`}>{stageLabels[deal.stage]}</span>
+                    </td>
+                    <td>{deal.probability}%</td>
+                    <td>{deal.expected_close || '—'}</td>
+                    <td>
+                      <div className="module-table-actions">
+                        <button className="module-table-action" onClick={() => openEditModal(deal)}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="module-table-action delete" onClick={() => deleteDeal(deal.id)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="module-empty-state">
+              <TrendingUp size={48} />
+              <h3>No deals in pipeline</h3>
+              <p>Create your first deal to start tracking</p>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="module-modal-overlay" onClick={() => resetForm()}>
+          <div className="module-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>{editingDeal ? 'Edit Deal' : 'Create Deal'}</h2>
+              <button className="module-modal-close" onClick={() => resetForm()}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <div className="module-form-group">
+                <label>Deal Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Annual Subscription"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Organization</label>
+                <input
+                  type="text"
+                  value={formData.organization}
+                  onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                  placeholder="Company name"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Contact Name</label>
+                <input
+                  type="text"
+                  value={formData.contact_name}
+                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                  placeholder="Main contact"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Value ($)</label>
+                <input
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Stage</label>
+                <select
+                  value={formData.stage}
+                  onChange={(e) => setFormData({ ...formData, stage: e.target.value as Deal['stage'] })}
+                >
+                  <option value="discovery">Discovery</option>
+                  <option value="proposal">Proposal</option>
+                  <option value="negotiation">Negotiation</option>
+                  <option value="closed_won">Closed Won</option>
+                  <option value="closed_lost">Closed Lost</option>
+                </select>
+              </div>
+              <div className="module-form-group">
+                <label>Probability (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.probability}
+                  onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Expected Close</label>
+                <input
+                  type="date"
+                  value={formData.expected_close}
+                  onChange={(e) => setFormData({ ...formData, expected_close: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => resetForm()}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={editingDeal ? updateDeal : createDeal}
+                disabled={!formData.name}
+              >
+                {editingDeal ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

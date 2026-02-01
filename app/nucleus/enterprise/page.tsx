@@ -1,14 +1,154 @@
 'use client';
 
-import React from 'react';
-import { ArrowLeft, Building2, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Building2, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
 import Link from 'next/link';
+import { supabase, EnterpriseContract } from '@/lib/supabase';
 
 export default function EnterpriseModule() {
-  // Placeholder data - will be replaced with real data
-  const contracts = [
-    { id: 1, name: 'Organization Name', type: 'IFC', stage: 'Negotiation', value: '$0', contact: 'Contact Name' },
-  ];
+  const [contracts, setContracts] = useState<EnterpriseContract[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingContract, setEditingContract] = useState<EnterpriseContract | null>(null);
+  const [formData, setFormData] = useState({
+    organization: '',
+    type: 'other' as EnterpriseContract['type'],
+    contact_name: '',
+    contact_email: '',
+    stage: 'prospecting' as EnterpriseContract['stage'],
+    value: 0,
+    notes: '',
+  });
+
+  // Fetch contracts
+  useEffect(() => {
+    fetchContracts();
+  }, []);
+
+  async function fetchContracts() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('enterprise_contracts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching contracts:', error);
+    } else {
+      setContracts(data || []);
+    }
+    setLoading(false);
+  }
+
+  // Create contract
+  async function createContract() {
+    const { error } = await supabase
+      .from('enterprise_contracts')
+      .insert([formData]);
+
+    if (error) {
+      console.error('Error creating contract:', error);
+      alert('Failed to create contract');
+    } else {
+      resetForm();
+      fetchContracts();
+    }
+  }
+
+  // Update contract
+  async function updateContract() {
+    if (!editingContract) return;
+
+    const { error } = await supabase
+      .from('enterprise_contracts')
+      .update(formData)
+      .eq('id', editingContract.id);
+
+    if (error) {
+      console.error('Error updating contract:', error);
+      alert('Failed to update contract');
+    } else {
+      resetForm();
+      fetchContracts();
+    }
+  }
+
+  // Delete contract
+  async function deleteContract(id: string) {
+    if (!confirm('Are you sure you want to delete this contract?')) return;
+
+    const { error } = await supabase
+      .from('enterprise_contracts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting contract:', error);
+      alert('Failed to delete contract');
+    } else {
+      fetchContracts();
+    }
+  }
+
+  function resetForm() {
+    setFormData({
+      organization: '',
+      type: 'other',
+      contact_name: '',
+      contact_email: '',
+      stage: 'prospecting',
+      value: 0,
+      notes: '',
+    });
+    setEditingContract(null);
+    setShowModal(false);
+  }
+
+  function openEditModal(contract: EnterpriseContract) {
+    setEditingContract(contract);
+    setFormData({
+      organization: contract.organization,
+      type: contract.type,
+      contact_name: contract.contact_name || '',
+      contact_email: contract.contact_email || '',
+      stage: contract.stage,
+      value: contract.value || 0,
+      notes: contract.notes || '',
+    });
+    setShowModal(true);
+  }
+
+  // Filter contracts
+  const filteredContracts = contracts.filter(c =>
+    c.organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.contact_name && c.contact_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Calculate stats
+  const activeContracts = contracts.filter(c => c.stage === 'signed').length;
+  const inNegotiation = contracts.filter(c => c.stage === 'negotiation' || c.stage === 'contract_sent').length;
+  const totalValue = contracts.filter(c => c.stage === 'signed').reduce((sum, c) => sum + (c.value || 0), 0);
+  const pendingSignatures = contracts.filter(c => c.stage === 'contract_sent').length;
+
+  const typeLabels: Record<EnterpriseContract['type'], string> = {
+    ifc: 'IFC',
+    national_org: 'National Org',
+    partnership: 'Partnership',
+    other: 'Other',
+  };
+
+  const stageLabels: Record<EnterpriseContract['stage'], string> = {
+    prospecting: 'Prospecting',
+    negotiation: 'Negotiation',
+    contract_sent: 'Contract Sent',
+    signed: 'Signed',
+    lost: 'Lost',
+  };
+
+  function formatCurrency(value: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+  }
 
   return (
     <div className="module-page">
@@ -36,19 +176,19 @@ export default function EnterpriseModule() {
         {/* Stats Row */}
         <div className="module-stats-row">
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{activeContracts}</span>
             <span className="module-stat-label">Active Contracts</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{inNegotiation}</span>
             <span className="module-stat-label">In Negotiation</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{formatCurrency(totalValue)}</span>
             <span className="module-stat-label">Total Value</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{pendingSignatures}</span>
             <span className="module-stat-label">Pending Signatures</span>
           </div>
         </div>
@@ -57,14 +197,19 @@ export default function EnterpriseModule() {
         <div className="module-actions-bar">
           <div className="module-search">
             <Search size={18} />
-            <input type="text" placeholder="Search contracts..." />
+            <input
+              type="text"
+              placeholder="Search contracts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
           <div className="module-actions">
             <button className="module-filter-btn">
               <Filter size={16} />
               Filter
             </button>
-            <button className="module-primary-btn">
+            <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               New Contract
             </button>
@@ -73,41 +218,153 @@ export default function EnterpriseModule() {
 
         {/* Table */}
         <div className="module-table-container">
-          <table className="module-table">
-            <thead>
-              <tr>
-                <th>Organization</th>
-                <th>Type</th>
-                <th>Stage</th>
-                <th>Value</th>
-                <th>Contact</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contracts.map((contract) => (
-                <tr key={contract.id}>
-                  <td className="module-table-name">{contract.name}</td>
-                  <td>{contract.type}</td>
-                  <td>
-                    <span className="module-status pending">{contract.stage}</span>
-                  </td>
-                  <td>{contract.value}</td>
-                  <td>{contract.contact}</td>
-                  <td>
-                    <button className="module-table-action">View</button>
-                  </td>
+          {loading ? (
+            <div className="module-loading">Loading...</div>
+          ) : filteredContracts.length > 0 ? (
+            <table className="module-table">
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Type</th>
+                  <th>Stage</th>
+                  <th>Value</th>
+                  <th>Contact</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="module-empty-state">
-            <Building2 size={48} />
-            <h3>No enterprise contracts yet</h3>
-            <p>Add contracts to track enterprise partnerships</p>
-          </div>
+              </thead>
+              <tbody>
+                {filteredContracts.map((contract) => (
+                  <tr key={contract.id}>
+                    <td className="module-table-name">{contract.organization}</td>
+                    <td>
+                      <span className={`module-type ${contract.type}`}>{typeLabels[contract.type]}</span>
+                    </td>
+                    <td>
+                      <span className={`module-status ${contract.stage}`}>{stageLabels[contract.stage]}</span>
+                    </td>
+                    <td>{formatCurrency(contract.value)}</td>
+                    <td>{contract.contact_name || '—'}</td>
+                    <td>
+                      <div className="module-table-actions">
+                        <button className="module-table-action" onClick={() => openEditModal(contract)}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="module-table-action delete" onClick={() => deleteContract(contract.id)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="module-empty-state">
+              <Building2 size={48} />
+              <h3>No enterprise contracts yet</h3>
+              <p>Add contracts to track enterprise partnerships</p>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="module-modal-overlay" onClick={() => resetForm()}>
+          <div className="module-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>{editingContract ? 'Edit Contract' : 'New Contract'}</h2>
+              <button className="module-modal-close" onClick={() => resetForm()}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <div className="module-form-group">
+                <label>Organization *</label>
+                <input
+                  type="text"
+                  value={formData.organization}
+                  onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                  placeholder="Organization name"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Type</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as EnterpriseContract['type'] })}
+                >
+                  <option value="ifc">IFC (Interfraternity Council)</option>
+                  <option value="national_org">National Organization</option>
+                  <option value="partnership">Partnership</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="module-form-group">
+                <label>Contact Name</label>
+                <input
+                  type="text"
+                  value={formData.contact_name}
+                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                  placeholder="Main point of contact"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Contact Email</label>
+                <input
+                  type="email"
+                  value={formData.contact_email}
+                  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                  placeholder="Email address"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Stage</label>
+                <select
+                  value={formData.stage}
+                  onChange={(e) => setFormData({ ...formData, stage: e.target.value as EnterpriseContract['stage'] })}
+                >
+                  <option value="prospecting">Prospecting</option>
+                  <option value="negotiation">Negotiation</option>
+                  <option value="contract_sent">Contract Sent</option>
+                  <option value="signed">Signed</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+              <div className="module-form-group">
+                <label>Contract Value ($)</label>
+                <input
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Add any notes..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => resetForm()}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={editingContract ? updateContract : createContract}
+                disabled={!formData.organization}
+              >
+                {editingContract ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

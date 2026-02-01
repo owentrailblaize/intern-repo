@@ -1246,3 +1246,338 @@ input:focus {
     font-size: 1.5rem;
   }
 }
+
+/* Modal Styles */
+.module-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.module-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.module-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.module-modal-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a2744;
+  margin: 0;
+}
+
+.module-modal-close {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.module-modal-close:hover {
+  background: #f3f4f6;
+  color: #1a2744;
+}
+
+.module-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.module-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.module-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.module-form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.module-form-group input,
+.module-form-group select,
+.module-form-group textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: 'Inter', sans-serif;
+  color: #1a2744;
+  transition: all 0.2s;
+}
+
+.module-form-group input:focus,
+.module-form-group select:focus,
+.module-form-group textarea:focus {
+  outline: none;
+  border-color: #1a2744;
+  box-shadow: 0 0 0 3px rgba(26, 39, 68, 0.1);
+}
+
+.module-form-group input::placeholder,
+.module-form-group textarea::placeholder {
+  color: #9ca3af;
+}
+
+.module-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.module-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.module-cancel-btn {
+  padding: 0.625rem 1.25rem;
+  background: white;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.module-cancel-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Table Action Buttons */
+.module-table-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.module-table-action {
+  padding: 0.375rem;
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.module-table-action:hover {
+  background: #f3f4f6;
+  color: #1a2744;
+  border-color: #d1d5db;
+}
+
+.module-table-action.delete:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+/* Loading State */
+.module-loading {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+/* Status Badge Variations */
+.module-status.active,
+.module-status.signed,
+.module-status.closed_won,
+.module-status.committed,
+.module-status.done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.module-status.onboarding,
+.module-status.pending,
+.module-status.discovery,
+.module-status.outreach,
+.module-status.prospecting,
+.module-status.todo {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.module-status.in_progress,
+.module-status.negotiation,
+.module-status.in_conversation,
+.module-status.meeting_set,
+.module-status.contract_sent {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-status.inactive,
+.module-status.at_risk,
+.module-status.passed,
+.module-status.closed_lost,
+.module-status.lost,
+.module-status.churned {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.module-status.proposal {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+/* Health Badges */
+.module-health {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.module-health.good {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.module-health.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-health.critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Priority Badges */
+.module-priority {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.module-priority.low {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.module-priority.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-priority.high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Type Badges */
+.module-type {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.module-type.ifc {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.module-type.national_org {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.module-type.partnership {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Task Checkbox */
+.task-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: white;
+}
+
+.task-checkbox:hover {
+  border-color: #1a2744;
+}
+
+.task-checkbox.checked {
+  background: #1a2744;
+  border-color: #1a2744;
+}
+
+/* Completed Row */
+.completed-row {
+  opacity: 0.6;
+}
+
+.completed-row .module-table-name {
+  text-decoration: line-through;
+}
+
+/* Disabled Button */
+.module-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

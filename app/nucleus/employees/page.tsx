@@ -1,14 +1,134 @@
 'use client';
 
-import React from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
 import Link from 'next/link';
+import { supabase, Employee } from '@/lib/supabase';
 
 export default function EmployeesModule() {
-  // Placeholder data - will be replaced with real data
-  const employees = [
-    { id: 1, name: 'Employee Name', role: 'Role', status: 'Active', startDate: '2025-01-15' },
-  ];
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: '',
+    status: 'onboarding' as Employee['status'],
+    start_date: new Date().toISOString().split('T')[0],
+  });
+
+  // Fetch employees
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  async function fetchEmployees() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching employees:', error);
+    } else {
+      setEmployees(data || []);
+    }
+    setLoading(false);
+  }
+
+  // Create employee
+  async function createEmployee() {
+    const { error } = await supabase
+      .from('employees')
+      .insert([formData]);
+
+    if (error) {
+      console.error('Error creating employee:', error);
+      alert('Failed to create employee');
+    } else {
+      resetForm();
+      fetchEmployees();
+    }
+  }
+
+  // Update employee
+  async function updateEmployee() {
+    if (!editingEmployee) return;
+
+    const { error } = await supabase
+      .from('employees')
+      .update(formData)
+      .eq('id', editingEmployee.id);
+
+    if (error) {
+      console.error('Error updating employee:', error);
+      alert('Failed to update employee');
+    } else {
+      resetForm();
+      fetchEmployees();
+    }
+  }
+
+  // Delete employee
+  async function deleteEmployee(id: string) {
+    if (!confirm('Are you sure you want to delete this employee?')) return;
+
+    const { error } = await supabase
+      .from('employees')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting employee:', error);
+      alert('Failed to delete employee');
+    } else {
+      fetchEmployees();
+    }
+  }
+
+  function resetForm() {
+    setFormData({
+      name: '',
+      email: '',
+      role: '',
+      status: 'onboarding',
+      start_date: new Date().toISOString().split('T')[0],
+    });
+    setEditingEmployee(null);
+    setShowModal(false);
+  }
+
+  function openEditModal(employee: Employee) {
+    setEditingEmployee(employee);
+    setFormData({
+      name: employee.name,
+      email: employee.email || '',
+      role: employee.role,
+      status: employee.status,
+      start_date: employee.start_date,
+    });
+    setShowModal(true);
+  }
+
+  // Filter employees
+  const filteredEmployees = employees.filter(emp =>
+    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.role.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Calculate stats
+  const totalEmployees = employees.length;
+  const activeEmployees = employees.filter(e => e.status === 'active').length;
+  const onboardingEmployees = employees.filter(e => e.status === 'onboarding').length;
+  const thisWeek = employees.filter(e => {
+    const startDate = new Date(e.start_date);
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return startDate >= weekAgo;
+  }).length;
 
   return (
     <div className="module-page">
@@ -36,19 +156,19 @@ export default function EmployeesModule() {
         {/* Stats Row */}
         <div className="module-stats-row">
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{totalEmployees}</span>
             <span className="module-stat-label">Total Employees</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
-            <span className="module-stat-label">Active Interns</span>
+            <span className="module-stat-value">{activeEmployees}</span>
+            <span className="module-stat-label">Active</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{onboardingEmployees}</span>
             <span className="module-stat-label">In Onboarding</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value">—</span>
+            <span className="module-stat-value">{thisWeek}</span>
             <span className="module-stat-label">This Week</span>
           </div>
         </div>
@@ -57,14 +177,19 @@ export default function EmployeesModule() {
         <div className="module-actions-bar">
           <div className="module-search">
             <Search size={18} />
-            <input type="text" placeholder="Search employees..." />
+            <input
+              type="text"
+              placeholder="Search employees..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
           <div className="module-actions">
             <button className="module-filter-btn">
               <Filter size={16} />
               Filter
             </button>
-            <button className="module-primary-btn">
+            <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Add Employee
             </button>
@@ -73,39 +198,127 @@ export default function EmployeesModule() {
 
         {/* Table */}
         <div className="module-table-container">
-          <table className="module-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Start Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((employee) => (
-                <tr key={employee.id}>
-                  <td className="module-table-name">{employee.name}</td>
-                  <td>{employee.role}</td>
-                  <td>
-                    <span className="module-status active">{employee.status}</span>
-                  </td>
-                  <td>{employee.startDate}</td>
-                  <td>
-                    <button className="module-table-action">View</button>
-                  </td>
+          {loading ? (
+            <div className="module-loading">Loading...</div>
+          ) : filteredEmployees.length > 0 ? (
+            <table className="module-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Start Date</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="module-empty-state">
-            <Users size={48} />
-            <h3>No employees yet</h3>
-            <p>Add your first team member to get started</p>
-          </div>
+              </thead>
+              <tbody>
+                {filteredEmployees.map((employee) => (
+                  <tr key={employee.id}>
+                    <td className="module-table-name">{employee.name}</td>
+                    <td>{employee.email}</td>
+                    <td>{employee.role}</td>
+                    <td>
+                      <span className={`module-status ${employee.status}`}>{employee.status}</span>
+                    </td>
+                    <td>{employee.start_date}</td>
+                    <td>
+                      <div className="module-table-actions">
+                        <button className="module-table-action" onClick={() => openEditModal(employee)}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="module-table-action delete" onClick={() => deleteEmployee(employee.id)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="module-empty-state">
+              <Users size={48} />
+              <h3>No employees yet</h3>
+              <p>Add your first team member to get started</p>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="module-modal-overlay" onClick={() => resetForm()}>
+          <div className="module-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>{editingEmployee ? 'Edit Employee' : 'Add Employee'}</h2>
+              <button className="module-modal-close" onClick={() => resetForm()}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <div className="module-form-group">
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Role *</label>
+                <input
+                  type="text"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  placeholder="e.g. Software Engineer"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Employee['status'] })}
+                >
+                  <option value="onboarding">Onboarding</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="module-form-group">
+                <label>Start Date</label>
+                <input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => resetForm()}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={editingEmployee ? updateEmployee : createEmployee}
+                disabled={!formData.name || !formData.role}
+              >
+                {editingEmployee ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
