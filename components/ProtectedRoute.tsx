@@ -22,10 +22,10 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     
     const isNucleusRoute = pathname.startsWith('/nucleus');
     
-    // Non-admins trying to access /nucleus get redirected to /portal
+    // Non-admins trying to access /nucleus get redirected to /workspace
     if (isNucleusRoute && !isAdmin) {
-      console.log('Redirecting non-admin to portal. Role:', profile.role);
-      router.replace('/portal');
+      console.log('Redirecting non-admin to workspace. Role:', profile.role);
+      router.replace('/workspace');
     }
   }, [loading, user, profile, isAdmin, pathname, router]);
 
@@ -91,7 +91,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
           </p>
           <div className="nucleus-access-denied-actions">
             <button 
-              onClick={() => router.push('/portal')} 
+              onClick={() => router.push('/workspace')} 
               className="nucleus-access-denied-btn"
             >
               Go to My Workspace
