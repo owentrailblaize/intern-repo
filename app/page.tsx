@@ -424,12 +424,12 @@ export default function HomePage() {
             </button>
 
             <a 
-              href="/nucleus" 
+              href="/workspace" 
               className="landing-cta-secondary"
             >
               <span className="landing-cta-content">
                 <Zap size={20} />
-                <span>Sign in to Nucleus</span>
+                <span>Sign In</span>
               </span>
               <ArrowRight size={18} className="landing-cta-arrow" />
             </a>
