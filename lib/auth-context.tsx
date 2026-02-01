@@ -131,15 +131,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // If not in admin_profiles, check employees table
+      // If not in admin_profiles, check employees table by auth_user_id first
       console.log('Not in admin_profiles, checking employees table...');
-      const { data: employeeData, error: employeeError } = await supabase
+      let employeeData = null;
+      
+      // Try by auth_user_id first
+      const { data: byAuthId, error: authIdError } = await supabase
         .from('employees')
         .select('*')
         .eq('auth_user_id', userId)
         .single();
 
-      if (!employeeError && employeeData) {
+      if (!authIdError && byAuthId) {
+        employeeData = byAuthId;
+        console.log('Found employee by auth_user_id:', byAuthId);
+      } else {
+        // Fallback: try by email
+        console.log('Not found by auth_user_id, trying email:', userEmail);
+        const { data: byEmail, error: emailError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('email', userEmail)
+          .single();
+        
+        if (!emailError && byEmail) {
+          employeeData = byEmail;
+          console.log('Found employee by email:', byEmail);
+          
+          // Auto-link auth_user_id if not set (helpful for migration)
+          if (!byEmail.auth_user_id) {
+            console.log('Linking auth_user_id to employee record...');
+            await supabase
+              .from('employees')
+              .update({ auth_user_id: userId })
+              .eq('id', byEmail.id);
+          }
+        }
+      }
+
+      if (employeeData) {
         console.log('Employee profile loaded:', employeeData);
         const employeeProfile: UserProfile = {
           id: employeeData.id,

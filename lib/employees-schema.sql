@@ -10,6 +10,9 @@ DROP TABLE IF EXISTS employees CASCADE;
 CREATE TABLE IF NOT EXISTS employees (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   
+  -- Auth Link (connects to Supabase Auth user)
+  auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
+  
   -- Basic Info
   name TEXT NOT NULL,
   email TEXT UNIQUE,
@@ -105,3 +108,126 @@ CREATE TRIGGER update_employees_updated_at
     BEFORE UPDATE ON employees
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- ROW LEVEL SECURITY POLICIES
+-- =====================================================
+
+-- Enable RLS on all tables
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employee_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE personal_leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE engineering_tasks ENABLE ROW LEVEL SECURITY;
+
+-- EMPLOYEES TABLE POLICIES
+-- Users can view their own employee record (by auth_user_id or email)
+CREATE POLICY "Users can view own employee record" ON employees
+  FOR SELECT USING (
+    auth_user_id = auth.uid() OR 
+    email = (SELECT email FROM auth.users WHERE id = auth.uid())
+  );
+
+-- Admins/Founders can view all employees
+CREATE POLICY "Admins can view all employees" ON employees
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
+    )
+  );
+
+-- Admins can manage employees
+CREATE POLICY "Admins can manage employees" ON employees
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
+    )
+  );
+
+-- EMPLOYEE_TASKS POLICIES
+-- Users can view/manage their own tasks
+CREATE POLICY "Users can manage own tasks" ON employee_tasks
+  FOR ALL USING (
+    employee_id IN (
+      SELECT id FROM employees 
+      WHERE auth_user_id = auth.uid() OR 
+      email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    )
+  );
+
+-- Admins can view all tasks
+CREATE POLICY "Admins can view all tasks" ON employee_tasks
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder')
+    )
+  );
+
+-- PERSONAL_LEADS POLICIES
+-- Users can manage their own leads
+CREATE POLICY "Users can manage own leads" ON personal_leads
+  FOR ALL USING (
+    employee_id IN (
+      SELECT id FROM employees 
+      WHERE auth_user_id = auth.uid() OR 
+      email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    )
+  );
+
+-- ANNOUNCEMENTS POLICIES
+-- Everyone can view announcements targeted at their role
+CREATE POLICY "Users can view targeted announcements" ON announcements
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE (auth_user_id = auth.uid() OR email = (SELECT email FROM auth.users WHERE id = auth.uid()))
+      AND role = ANY(target_roles)
+    )
+  );
+
+-- Admins can manage announcements
+CREATE POLICY "Admins can manage announcements" ON announcements
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder')
+    )
+  );
+
+-- ENGINEERING_TASKS POLICIES
+-- Engineers and admins can view engineering tasks
+CREATE POLICY "Engineers can view engineering tasks" ON engineering_tasks
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder', 'engineer')
+    )
+  );
+
+-- Admins can manage engineering tasks
+CREATE POLICY "Admins can manage engineering tasks" ON engineering_tasks
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM employees 
+      WHERE auth_user_id = auth.uid() 
+      AND role IN ('founder', 'cofounder')
+    )
+  );

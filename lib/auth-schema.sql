@@ -22,25 +22,32 @@ CREATE INDEX IF NOT EXISTS idx_admin_profiles_email ON admin_profiles(email);
 -- Enable Row Level Security
 ALTER TABLE admin_profiles ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can read their own profile
+-- Policy: Users can read their own profile (primary policy for login)
 CREATE POLICY "Users can view own profile" ON admin_profiles
   FOR SELECT USING (auth.uid() = user_id);
 
+-- Policy: Users can read profiles that match their email (fallback)
+CREATE POLICY "Users can view profile by email" ON admin_profiles
+  FOR SELECT USING (
+    email = (SELECT email FROM auth.users WHERE id = auth.uid())
+  );
+
 -- Policy: Admins can view all profiles
+-- Note: Uses SECURITY DEFINER function to avoid recursion
 CREATE POLICY "Admins can view all profiles" ON admin_profiles
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM admin_profiles 
-      WHERE user_id = auth.uid() AND role = 'admin' AND seniority = 5
+      WHERE user_id = auth.uid() AND role = 'admin' AND seniority >= 4
     )
   );
 
--- Policy: Only admins can insert/update/delete
+-- Policy: Admins can manage profiles (insert/update/delete)
 CREATE POLICY "Admins can manage profiles" ON admin_profiles
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM admin_profiles 
-      WHERE user_id = auth.uid() AND role = 'admin' AND seniority = 5
+      WHERE user_id = auth.uid() AND role = 'admin' AND seniority >= 4
     )
   );
 

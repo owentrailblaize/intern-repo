@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function NucleusLogin() {
   const { signIn } = useAuth();
@@ -28,12 +28,23 @@ export default function NucleusLogin() {
 
   return (
     <div className="nucleus-login-page">
+      {/* Decorative background elements */}
+      <div className="nucleus-bg-pattern" />
+      
       <div className="nucleus-login-container">
         {/* Logo and Header */}
         <div className="nucleus-login-header">
-          <img src="/logo-icon.svg" alt="Trailblaize" className="nucleus-login-logo" />
-          <h1>Nucleus</h1>
-          <p>Command Center Access</p>
+          <div className="nucleus-brand">
+            <img src="/logo-icon.svg" alt="Trailblaize" className="nucleus-login-logo" />
+            <div className="nucleus-brand-text">
+              <span className="nucleus-brand-name">Trailblaize</span>
+              <span className="nucleus-brand-tagline">Growth Space</span>
+            </div>
+          </div>
+          <div className="nucleus-title-section">
+            <h1>Nucleus</h1>
+            <p>Command Center</p>
+          </div>
         </div>
 
         {/* Login Form */}
@@ -46,7 +57,7 @@ export default function NucleusLogin() {
           )}
 
           <div className="nucleus-login-field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email address</label>
             <div className="nucleus-login-input-wrapper">
               <Mail size={18} className="nucleus-login-input-icon" />
               <input
@@ -78,6 +89,7 @@ export default function NucleusLogin() {
                 type="button"
                 className="nucleus-login-toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -89,19 +101,23 @@ export default function NucleusLogin() {
             className="nucleus-login-submit"
             disabled={loading}
           >
-            {loading ? 'Signing in...' : 'Access Nucleus'}
+            <span>{loading ? 'Signing in...' : 'Enter Command Center'}</span>
+            {!loading && <ArrowRight size={18} />}
           </button>
         </form>
 
         {/* Footer */}
         <div className="nucleus-login-footer">
-          <p>Authorized personnel only</p>
+          <p className="nucleus-login-restricted">Internal Access Only</p>
           <p className="nucleus-login-security">
             <Lock size={12} />
             Secured with Supabase Auth
           </p>
         </div>
       </div>
+      
+      {/* Corner accent */}
+      <div className="nucleus-corner-accent" />
     </div>
   );
 }
