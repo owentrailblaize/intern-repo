@@ -18,14 +18,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  LucideIcon
 } from 'lucide-react';
 
 interface SidebarProps {
   unreadCount?: number;
 }
 
-const iconMap: Record<string, React.ComponentType<{ size: number }>> = {
+const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Inbox,
   CheckSquare,
