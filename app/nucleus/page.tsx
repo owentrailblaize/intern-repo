@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { 
   Users, 
   UserPlus, 
@@ -27,42 +28,42 @@ export default function Nucleus() {
       title: 'Employees & Onboarding',
       description: 'Manage team members, track onboarding progress, and streamline new hire workflows.',
       icon: Users,
-      status: 'coming-soon',
+      href: '/nucleus/employees',
       color: '#3b82f6',
     },
     {
       title: 'Fundraising & Network',
       description: 'Build investor relationships, track outreach, and manage your fundraising pipeline.',
       icon: Rocket,
-      status: 'coming-soon',
+      href: '/nucleus/fundraising',
       color: '#10b981',
     },
     {
       title: 'Sales Pipeline',
       description: 'Monitor deals, track velocity, and manage opportunities through your funnel.',
       icon: TrendingUp,
-      status: 'coming-soon',
+      href: '/nucleus/pipeline',
       color: '#f59e0b',
     },
     {
       title: 'Operations & Tasks',
       description: 'Coordinate day-to-day activities and keep the business running smoothly.',
       icon: CheckSquare,
-      status: 'coming-soon',
+      href: '/nucleus/operations',
       color: '#8b5cf6',
     },
     {
       title: 'Customer Success',
       description: 'Track the entire onboarding and customer success process from signup to expansion.',
       icon: HeartHandshake,
-      status: 'coming-soon',
+      href: '/nucleus/customer-success',
       color: '#ec4899',
     },
     {
       title: 'Enterprise Contracts',
       description: 'Manage enterprise deals with IFCs, national organizations, and large partnerships.',
       icon: Building2,
-      status: 'coming-soon',
+      href: '/nucleus/enterprise',
       color: '#06b6d4',
     },
   ];
@@ -112,14 +113,14 @@ export default function Nucleus() {
                   >
                     <module.icon size={24} />
                   </div>
-                  <span className="nucleus-module-status">Coming Soon</span>
+                  <span className="nucleus-module-status active">Active</span>
                 </div>
                 <h3 className="nucleus-module-title">{module.title}</h3>
                 <p className="nucleus-module-description">{module.description}</p>
-                <button className="nucleus-module-button" disabled>
+                <Link href={module.href} className="nucleus-module-button">
                   Open Module
                   <ArrowRight size={16} />
-                </button>
+                </Link>
               </div>
             ))}
           </div>
@@ -129,30 +130,30 @@ export default function Nucleus() {
         <section className="nucleus-quick-actions">
           <h2 className="nucleus-section-title">Quick Actions</h2>
           <div className="nucleus-actions-grid">
-            <button className="nucleus-action-button" disabled>
+            <Link href="/nucleus/employees" className="nucleus-action-button">
               <UserPlus size={18} />
               Add Employee
-            </button>
-            <button className="nucleus-action-button" disabled>
+            </Link>
+            <Link href="/nucleus/fundraising" className="nucleus-action-button">
               <Rocket size={18} />
               Log Investor Contact
-            </button>
-            <button className="nucleus-action-button" disabled>
+            </Link>
+            <Link href="/nucleus/pipeline" className="nucleus-action-button">
               <TrendingUp size={18} />
               Create Deal
-            </button>
-            <button className="nucleus-action-button" disabled>
+            </Link>
+            <Link href="/nucleus/enterprise" className="nucleus-action-button">
               <Building2 size={18} />
               New Enterprise Lead
-            </button>
-            <button className="nucleus-action-button" disabled>
+            </Link>
+            <Link href="/nucleus/customer-success" className="nucleus-action-button">
               <HeartHandshake size={18} />
               Track Customer
-            </button>
-            <button className="nucleus-action-button" disabled>
+            </Link>
+            <Link href="/nucleus/operations" className="nucleus-action-button">
               <CheckSquare size={18} />
               Add Task
-            </button>
+            </Link>
           </div>
         </section>
       </main>

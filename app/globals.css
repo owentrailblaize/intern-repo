@@ -712,6 +712,11 @@ input:focus {
   border-radius: 20px;
 }
 
+.nucleus-module-status.active {
+  color: #065f46;
+  background: #d1fae5;
+}
+
 .nucleus-module-title {
   font-size: 1.125rem;
   font-weight: 600;
@@ -727,27 +732,23 @@ input:focus {
 }
 
 .nucleus-module-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   background: transparent;
   border: 1px solid #e5e7eb;
-  color: #6b7280;
+  color: #1a2744;
   padding: 0.625rem 1rem;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
-  cursor: not-allowed;
+  cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  text-decoration: none;
 }
 
-.nucleus-module-button:not(:disabled) {
-  cursor: pointer;
-  color: #1a2744;
-}
-
-.nucleus-module-button:not(:disabled):hover {
+.nucleus-module-button:hover {
   background: #f9fafb;
   border-color: #1a2744;
 }
@@ -769,22 +770,18 @@ input:focus {
   gap: 0.5rem;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  color: #6b7280;
+  color: #1a2744;
   padding: 0.75rem 1.25rem;
   border-radius: 50px;
   font-size: 0.875rem;
   font-weight: 500;
-  cursor: not-allowed;
+  cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  text-decoration: none;
 }
 
-.nucleus-action-button:not(:disabled) {
-  cursor: pointer;
-  color: #1a2744;
-}
-
-.nucleus-action-button:not(:disabled):hover {
+.nucleus-action-button:hover {
   background: #1a2744;
   color: #ffffff;
   border-color: #1a2744;
@@ -845,5 +842,407 @@ input:focus {
   
   .nucleus-action-button {
     justify-content: center;
+  }
+}
+
+/* ==========================================
+   MODULE PAGES - Shared Styles
+   ========================================== */
+
+.module-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Module Header */
+.module-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem 0;
+}
+
+.module-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.module-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.module-back:hover {
+  color: #1a2744;
+}
+
+.module-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.module-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.module-title-row h1 {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1a2744;
+  margin-bottom: 0.25rem;
+}
+
+.module-title-row p {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* Module Main */
+.module-main {
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+/* Module Stats Row */
+.module-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.module-stat {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.module-stat-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1a2744;
+  line-height: 1.2;
+}
+
+.module-stat-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+/* Module Actions Bar */
+.module-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.module-search {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  flex: 1;
+  max-width: 400px;
+}
+
+.module-search input {
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  width: 100%;
+  font-family: inherit;
+  background: transparent;
+}
+
+.module-search svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.module-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.module-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.module-filter-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.module-primary-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #1a2744;
+  border: none;
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.module-primary-btn:hover {
+  background: #2d3a5c;
+}
+
+/* Module Table */
+.module-table-container {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.module-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.module-table thead {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.module-table th {
+  text-align: left;
+  padding: 1rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.module-table td {
+  padding: 1rem 1.25rem;
+  font-size: 0.95rem;
+  color: #4b5563;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.module-table tr:last-child td {
+  border-bottom: none;
+}
+
+.module-table tr:hover {
+  background: #fafafa;
+}
+
+.module-table-name {
+  font-weight: 500;
+  color: #1a2744;
+}
+
+.module-table-action {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.module-table-action:hover {
+  background: #f9fafb;
+  border-color: #1a2744;
+  color: #1a2744;
+}
+
+/* Status Badges */
+.module-status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.module-status.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.module-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-status.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.module-priority {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.module-priority.high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.module-priority.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-priority.low {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.module-health {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.module-health.good {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.module-health.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.module-health.critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Empty State */
+.module-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #9ca3af;
+}
+
+.module-empty-state svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.module-empty-state h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.module-empty-state p {
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+/* Module Responsive */
+@media (max-width: 1024px) {
+  .module-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .module-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .module-search {
+    max-width: none;
+  }
+  
+  .module-actions {
+    justify-content: flex-end;
+  }
+  
+  .module-table-container {
+    overflow-x: auto;
+  }
+  
+  .module-table {
+    min-width: 600px;
+  }
+}
+
+@media (max-width: 640px) {
+  .module-header-content {
+    padding: 0 1rem;
+  }
+  
+  .module-main {
+    padding: 1rem;
+  }
+  
+  .module-stats-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .module-title-row h1 {
+    font-size: 1.5rem;
   }
 }
