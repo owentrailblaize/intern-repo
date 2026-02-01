@@ -13,6 +13,11 @@ interface UserProfile {
   created_at: string;
 }
 
+// Admin emails that always have access (fallback when admin_profiles table has issues)
+const ADMIN_EMAILS = [
+  'owen@trailblaize.net',
+];
+
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
@@ -107,8 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+    // Get current user email for admin fallback
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const userEmail = currentUser?.email || '';
+    
     try {
-      console.log('Fetching profile for user_id:', userId);
+      console.log('Fetching profile for user_id:', userId, 'email:', userEmail);
       
       const { data, error, status } = await supabase
         .from('admin_profiles')
@@ -120,15 +129,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('Error fetching profile:', error.message, error.code, error.details);
-        // Table might not exist or no profile - still allow login screen
-        setProfile(null);
+        
+        // Fallback: If user email is in admin list, create a virtual profile
+        if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+          console.log('Admin email detected, creating fallback profile');
+          const fallbackProfile: UserProfile = {
+            id: userId,
+            email: userEmail,
+            name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
+            role: 'admin',
+            seniority: 5,
+            created_at: new Date().toISOString(),
+          };
+          setProfile(fallbackProfile);
+        } else {
+          setProfile(null);
+        }
       } else {
         console.log('Profile loaded successfully:', data);
         setProfile(data);
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
-      setProfile(null);
+      
+      // Fallback for admin emails on catch
+      if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+        console.log('Admin email detected (catch), creating fallback profile');
+        const fallbackProfile: UserProfile = {
+          id: userId,
+          email: userEmail,
+          name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
+          role: 'admin',
+          seniority: 5,
+          created_at: new Date().toISOString(),
+        };
+        setProfile(fallbackProfile);
+      } else {
+        setProfile(null);
+      }
     }
     
     setLoading(false);
