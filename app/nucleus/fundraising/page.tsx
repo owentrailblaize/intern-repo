@@ -57,14 +57,33 @@ export default function FundraisingModule() {
 
   // Create contact
   async function createContact() {
-    if (!supabase) return;
+    if (!supabase) {
+      alert('Database not connected. Check your Supabase credentials in .env.local');
+      return;
+    }
+    
+    // Validate required field
+    if (!formData.name.trim()) {
+      alert('Name is required');
+      return;
+    }
+    
+    // Clean up data - convert empty strings to null for optional date fields
+    const cleanedData = {
+      ...formData,
+      name: formData.name.trim(),
+      first_contact_date: formData.first_contact_date || null,
+      last_contact_date: formData.last_contact_date || null,
+      next_followup_date: formData.next_followup_date || null,
+    };
+    
     const { error } = await supabase
       .from('network_contacts')
-      .insert([formData]);
+      .insert([cleanedData]);
 
     if (error) {
       console.error('Error creating contact:', error);
-      alert('Failed to create contact');
+      alert(`Failed to create contact: ${error.message}`);
     } else {
       resetForm();
       fetchContacts();
@@ -75,14 +94,23 @@ export default function FundraisingModule() {
   async function updateContact() {
     if (!supabase || !editingContact) return;
 
+    // Clean up data - convert empty strings to null for optional date fields
+    const cleanedData = {
+      ...formData,
+      name: formData.name.trim(),
+      first_contact_date: formData.first_contact_date || null,
+      last_contact_date: formData.last_contact_date || null,
+      next_followup_date: formData.next_followup_date || null,
+    };
+
     const { error } = await supabase
       .from('network_contacts')
-      .update(formData)
+      .update(cleanedData)
       .eq('id', editingContact.id);
 
     if (error) {
       console.error('Error updating contact:', error);
-      alert('Failed to update contact');
+      alert(`Failed to update contact: ${error.message}`);
     } else {
       resetForm();
       fetchContacts();
