@@ -108,17 +108,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      const { data, error } = await supabase
+      console.log('Fetching profile for user_id:', userId);
+      
+      const { data, error, status } = await supabase
         .from('admin_profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
 
+      console.log('Profile query result:', { data, error, status });
+
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching profile:', error.message, error.code, error.details);
         // Table might not exist or no profile - still allow login screen
         setProfile(null);
       } else {
+        console.log('Profile loaded successfully:', data);
         setProfile(data);
       }
     } catch (err) {
