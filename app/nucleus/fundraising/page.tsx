@@ -298,6 +298,270 @@ export default function FundraisingModule() {
     return new Date(date) < new Date();
   }
 
+  // Parse bulk text input (CSV, TSV, or freeform text)
+  function parseBulkText(text: string): ParsedContact[] {
+    if (!text.trim()) return [];
+    
+    const lines = text.trim().split('\n').filter(line => line.trim());
+    const results: ParsedContact[] = [];
+    
+    // Detect format: CSV, TSV, or freeform
+    const firstLine = lines[0];
+    const isCSV = firstLine.includes(',');
+    const isTSV = firstLine.includes('\t');
+    
+    // Check if first line is a header
+    const headerKeywords = ['name', 'email', 'phone', 'title', 'organization', 'company', 'linkedin'];
+    const firstLineLower = firstLine.toLowerCase();
+    const hasHeader = headerKeywords.some(keyword => firstLineLower.includes(keyword));
+    
+    if (isCSV || isTSV) {
+      const delimiter = isTSV ? '\t' : ',';
+      const dataLines = hasHeader ? lines.slice(1) : lines;
+      
+      // Parse header to determine column mapping
+      let columnMap: Record<string, number> = {};
+      if (hasHeader) {
+        const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+        headers.forEach((header, idx) => {
+          if (header.includes('name') || header === 'full name') columnMap.name = idx;
+          else if (header.includes('email') || header === 'e-mail') columnMap.email = idx;
+          else if (header.includes('phone') || header.includes('tel') || header.includes('mobile')) columnMap.phone = idx;
+          else if (header.includes('title') || header.includes('position') || header.includes('role')) columnMap.title = idx;
+          else if (header.includes('org') || header.includes('company') || header.includes('school')) columnMap.organization = idx;
+          else if (header.includes('linkedin')) columnMap.linkedin = idx;
+          else if (header.includes('note')) columnMap.notes = idx;
+        });
+      } else {
+        // Default column order: name, email, phone, title, organization
+        columnMap = { name: 0, email: 1, phone: 2, title: 3, organization: 4 };
+      }
+      
+      for (const line of dataLines) {
+        // Handle quoted CSV fields
+        const cols = parseCSVLine(line, delimiter);
+        const name = cols[columnMap.name]?.trim() || '';
+        
+        if (!name) continue;
+        
+        results.push({
+          name,
+          email: cols[columnMap.email]?.trim() || undefined,
+          phone: cols[columnMap.phone]?.trim() || undefined,
+          title: cols[columnMap.title]?.trim() || undefined,
+          organization: cols[columnMap.organization]?.trim() || undefined,
+          linkedin: cols[columnMap.linkedin]?.trim() || undefined,
+          notes: cols[columnMap.notes]?.trim() || undefined,
+          valid: true,
+        });
+      }
+    } else {
+      // Freeform text parsing - try to extract name and email/phone from each line
+      for (const line of lines) {
+        const parsed = parseFreeformLine(line);
+        if (parsed.name) {
+          results.push(parsed);
+        }
+      }
+    }
+    
+    // Validate parsed contacts
+    return results.map(contact => {
+      if (!contact.name || contact.name.length < 2) {
+        return { ...contact, valid: false, error: 'Name is required' };
+      }
+      if (contact.email && !isValidEmail(contact.email)) {
+        return { ...contact, valid: false, error: 'Invalid email format' };
+      }
+      return contact;
+    });
+  }
+  
+  // Parse a single CSV line handling quoted fields
+  function parseCSVLine(line: string, delimiter: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && (i === 0 || line[i-1] !== '\\')) {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim().replace(/^["']|["']$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim().replace(/^["']|["']$/g, ''));
+    return result;
+  }
+  
+  // Parse freeform text line
+  function parseFreeformLine(line: string): ParsedContact {
+    // Email regex
+    const emailMatch = line.match(/[\w.+-]+@[\w.-]+\.\w+/);
+    // Phone regex (various formats)
+    const phoneMatch = line.match(/(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/);
+    // LinkedIn URL
+    const linkedinMatch = line.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i);
+    
+    // Remove extracted data to get the remaining text (likely name/title/org)
+    let remaining = line;
+    if (emailMatch) remaining = remaining.replace(emailMatch[0], '');
+    if (phoneMatch) remaining = remaining.replace(phoneMatch[0], '');
+    if (linkedinMatch) remaining = remaining.replace(linkedinMatch[0], '');
+    
+    // Clean up remaining text
+    remaining = remaining.replace(/[,\-|;]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // Try to split remaining into name, title, organization
+    const parts = remaining.split(/\s{2,}|@|\|/).map(p => p.trim()).filter(Boolean);
+    
+    return {
+      name: parts[0] || '',
+      title: parts[1] || undefined,
+      organization: parts[2] || undefined,
+      email: emailMatch?.[0],
+      phone: phoneMatch?.[0],
+      linkedin: linkedinMatch?.[0],
+      valid: Boolean(parts[0]),
+    };
+  }
+  
+  function isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+  
+  // Handle text input change with live parsing
+  function handleBulkTextChange(text: string) {
+    setBulkText(text);
+    setBulkError(null);
+    const parsed = parseBulkText(text);
+    setParsedContacts(parsed);
+  }
+  
+  // Handle image upload
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImageFile(file);
+    setBulkError(null);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  // Parse image using AI (placeholder - would need backend API)
+  async function parseImageWithAI() {
+    if (!imageFile) return;
+    
+    setParsingImage(true);
+    setBulkError(null);
+    
+    try {
+      // Convert image to base64
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(imageFile);
+      });
+      
+      // Call API endpoint for image parsing
+      const response = await fetch('/api/parse-contacts-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to parse image');
+      }
+      
+      const data = await response.json();
+      if (data.contacts && Array.isArray(data.contacts)) {
+        setParsedContacts(data.contacts.map((c: Partial<ParsedContact>) => ({
+          ...c,
+          valid: Boolean(c.name),
+        })));
+      }
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Failed to parse image. Try pasting the text manually.');
+    } finally {
+      setParsingImage(false);
+    }
+  }
+  
+  // Import parsed contacts to database
+  async function importBulkContacts() {
+    if (!supabase) {
+      setBulkError('Database not connected');
+      return;
+    }
+    
+    const validContacts = parsedContacts.filter(c => c.valid);
+    if (validContacts.length === 0) {
+      setBulkError('No valid contacts to import');
+      return;
+    }
+    
+    setBulkImporting(true);
+    setBulkError(null);
+    
+    try {
+      const contactsToInsert = validContacts.map(c => ({
+        name: c.name,
+        title: c.title || '',
+        organization: c.organization || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        linkedin: c.linkedin || '',
+        notes: c.notes || '',
+        contact_type: bulkDefaults.contact_type,
+        priority: bulkDefaults.priority,
+        stage: bulkDefaults.stage,
+        first_contact_date: null,
+        last_contact_date: null,
+        next_followup_date: null,
+        potential_value: '',
+        how_they_can_help: '',
+        how_we_met: '',
+        referred_by: '',
+      }));
+      
+      const { error } = await supabase
+        .from('network_contacts')
+        .insert(contactsToInsert);
+      
+      if (error) throw error;
+      
+      // Success - reset and refresh
+      resetBulkUpload();
+      fetchContacts();
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Failed to import contacts');
+    } finally {
+      setBulkImporting(false);
+    }
+  }
+  
+  function resetBulkUpload() {
+    setShowBulkModal(false);
+    setBulkText('');
+    setParsedContacts([]);
+    setImageFile(null);
+    setImagePreview(null);
+    setBulkError(null);
+    setBulkUploadTab('text');
+  }
+
   return (
     <div className="module-page">
       {/* Header */}
@@ -373,6 +637,10 @@ export default function FundraisingModule() {
               <option value="warm">☀️ Warm</option>
               <option value="cold">❄️ Cold</option>
             </select>
+            <button className="module-secondary-btn" onClick={() => setShowBulkModal(true)}>
+              <Upload size={18} />
+              Bulk Upload
+            </button>
             <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Add Contact
@@ -652,6 +920,210 @@ export default function FundraisingModule() {
                 disabled={!formData.name}
               >
                 {editingContact ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkModal && (
+        <div className="module-modal-overlay" onClick={() => resetBulkUpload()}>
+          <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>Bulk Upload Contacts</h2>
+              <button className="module-modal-close" onClick={() => resetBulkUpload()}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Tab Switcher */}
+            <div className="bulk-upload-tabs">
+              <button
+                className={`bulk-tab ${bulkUploadTab === 'text' ? 'active' : ''}`}
+                onClick={() => setBulkUploadTab('text')}
+              >
+                <FileText size={18} />
+                Paste Text / CSV
+              </button>
+              <button
+                className={`bulk-tab ${bulkUploadTab === 'image' ? 'active' : ''}`}
+                onClick={() => setBulkUploadTab('image')}
+              >
+                <Image size={18} />
+                Upload Image
+              </button>
+            </div>
+            
+            <div className="module-modal-body">
+              {bulkUploadTab === 'text' ? (
+                <div className="bulk-text-section">
+                  <div className="module-form-group">
+                    <label>Paste contacts (CSV, tab-separated, or plain text)</label>
+                    <textarea
+                      value={bulkText}
+                      onChange={(e) => handleBulkTextChange(e.target.value)}
+                      placeholder={`Paste your contacts here. Supported formats:
+
+CSV with headers:
+Name,Email,Phone,Title,Organization
+John Smith,john@email.com,555-123-4567,CEO,Acme Inc
+
+Tab-separated:
+John Smith	john@email.com	555-123-4567
+
+Plain text (one contact per line):
+John Smith john@email.com 555-123-4567
+Jane Doe - VP Sales @ BigCorp - jane@bigcorp.com`}
+                      rows={8}
+                      className="bulk-textarea"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="bulk-image-section">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  {!imagePreview ? (
+                    <div 
+                      className="bulk-image-dropzone"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Image size={48} />
+                      <p>Click to upload an image</p>
+                      <span>Screenshot of a contact list, business cards, spreadsheet, etc.</span>
+                    </div>
+                  ) : (
+                    <div className="bulk-image-preview-container">
+                      <img src={imagePreview} alt="Uploaded" className="bulk-image-preview" />
+                      <div className="bulk-image-actions">
+                        <button 
+                          className="module-secondary-btn"
+                          onClick={() => { setImageFile(null); setImagePreview(null); setParsedContacts([]); }}
+                        >
+                          Remove
+                        </button>
+                        <button 
+                          className="module-primary-btn"
+                          onClick={parseImageWithAI}
+                          disabled={parsingImage}
+                        >
+                          {parsingImage ? 'Parsing...' : 'Extract Contacts'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Default Values */}
+              <div className="bulk-defaults">
+                <h4>Default values for imported contacts:</h4>
+                <div className="module-form-row">
+                  <div className="module-form-group">
+                    <label>Contact Type</label>
+                    <select
+                      value={bulkDefaults.contact_type}
+                      onChange={(e) => setBulkDefaults({ ...bulkDefaults, contact_type: e.target.value as NetworkContact['contact_type'] })}
+                    >
+                      {Object.entries(typeLabels).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="module-form-group">
+                    <label>Priority</label>
+                    <select
+                      value={bulkDefaults.priority}
+                      onChange={(e) => setBulkDefaults({ ...bulkDefaults, priority: e.target.value as NetworkContact['priority'] })}
+                    >
+                      <option value="hot">🔥 Hot</option>
+                      <option value="warm">☀️ Warm</option>
+                      <option value="cold">❄️ Cold</option>
+                    </select>
+                  </div>
+                  <div className="module-form-group">
+                    <label>Stage</label>
+                    <select
+                      value={bulkDefaults.stage}
+                      onChange={(e) => setBulkDefaults({ ...bulkDefaults, stage: e.target.value as NetworkContact['stage'] })}
+                    >
+                      {Object.entries(stageLabels).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Preview Table */}
+              {parsedContacts.length > 0 && (
+                <div className="bulk-preview">
+                  <h4>
+                    Preview ({parsedContacts.filter(c => c.valid).length} valid, {parsedContacts.filter(c => !c.valid).length} invalid)
+                  </h4>
+                  <div className="bulk-preview-table-container">
+                    <table className="bulk-preview-table">
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                          <th>Title</th>
+                          <th>Organization</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedContacts.map((contact, idx) => (
+                          <tr key={idx} className={contact.valid ? '' : 'invalid-row'}>
+                            <td>
+                              {contact.valid ? (
+                                <CheckCircle size={16} className="valid-icon" />
+                              ) : (
+                                <span title={contact.error}>
+                                  <AlertCircle size={16} className="invalid-icon" />
+                                </span>
+                              )}
+                            </td>
+                            <td>{contact.name || '—'}</td>
+                            <td>{contact.email || '—'}</td>
+                            <td>{contact.phone || '—'}</td>
+                            <td>{contact.title || '—'}</td>
+                            <td>{contact.organization || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error Message */}
+              {bulkError && (
+                <div className="bulk-error">
+                  <AlertCircle size={16} />
+                  {bulkError}
+                </div>
+              )}
+            </div>
+            
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => resetBulkUpload()}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={importBulkContacts}
+                disabled={bulkImporting || parsedContacts.filter(c => c.valid).length === 0}
+              >
+                {bulkImporting ? 'Importing...' : `Import ${parsedContacts.filter(c => c.valid).length} Contacts`}
               </button>
             </div>
           </div>
