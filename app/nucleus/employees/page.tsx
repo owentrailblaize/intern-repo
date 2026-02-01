@@ -14,7 +14,7 @@ export default function EmployeesModule() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'intern' as EmployeeRole,
+    role: 'growth_intern' as EmployeeRole,
     seniority: 1 as 1 | 2 | 3 | 4 | 5,
     department: '',
     status: 'onboarding' as Employee['status'],
@@ -98,7 +98,7 @@ export default function EmployeesModule() {
     setFormData({
       name: '',
       email: '',
-      role: 'intern',
+      role: 'growth_intern',
       seniority: 1,
       department: '',
       status: 'onboarding',
@@ -300,13 +300,13 @@ export default function EmployeesModule() {
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as EmployeeRole })}
                   >
-                    <option value="intern">Intern</option>
-                    <option value="member">Team Member</option>
-                    <option value="lead">Team Lead</option>
-                    <option value="manager">Manager</option>
-                    <option value="director">Director</option>
-                    <option value="cofounder">Co-Founder</option>
                     <option value="founder">Founder</option>
+                    <option value="cofounder">Co-Founder</option>
+                    <option value="growth_intern">Growth Intern</option>
+                    <option value="engineer">Engineer</option>
+                    <option value="sales_intern">Sales Intern</option>
+                    <option value="marketing_intern">Marketing Intern</option>
+                    <option value="operations">Operations</option>
                   </select>
                 </div>
                 <div className="module-form-group">

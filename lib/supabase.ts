@@ -26,39 +26,87 @@ export interface Employee {
   created_at: string;
 }
 
-// Role hierarchy (higher number = more access)
-export type EmployeeRole = 'intern' | 'member' | 'lead' | 'manager' | 'director' | 'cofounder' | 'founder';
+// Employee Role Types
+export type EmployeeRole = 
+  | 'founder' 
+  | 'cofounder' 
+  | 'growth_intern' 
+  | 'engineer' 
+  | 'sales_intern'
+  | 'marketing_intern'
+  | 'operations';
+
 export type EmployeeSeniority = 1 | 2 | 3 | 4 | 5;
 
 export const ROLE_HIERARCHY: Record<EmployeeRole, number> = {
-  intern: 1,
-  member: 2,
-  lead: 3,
-  manager: 4,
-  director: 5,
-  cofounder: 6,
-  founder: 7,
+  growth_intern: 1,
+  sales_intern: 1,
+  marketing_intern: 1,
+  engineer: 2,
+  operations: 3,
+  cofounder: 5,
+  founder: 6,
 };
 
 export const ROLE_LABELS: Record<EmployeeRole, string> = {
-  intern: 'Intern',
-  member: 'Team Member',
-  lead: 'Team Lead',
-  manager: 'Manager',
-  director: 'Director',
-  cofounder: 'Co-Founder',
   founder: 'Founder',
+  cofounder: 'Co-Founder',
+  growth_intern: 'Growth Intern',
+  engineer: 'Engineer',
+  sales_intern: 'Sales Intern',
+  marketing_intern: 'Marketing Intern',
+  operations: 'Operations',
 };
 
-// What each role can access
+// Specific permissions for each role
 export const ROLE_PERMISSIONS: Record<EmployeeRole, string[]> = {
-  intern: ['tasks', 'announcements', 'team'],
-  member: ['tasks', 'announcements', 'team', 'projects'],
-  lead: ['tasks', 'announcements', 'team', 'projects', 'reports'],
-  manager: ['tasks', 'announcements', 'team', 'projects', 'reports', 'pipeline'],
-  director: ['tasks', 'announcements', 'team', 'projects', 'reports', 'pipeline', 'customers'],
-  cofounder: ['nucleus'], // Full access to Nucleus
-  founder: ['nucleus'],   // Full access to Nucleus
+  // Founders - Full Nucleus access
+  founder: ['nucleus', 'all'],
+  cofounder: ['nucleus', 'all'],
+  
+  // Growth Intern - Alumni outreach, personal leads, alumni list
+  growth_intern: [
+    'tasks',
+    'personal_leads',      // Their own leads/contacts
+    'alumni_outreach',     // Alumni tracking
+    'alumni_list',         // View alumni list
+    'announcements',
+  ],
+  
+  // Engineer - Code tasks, product features, bugs
+  engineer: [
+    'tasks',
+    'product_tasks',       // Engineering tasks
+    'bugs',                // Bug tracking
+    'features',            // Feature requests
+    'announcements',
+    'team',
+  ],
+  
+  // Sales Intern - Pipeline, leads
+  sales_intern: [
+    'tasks',
+    'personal_leads',
+    'pipeline_view',       // View-only pipeline
+    'announcements',
+  ],
+  
+  // Marketing Intern - Content, social
+  marketing_intern: [
+    'tasks',
+    'content',
+    'social_tracking',
+    'announcements',
+  ],
+  
+  // Operations - Tasks, processes
+  operations: [
+    'tasks',
+    'operations',
+    'customers_view',
+    'announcements',
+    'team',
+  ],
 };
 
 export interface NetworkContact {
