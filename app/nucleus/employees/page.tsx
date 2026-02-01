@@ -58,10 +58,8 @@ export default function EmployeesModule() {
     setLoading(false);
   }
 
-  // Create employee with auth account
+  // Create employee with auth account via server API (bypasses email rate limits)
   async function createEmployee() {
-    if (!supabase) return;
-    
     // Validate email for auth
     if (!formData.email) {
       alert('Email is required to create an account');
@@ -73,45 +71,41 @@ export default function EmployeesModule() {
       return;
     }
 
-    // Step 1: Create Supabase Auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: password,
-      options: {
-        data: {
+    try {
+      const response = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: password,
           name: formData.name,
           role: formData.role,
+          seniority: formData.seniority,
+          department: formData.department,
+          status: formData.status,
+          start_date: formData.start_date,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        console.error('Error creating employee:', result.error);
+        if (result.error.code === '23505') {
+          alert('An employee with this email already exists');
+        } else {
+          alert(`Failed to create employee: ${result.error.message}`);
         }
+        return;
       }
-    });
 
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      alert(`Failed to create account: ${authError.message}`);
-      return;
-    }
-
-    // Step 2: Create employee record
-    const { error } = await supabase
-      .from('employees')
-      .insert([{
-        ...formData,
-        auth_user_id: authData.user?.id, // Link to auth user
-      }]);
-
-    if (error) {
+      // Show credentials to admin
+      setCreatedCredentials({ email: formData.email, password: password });
+      fetchEmployees();
+    } catch (error) {
       console.error('Error creating employee:', error);
-      if (error.code === '23505') {
-        alert('An employee with this email already exists');
-      } else {
-        alert(`Failed to create employee: ${error.message}`);
-      }
-      return;
+      alert('Failed to create employee. Please try again.');
     }
-
-    // Show credentials to admin
-    setCreatedCredentials({ email: formData.email, password: password });
-    fetchEmployees();
   }
 
   // Update employee
