@@ -1,10 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Network, Plus, Search, Filter, X, Trash2, Edit2, Phone, Mail, Linkedin, Calendar, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Network, Plus, Search, Filter, X, Trash2, Edit2, Phone, Mail, Linkedin, Calendar, Clock, Upload, FileText, Image, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, NetworkContact } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+
+// Parsed contact type for bulk upload preview
+interface ParsedContact {
+  name: string;
+  title?: string;
+  organization?: string;
+  phone?: string;
+  email?: string;
+  linkedin?: string;
+  notes?: string;
+  valid: boolean;
+  error?: string;
+}
 
 export default function FundraisingModule() {
   const [contacts, setContacts] = useState<NetworkContact[]>([]);
@@ -15,6 +28,24 @@ export default function FundraisingModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<NetworkContact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  
+  // Bulk upload state
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkUploadTab, setBulkUploadTab] = useState<'text' | 'image'>('text');
+  const [bulkText, setBulkText] = useState('');
+  const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
+  const [bulkDefaults, setBulkDefaults] = useState({
+    contact_type: 'other' as NetworkContact['contact_type'],
+    priority: 'warm' as NetworkContact['priority'],
+    stage: 'identified' as NetworkContact['stage'],
+  });
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [parsingImage, setParsingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     title: '',

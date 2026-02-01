@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -30,23 +30,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(true);
 
   useEffect(() => {
+    // Timeout fallback - if auth takes more than 5s, stop loading
+    const timeout = setTimeout(() => {
+      if (loadingRef.current) {
+        console.warn('Auth timeout - stopping loading');
+        setLoading(false);
+        loadingRef.current = false;
+      }
+    }, 5000);
+
     if (!supabase) {
+      console.log('No Supabase client - showing login');
       setLoading(false);
-      return;
+      loadingRef.current = false;
+      return () => clearTimeout(timeout);
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        clearTimeout(timeout);
+        
+        if (error) {
+          console.error('Session error:', error);
+          setLoading(false);
+          loadingRef.current = false;
+          return;
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        } else {
+          // No session = not logged in, show login
+          setLoading(false);
+          loadingRef.current = false;
+        }
+      })
+      .catch((err) => {
+        console.error('Auth error:', err);
         setLoading(false);
-      }
-    });
+        loadingRef.current = false;
+      });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -59,32 +89,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
           setLoading(false);
+          loadingRef.current = false;
         }
       }
     );
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
   async function fetchProfile(userId: string) {
-    if (!supabase) return;
-    
-    const { data, error } = await supabase
-      .from('admin_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching profile:', error);
-      // If no admin profile, user doesn't have nucleus access
-      setProfile(null);
-    } else {
-      setProfile(data);
+    if (!supabase) {
+      setLoading(false);
+      loadingRef.current = false;
+      return;
     }
+    
+    try {
+      const { data, error } = await supabase
+        .from('admin_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // Table might not exist or no profile - still allow login screen
+        setProfile(null);
+      } else {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+      setProfile(null);
+    }
+    
     setLoading(false);
+    loadingRef.current = false;
   }
 
   async function signIn(email: string, password: string) {
