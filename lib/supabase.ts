@@ -15,6 +15,7 @@ export { supabase };
 // Database Types
 export interface Employee {
   id: string;
+  auth_user_id?: string; // Links to Supabase Auth user
   name: string;
   email: string;
   role: EmployeeRole;

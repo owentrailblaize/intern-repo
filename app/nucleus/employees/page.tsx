@@ -1,10 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+
+// Generate a random password
+function generatePassword(length = 12): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 export default function EmployeesModule() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -13,6 +23,10 @@ export default function EmployeesModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,20 +58,60 @@ export default function EmployeesModule() {
     setLoading(false);
   }
 
-  // Create employee
+  // Create employee with auth account
   async function createEmployee() {
     if (!supabase) return;
+    
+    // Validate email for auth
+    if (!formData.email) {
+      alert('Email is required to create an account');
+      return;
+    }
+    
+    if (!password) {
+      alert('Password is required');
+      return;
+    }
+
+    // Step 1: Create Supabase Auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: password,
+      options: {
+        data: {
+          name: formData.name,
+          role: formData.role,
+        }
+      }
+    });
+
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      alert(`Failed to create account: ${authError.message}`);
+      return;
+    }
+
+    // Step 2: Create employee record
     const { error } = await supabase
       .from('employees')
-      .insert([formData]);
+      .insert([{
+        ...formData,
+        auth_user_id: authData.user?.id, // Link to auth user
+      }]);
 
     if (error) {
       console.error('Error creating employee:', error);
-      alert('Failed to create employee');
-    } else {
-      resetForm();
-      fetchEmployees();
+      if (error.code === '23505') {
+        alert('An employee with this email already exists');
+      } else {
+        alert(`Failed to create employee: ${error.message}`);
+      }
+      return;
     }
+
+    // Show credentials to admin
+    setCreatedCredentials({ email: formData.email, password: password });
+    fetchEmployees();
   }
 
   // Update employee
@@ -71,7 +125,11 @@ export default function EmployeesModule() {
 
     if (error) {
       console.error('Error updating employee:', error);
-      alert('Failed to update employee');
+      if (error.code === '23505') {
+        alert('An employee with this email already exists');
+      } else {
+        alert(`Failed to update employee: ${error.message}`);
+      }
     } else {
       resetForm();
       fetchEmployees();
@@ -106,8 +164,29 @@ export default function EmployeesModule() {
       status: 'onboarding',
       start_date: new Date().toISOString().split('T')[0],
     });
+    setPassword('');
+    setShowPassword(false);
+    setCopied(false);
     setEditingEmployee(null);
     setShowModal(false);
+  }
+
+  function handleGeneratePassword() {
+    const newPassword = generatePassword();
+    setPassword(newPassword);
+  }
+
+  function copyCredentials() {
+    if (createdCredentials) {
+      navigator.clipboard.writeText(`Email: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  function closeCredentialsModal() {
+    setCreatedCredentials(null);
+    resetForm();
   }
 
   function openEditModal(employee: Employee) {
@@ -286,15 +365,46 @@ export default function EmployeesModule() {
                   />
                 </div>
                 <div className="module-form-group">
-                  <label>Email</label>
+                  <label>Email *</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="email@trailblaize.net"
+                    disabled={!!editingEmployee}
                   />
                 </div>
               </div>
+              {!editingEmployee && (
+                <div className="module-form-group">
+                  <label>Password *</label>
+                  <div className="password-input-group">
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter or generate password"
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="password-generate-btn"
+                      onClick={handleGeneratePassword}
+                    >
+                      <RefreshCw size={16} />
+                      Generate
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="module-form-row">
                 <div className="module-form-group">
                   <label>Role *</label>
@@ -383,6 +493,44 @@ export default function EmployeesModule() {
         onConfirm={() => deleteConfirm.id && deleteEmployee(deleteConfirm.id)}
         onCancel={() => setDeleteConfirm({ show: false, id: null })}
       />
+
+      {/* Created Credentials Modal */}
+      {createdCredentials && (
+        <div className="module-modal-overlay" onClick={closeCredentialsModal}>
+          <div className="module-modal credentials-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>✅ Employee Created</h2>
+              <button className="module-modal-close" onClick={closeCredentialsModal}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <p className="credentials-note">
+                Save these credentials - the password won't be shown again!
+              </p>
+              <div className="credentials-box">
+                <div className="credential-row">
+                  <span className="credential-label">Email:</span>
+                  <span className="credential-value">{createdCredentials.email}</span>
+                </div>
+                <div className="credential-row">
+                  <span className="credential-label">Password:</span>
+                  <span className="credential-value">{createdCredentials.password}</span>
+                </div>
+              </div>
+              <button className="copy-credentials-btn" onClick={copyCredentials}>
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? 'Copied!' : 'Copy Credentials'}
+              </button>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-primary-btn" onClick={closeCredentialsModal}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

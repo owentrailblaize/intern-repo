@@ -3116,3 +3116,124 @@ input:focus {
 .nucleus-logout-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* ===== PASSWORD INPUT & CREDENTIALS ===== */
+.password-input-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.password-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle-btn:hover {
+  color: #6b7280;
+}
+
+.password-generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.password-generate-btn:hover {
+  background: #e5e7eb;
+}
+
+/* Credentials Modal */
+.credentials-modal {
+  max-width: 450px;
+}
+
+.credentials-note {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #92400e;
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+}
+
+.credentials-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.credential-row {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.credential-row:not(:last-child) {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.credential-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  min-width: 80px;
+}
+
+.credential-value {
+  font-family: monospace;
+  font-size: 0.95rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.copy-credentials-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: #1a2744;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-credentials-btn:hover {
+  background: #0f172a;
+}
