@@ -8,16 +8,11 @@ interface UserProfile {
   id: string;
   email: string;
   name: string;
-  role: string; // 'admin' or employee roles like 'engineer', 'growth_intern', etc.
+  role: string; // Employee roles: 'founder', 'cofounder', 'growth_intern', 'engineer', etc.
   seniority: number;
   created_at: string;
-  isEmployee?: boolean; // true if from employees table
+  isEmployee: boolean; // Always true now - all users are employees
 }
-
-// Admin emails that always have access (fallback when admin_profiles table has issues)
-const ADMIN_EMAILS = [
-  'owen@trailblaize.net',
-];
 
 interface AuthContextType {
   user: User | null;
@@ -114,29 +109,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      console.log('Fetching profile for user_id:', userId, 'email:', userEmail);
+      console.log('Fetching employee profile for:', userEmail);
       
-      // First, check admin_profiles table
-      const { data: adminData, error: adminError } = await supabase
-        .from('admin_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (!adminError && adminData) {
-        console.log('Admin profile loaded:', adminData);
-        setProfile(adminData);
-        setLoading(false);
-        loadingRef.current = false;
-        return;
-      }
-
-      // If not in admin_profiles, check employees table
-      // RLS policy uses auth.jwt() ->> 'email' so both auth_user_id and email should work
-      console.log('Not in admin_profiles, checking employees table...');
       let employeeData = null;
       
-      // Try by auth_user_id first
+      // Try by auth_user_id first (primary method)
       const { data: byAuthId, error: authIdError } = await supabase
         .from('employees')
         .select('*')
@@ -145,15 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!authIdError && byAuthId) {
         employeeData = byAuthId;
-        console.log('Found employee by auth_user_id:', byAuthId);
+        console.log('Found employee by auth_user_id');
       } else {
-        // Log the error for debugging
+        // Log the error for debugging (PGRST116 = no rows returned, not an error)
         if (authIdError && authIdError.code !== 'PGRST116') {
-          console.log('auth_user_id lookup error:', authIdError.message, authIdError.code);
+          console.log('auth_user_id lookup issue:', authIdError.message);
         }
         
-        // Fallback: try by email
-        console.log('Not found by auth_user_id, trying email:', userEmail);
+        // Fallback: try by email (RLS allows this via JWT email)
+        console.log('Trying email lookup:', userEmail);
         const { data: byEmail, error: emailError } = await supabase
           .from('employees')
           .select('*')
@@ -162,27 +139,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (!emailError && byEmail) {
           employeeData = byEmail;
-          console.log('Found employee by email:', byEmail);
+          console.log('Found employee by email');
           
-          // Auto-link auth_user_id if not set (helpful for migration)
+          // Auto-link auth_user_id if not set (migration helper)
           if (!byEmail.auth_user_id) {
-            console.log('Linking auth_user_id to employee record...');
-            const { error: linkError } = await supabase
+            console.log('Auto-linking auth_user_id to employee record...');
+            await supabase
               .from('employees')
               .update({ auth_user_id: userId })
               .eq('id', byEmail.id);
-            
-            if (linkError) {
-              console.warn('Could not auto-link auth_user_id:', linkError.message);
-            }
           }
         } else if (emailError && emailError.code !== 'PGRST116') {
-          console.log('Email lookup error:', emailError.message, emailError.code);
+          console.log('Email lookup issue:', emailError.message);
         }
       }
 
       if (employeeData) {
-        console.log('Employee profile loaded:', employeeData);
+        console.log('Employee profile loaded:', employeeData.name, 'Role:', employeeData.role);
         const employeeProfile: UserProfile = {
           id: employeeData.id,
           email: employeeData.email,
@@ -193,48 +166,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isEmployee: true,
         };
         setProfile(employeeProfile);
-        setLoading(false);
-        loadingRef.current = false;
-        return;
-      }
-
-      console.log('Not found in employees either, checking fallbacks...');
-      
-      // Fallback: If user email is in admin list, create a virtual profile
-      if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-        console.log('Admin email detected, creating fallback profile');
-        const fallbackProfile: UserProfile = {
-          id: userId,
-          email: userEmail,
-          name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
-          role: 'admin',
-          seniority: 5,
-          created_at: new Date().toISOString(),
-        };
-        setProfile(fallbackProfile);
       } else {
-        // User exists in Auth but has no profile - likely needs to be added to employees
-        console.log('No profile found for user - user may need to be added to employees table');
+        // User exists in Auth but not in employees table
+        // This means they need to be added as an employee first
+        console.log('No employee record found for:', userEmail);
+        console.log('User needs to be added to employees table to access the system');
         setProfile(null);
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
-      
-      // Fallback for admin emails on catch
-      if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-        console.log('Admin email detected (catch), creating fallback profile');
-        const fallbackProfile: UserProfile = {
-          id: userId,
-          email: userEmail,
-          name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
-          role: 'admin',
-          seniority: 5,
-          created_at: new Date().toISOString(),
-        };
-        setProfile(fallbackProfile);
-      } else {
-        setProfile(null);
-      }
+      setProfile(null);
     }
     
     setLoading(false);
@@ -260,10 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
-  const isAdmin = profile?.role === 'admin' || 
-    profile?.role === 'founder' || 
-    profile?.role === 'cofounder' ||
-    ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '');
+  // Admin access is based on role from employee record
+  // Founders and Co-founders have full admin access to Nucleus
+  const isAdmin = profile?.role === 'founder' || profile?.role === 'cofounder';
 
   const value = {
     user,
