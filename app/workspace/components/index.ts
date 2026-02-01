@@ -7,6 +7,10 @@ export { TaskSection } from './TaskSection';
 export { LeadSection } from './LeadSection';
 export { TeamView, TeamList } from './TeamView';
 
+// Calendar-centric components
+export { CalendarHero } from './CalendarHero';
+export { SmartSuggestions } from './SmartSuggestions';
+
 // Google Integration
 export { GoogleCalendarWidget } from './GoogleCalendarWidget';
 export { GoogleGmailWidget } from './GoogleGmailWidget';

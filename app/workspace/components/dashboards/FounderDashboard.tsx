@@ -1,27 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Target,
   TrendingUp,
-  Calendar,
   Users,
   DollarSign,
   ChevronDown,
   ChevronUp,
-  BarChart3,
   Briefcase,
-  ArrowRight
+  ArrowRight,
+  Mail,
+  CheckSquare
 } from 'lucide-react';
 import { TaskSection } from '../TaskSection';
 import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
-import { MetricsCards } from '../MetricsCards';
 import { TeamView, TeamList } from '../TeamView';
-import { GoogleCalendarWidget } from '../GoogleCalendarWidget';
+import { CalendarHero } from '../CalendarHero';
+import { SmartSuggestions } from '../SmartSuggestions';
 import { GoogleGmailWidget } from '../GoogleGmailWidget';
-import { GoogleIntegrationCard } from '../GoogleIntegrationCard';
 import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
 import { useGoogleIntegration } from '../../hooks/useGoogleIntegration';
 import { Employee } from '@/lib/supabase';
@@ -33,7 +32,8 @@ interface FounderDashboardProps {
 
 /**
  * Founder Dashboard
- * Focus: Personal productivity FIRST, strategic oversight SECOND
+ * Calendar-centric, awareness-focused design
+ * Shows what's happening now and suggests contextual actions
  */
 export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
   const {
@@ -49,10 +49,40 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
     updateLeadStatus,
   } = data;
 
-  const [showTeamMetrics, setShowTeamMetrics] = useState(false);
+  const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
 
   // Google Integration
   const google = useGoogleIntegration(currentEmployee?.id);
+
+  // Calculate meeting context for smart suggestions
+  const meetingContext = useMemo(() => {
+    const now = Date.now();
+    
+    const currentEvent = google.calendarEvents.find(event => {
+      if (!event.start.dateTime || !event.end.dateTime) return false;
+      const start = new Date(event.start.dateTime).getTime();
+      const end = new Date(event.end.dateTime).getTime();
+      return now >= start && now <= end;
+    });
+
+    const nextEvent = google.calendarEvents.find(event => {
+      if (!event.start.dateTime) return false;
+      const start = new Date(event.start.dateTime).getTime();
+      return start > now;
+    });
+
+    let minutesUntilNext: number | null = null;
+    if (nextEvent?.start.dateTime) {
+      minutesUntilNext = Math.floor((new Date(nextEvent.start.dateTime).getTime() - now) / 60000);
+    }
+
+    return {
+      isInMeeting: !!currentEvent,
+      minutesUntilNext,
+      currentEvent,
+      nextEvent
+    };
+  }, [google.calendarEvents]);
 
   // Priority tasks for this week
   const thisWeekTasks = tasks.filter(t => {
@@ -63,14 +93,19 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
     return due <= nextWeek && t.status !== 'done';
   });
 
+  // Stats for smart suggestions
+  const suggestionStats = {
+    openTasks: thisWeekTasks.length,
+    overdueItems: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length,
+    unreadMessages: google.unreadCount,
+    activeLeads: leads.filter(l => l.status === 'active').length,
+    pendingFollowups: leads.filter(l => l.status === 'follow_up').length,
+  };
+
   return (
-    <div className="ws-dashboard ws-dashboard-founder">
+    <div className="ws-dashboard ws-dashboard-awareness">
       {/* Team Switcher (top-right, non-intrusive) */}
-      <div className="ws-founder-header">
-        <div className="ws-founder-greeting">
-          <h2>Personal Workspace</h2>
-          <p>Focus on your priorities. Team metrics are secondary.</p>
-        </div>
+      <div className="ws-awareness-header">
         <TeamView
           currentEmployee={currentEmployee}
           teamMembers={teamMembers}
@@ -79,148 +114,138 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
         />
       </div>
 
-      {/* Personal Metrics */}
-      <MetricsCards stats={stats} />
+      {/* Calendar Hero - The Focal Point */}
+      <CalendarHero
+        events={google.calendarEvents}
+        loading={google.calendarLoading}
+        connected={google.status?.connected || false}
+        onConnect={google.connect}
+        onRefresh={google.fetchCalendarEvents}
+      />
 
-      {/* Main Grid */}
-      <div className="ws-grid ws-grid-founder">
-        {/* Left Column - Personal Productivity */}
-        <div className="ws-col-main">
-          {/* Priority Tasks */}
-          <TaskSection
-            tasks={thisWeekTasks}
-            onToggleTask={toggleTask}
-            onCreateTask={createTask}
-            title="My Priority Tasks"
-            limit={6}
-          />
+      {/* Smart Suggestions - Contextual Actions */}
+      <SmartSuggestions
+        role="founder"
+        isInMeeting={meetingContext.isInMeeting}
+        minutesUntilNext={meetingContext.minutesUntilNext}
+        stats={suggestionStats}
+      />
 
-          {/* Active Leads/Deals */}
-          <LeadSection
-            leads={leads}
-            onCreateLead={createLead}
-            onUpdateStatus={updateLeadStatus}
-            title="My Active Leads"
-            limit={4}
-          />
-
-          {/* Strategic Initiatives */}
-          <section className="ws-card ws-strategic-card">
-            <div className="ws-card-header">
-              <h2>
-                <Briefcase size={18} />
-                Strategic Projects
-              </h2>
-              <Link href="/workspace/projects" className="ws-see-all">
-                See all
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-            <div className="ws-strategic-list">
-              <div className="ws-strategic-item">
-                <div className="ws-strategic-progress" style={{ '--progress': '65%' } as React.CSSProperties} />
-                <div className="ws-strategic-info">
-                  <span className="ws-strategic-title">Q1 Growth Targets</span>
-                  <span className="ws-strategic-meta">65% complete • Due Feb 28</span>
-                </div>
-              </div>
-              <div className="ws-strategic-item">
-                <div className="ws-strategic-progress" style={{ '--progress': '30%' } as React.CSSProperties} />
-                <div className="ws-strategic-info">
-                  <span className="ws-strategic-title">Enterprise Launch</span>
-                  <span className="ws-strategic-meta">30% complete • Due Mar 15</span>
-                </div>
-              </div>
-            </div>
-          </section>
+      {/* Quick Stats Bar */}
+      <div className="ws-quick-stats-bar">
+        <div className="ws-quick-stat">
+          <CheckSquare size={16} />
+          <span className="quick-stat-value">{thisWeekTasks.length}</span>
+          <span className="quick-stat-label">Tasks</span>
         </div>
-
-        {/* Right Column - Timer, Calendar, Gmail, Team Overview */}
-        <div className="ws-col-side">
-          {/* Google Integration Status */}
-          <GoogleIntegrationCard
-            status={google.status}
-            loading={google.loading}
-            onConnect={google.connect}
-            onDisconnect={google.disconnect}
-          />
-
-          {/* Focus Timer */}
-          <FocusTimer />
-
-          {/* Google Calendar */}
-          <GoogleCalendarWidget
-            events={google.calendarEvents}
-            loading={google.calendarLoading}
-            connected={google.status?.connected || false}
-            onConnect={google.connect}
-            onRefresh={google.fetchCalendarEvents}
-          />
-
-          {/* Google Gmail */}
-          <GoogleGmailWidget
-            emails={google.emails}
-            unreadCount={google.unreadCount}
-            loading={google.gmailLoading}
-            connected={google.status?.connected || false}
-            onConnect={google.connect}
-            onRefresh={google.fetchEmails}
-          />
-
-          {/* Team Performance (Collapsible) */}
-          <section className="ws-card ws-team-metrics-card">
-            <button 
-              className="ws-card-header ws-collapsible-header"
-              onClick={() => setShowTeamMetrics(!showTeamMetrics)}
-            >
-              <h3>
-                <Users size={16} />
-                Team Performance
-              </h3>
-              {showTeamMetrics ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-            
-            {showTeamMetrics && (
-              <div className="ws-team-metrics">
-                <div className="ws-team-metric">
-                  <div className="ws-team-metric-icon">
-                    <TrendingUp size={16} />
-                  </div>
-                  <div className="ws-team-metric-info">
-                    <span className="ws-team-metric-value">{teamMembers.length}</span>
-                    <span className="ws-team-metric-label">Active Members</span>
-                  </div>
-                </div>
-                <div className="ws-team-metric">
-                  <div className="ws-team-metric-icon">
-                    <Target size={16} />
-                  </div>
-                  <div className="ws-team-metric-info">
-                    <span className="ws-team-metric-value">87%</span>
-                    <span className="ws-team-metric-label">Task Completion</span>
-                  </div>
-                </div>
-                <div className="ws-team-metric">
-                  <div className="ws-team-metric-icon">
-                    <DollarSign size={16} />
-                  </div>
-                  <div className="ws-team-metric-info">
-                    <span className="ws-team-metric-value">12</span>
-                    <span className="ws-team-metric-label">Leads This Week</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <Link href="/nucleus" className="ws-card-link">
-              View Full Metrics in Nucleus
-              <ArrowRight size={14} />
-            </Link>
-          </section>
-
-          {/* Team List */}
-          <TeamList teamMembers={teamMembers} limit={4} />
+        <div className="ws-quick-stat">
+          <Mail size={16} />
+          <span className="quick-stat-value">{google.unreadCount}</span>
+          <span className="quick-stat-label">Unread</span>
         </div>
+        <div className="ws-quick-stat">
+          <Target size={16} />
+          <span className="quick-stat-value">{leads.length}</span>
+          <span className="quick-stat-label">Leads</span>
+        </div>
+        <div className="ws-quick-stat">
+          <Users size={16} />
+          <span className="quick-stat-value">{teamMembers.length}</span>
+          <span className="quick-stat-label">Team</span>
+        </div>
+        <div className="ws-quick-stats-spacer" />
+        <FocusTimer compact />
+      </div>
+
+      {/* Secondary Widgets - Collapsible */}
+      <div className="ws-secondary-section">
+        <button 
+          className="ws-secondary-toggle"
+          onClick={() => setShowSecondaryWidgets(!showSecondaryWidgets)}
+        >
+          <span>Details & Actions</span>
+          {showSecondaryWidgets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        {showSecondaryWidgets && (
+          <div className="ws-secondary-grid">
+            {/* Tasks */}
+            <div className="ws-secondary-widget">
+              <TaskSection
+                tasks={thisWeekTasks}
+                onToggleTask={toggleTask}
+                onCreateTask={createTask}
+                title="Priority Tasks"
+                limit={4}
+                compact
+              />
+            </div>
+
+            {/* Gmail */}
+            <div className="ws-secondary-widget">
+              <GoogleGmailWidget
+                emails={google.emails}
+                unreadCount={google.unreadCount}
+                loading={google.gmailLoading}
+                connected={google.status?.connected || false}
+                onConnect={google.connect}
+                onRefresh={google.fetchEmails}
+              />
+            </div>
+
+            {/* Leads */}
+            <div className="ws-secondary-widget">
+              <LeadSection
+                leads={leads}
+                onCreateLead={createLead}
+                onUpdateStatus={updateLeadStatus}
+                title="Active Leads"
+                limit={3}
+                compact
+              />
+            </div>
+
+            {/* Team */}
+            <div className="ws-secondary-widget">
+              <section className="ws-card ws-team-compact-card">
+                <div className="ws-card-header">
+                  <h3>
+                    <Users size={16} />
+                    Team
+                  </h3>
+                  <Link href="/workspace/team" className="ws-see-all">
+                    View all
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+                <div className="ws-team-avatars">
+                  {teamMembers.slice(0, 6).map((member, i) => (
+                    <div 
+                      key={member.id} 
+                      className="ws-team-avatar-small"
+                      style={{ 
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'][i % 6],
+                        zIndex: 6 - i
+                      }}
+                      title={member.name}
+                    >
+                      {member.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    </div>
+                  ))}
+                  {teamMembers.length > 6 && (
+                    <div className="ws-team-avatar-more">
+                      +{teamMembers.length - 6}
+                    </div>
+                  )}
+                </div>
+                <Link href="/nucleus" className="ws-card-link">
+                  Open Nucleus
+                  <ArrowRight size={14} />
+                </Link>
+              </section>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

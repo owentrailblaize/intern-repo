@@ -22,6 +22,7 @@ interface LeadSectionProps {
   title?: string;
   showAddButton?: boolean;
   limit?: number;
+  compact?: boolean;
 }
 
 export function LeadSection({
@@ -30,7 +31,8 @@ export function LeadSection({
   onUpdateStatus,
   title = 'My Leads',
   showAddButton = true,
-  limit = 4
+  limit = 4,
+  compact = false
 }: LeadSectionProps) {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [newLead, setNewLead] = useState({

@@ -22,6 +22,7 @@ interface TaskSectionProps {
   title?: string;
   showAddButton?: boolean;
   limit?: number;
+  compact?: boolean;
 }
 
 export function TaskSection({
@@ -30,7 +31,8 @@ export function TaskSection({
   onCreateTask,
   title = "Today's Tasks",
   showAddButton = true,
-  limit = 5
+  limit = 5,
+  compact = false
 }: TaskSectionProps) {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickTaskTitle, setQuickTaskTitle] = useState('');

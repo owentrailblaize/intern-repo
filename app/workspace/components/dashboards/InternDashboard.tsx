@@ -1,25 +1,29 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Zap,
   Send,
   UserPlus,
   CheckSquare,
-  MessageSquare,
   TrendingUp,
-  Star
+  Target,
+  Mail,
+  Phone,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+  Users
 } from 'lucide-react';
 import { TaskSection } from '../TaskSection';
 import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
-import { MetricsCards } from '../MetricsCards';
 import { TeamList } from '../TeamView';
-import { GoogleCalendarWidget } from '../GoogleCalendarWidget';
+import { CalendarHero } from '../CalendarHero';
+import { SmartSuggestions } from '../SmartSuggestions';
 import { GoogleGmailWidget } from '../GoogleGmailWidget';
-import { GoogleIntegrationCard } from '../GoogleIntegrationCard';
-import { UseWorkspaceDataReturn, WorkspaceStats } from '../../hooks/useWorkspaceData';
+import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
 import { useGoogleIntegration } from '../../hooks/useGoogleIntegration';
 import { Employee } from '@/lib/supabase';
 
@@ -30,7 +34,7 @@ interface InternDashboardProps {
 
 /**
  * Growth Intern Dashboard
- * Focus: Speed, collaboration, and productivity
+ * Calendar-centric design with focus on outreach and lead management
  */
 export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
   const {
@@ -44,17 +48,53 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
     updateLeadStatus
   } = data;
 
+  const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
+
   // Google Integration
   const google = useGoogleIntegration(currentEmployee?.id);
 
-  // Quick action handlers
-  const quickActions = [
-    { label: 'Add Task', icon: CheckSquare, onClick: () => {} }, // Will trigger task modal
-    { label: 'Add Lead', icon: UserPlus, href: '/workspace/leads?add=true' },
-    { label: 'Send Message', icon: Send, href: '/workspace/inbox?compose=true' },
-  ];
+  // Calculate meeting context for smart suggestions
+  const meetingContext = useMemo(() => {
+    const now = Date.now();
+    
+    const currentEvent = google.calendarEvents.find(event => {
+      if (!event.start.dateTime || !event.end.dateTime) return false;
+      const start = new Date(event.start.dateTime).getTime();
+      const end = new Date(event.end.dateTime).getTime();
+      return now >= start && now <= end;
+    });
 
-  // Calculate intern-specific stats
+    const nextEvent = google.calendarEvents.find(event => {
+      if (!event.start.dateTime) return false;
+      const start = new Date(event.start.dateTime).getTime();
+      return start > now;
+    });
+
+    let minutesUntilNext: number | null = null;
+    if (nextEvent?.start.dateTime) {
+      minutesUntilNext = Math.floor((new Date(nextEvent.start.dateTime).getTime() - now) / 60000);
+    }
+
+    return {
+      isInMeeting: !!currentEvent,
+      minutesUntilNext,
+    };
+  }, [google.calendarEvents]);
+
+  // Intern-specific calculations
+  const activeTasks = tasks.filter(t => t.status !== 'done');
+  const activeLeads = leads.filter(l => !['converted', 'lost'].includes(l.status));
+  
+  // Stats for smart suggestions
+  const suggestionStats = {
+    openTasks: activeTasks.length,
+    overdueItems: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length,
+    unreadMessages: google.unreadCount,
+    activeLeads: activeLeads.length,
+    pendingFollowups: leads.filter(l => l.status === 'contacted').length,
+  };
+
+  // Calculate weekly progress
   const thisWeekTasks = tasks.filter(t => {
     if (t.status !== 'done') return false;
     const completed = new Date(t.created_at);
@@ -63,125 +103,155 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
     return completed >= weekAgo;
   }).length;
 
-  return (
-    <div className="ws-dashboard ws-dashboard-intern">
-      {/* Metrics */}
-      <MetricsCards stats={stats} />
+  const thisWeekContacts = leads.filter(l => {
+    const created = new Date(l.created_at);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return created >= weekAgo;
+  }).length;
 
-      {/* Quick Actions - Prominent for speed */}
-      <div className="ws-quick-actions-bar">
-        <span className="ws-quick-actions-label">
-          <Zap size={14} />
-          Quick Actions
-        </span>
-        <div className="ws-quick-actions-buttons">
-          {quickActions.map((action) => (
-            action.href ? (
-              <Link 
-                key={action.label} 
-                href={action.href} 
-                className="ws-quick-action-btn"
-              >
-                <action.icon size={16} />
-                {action.label}
-              </Link>
-            ) : (
-              <button 
-                key={action.label} 
-                className="ws-quick-action-btn"
-                onClick={action.onClick}
-              >
-                <action.icon size={16} />
-                {action.label}
-              </button>
-            )
-          ))}
+  return (
+    <div className="ws-dashboard ws-dashboard-awareness">
+      {/* Calendar Hero - The Focal Point */}
+      <CalendarHero
+        events={google.calendarEvents}
+        loading={google.calendarLoading}
+        connected={google.status?.connected || false}
+        onConnect={google.connect}
+        onRefresh={google.fetchCalendarEvents}
+      />
+
+      {/* Smart Suggestions - Contextual Actions */}
+      <SmartSuggestions
+        role="growth_intern"
+        isInMeeting={meetingContext.isInMeeting}
+        minutesUntilNext={meetingContext.minutesUntilNext}
+        stats={suggestionStats}
+      />
+
+      {/* Quick Stats Bar */}
+      <div className="ws-quick-stats-bar">
+        <div className="ws-quick-stat">
+          <CheckSquare size={16} />
+          <span className="quick-stat-value">{activeTasks.length}</span>
+          <span className="quick-stat-label">Tasks</span>
         </div>
-        <div className="ws-keyboard-hint">
-          <kbd>⌘K</kbd> to search
+        <div className="ws-quick-stat">
+          <Target size={16} />
+          <span className="quick-stat-value">{activeLeads.length}</span>
+          <span className="quick-stat-label">Leads</span>
         </div>
+        <div className="ws-quick-stat">
+          <Phone size={16} />
+          <span className="quick-stat-value">{thisWeekContacts}</span>
+          <span className="quick-stat-label">Contacted</span>
+        </div>
+        <div className="ws-quick-stat">
+          <Mail size={16} />
+          <span className="quick-stat-value">{google.unreadCount}</span>
+          <span className="quick-stat-label">Unread</span>
+        </div>
+        <div className="ws-quick-stats-spacer" />
+        <FocusTimer compact />
       </div>
 
-      {/* Main Grid */}
-      <div className="ws-grid ws-grid-intern">
-        {/* Left Column - Tasks and Leads */}
-        <div className="ws-col-main">
-          {/* Priority Tasks - Top 5 */}
-          <TaskSection
-            tasks={tasks}
-            onToggleTask={toggleTask}
-            onCreateTask={createTask}
-            title="Priority Tasks"
-            limit={5}
-          />
+      {/* Secondary Widgets - Collapsible */}
+      <div className="ws-secondary-section">
+        <button 
+          className="ws-secondary-toggle"
+          onClick={() => setShowSecondaryWidgets(!showSecondaryWidgets)}
+        >
+          <span>Details & Actions</span>
+          {showSecondaryWidgets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
 
-          {/* Leads / Alumni Outreach */}
-          <LeadSection
-            leads={leads}
-            onCreateLead={createLead}
-            onUpdateStatus={updateLeadStatus}
-            title="🎯 Alumni Outreach"
-            limit={4}
-          />
-        </div>
-
-        {/* Right Column - Google, Timer, Activity, Team */}
-        <div className="ws-col-side">
-          {/* Google Integration Status */}
-          <GoogleIntegrationCard
-            status={google.status}
-            loading={google.loading}
-            onConnect={google.connect}
-            onDisconnect={google.disconnect}
-          />
-
-          {/* Focus Timer - Prominent */}
-          <FocusTimer />
-
-          {/* Google Calendar */}
-          <GoogleCalendarWidget
-            events={google.calendarEvents}
-            loading={google.calendarLoading}
-            connected={google.status?.connected || false}
-            onConnect={google.connect}
-            onRefresh={google.fetchCalendarEvents}
-          />
-
-          {/* Google Gmail */}
-          <GoogleGmailWidget
-            emails={google.emails}
-            unreadCount={google.unreadCount}
-            loading={google.gmailLoading}
-            connected={google.status?.connected || false}
-            onConnect={google.connect}
-            onRefresh={google.fetchEmails}
-          />
-
-          {/* Weekly Progress */}
-          <section className="ws-card ws-progress-card">
-            <div className="ws-card-header">
-              <h3>
-                <TrendingUp size={16} />
-                This Week
-              </h3>
+        {showSecondaryWidgets && (
+          <div className="ws-secondary-grid">
+            {/* Priority Tasks */}
+            <div className="ws-secondary-widget">
+              <TaskSection
+                tasks={activeTasks}
+                onToggleTask={toggleTask}
+                onCreateTask={createTask}
+                title="Priority Tasks"
+                limit={4}
+                compact
+              />
             </div>
-            <div className="ws-progress-stats">
-              <div className="ws-progress-stat">
-                <span className="ws-progress-value">{thisWeekTasks}</span>
-                <span className="ws-progress-label">Tasks Completed</span>
-              </div>
-              <div className="ws-progress-stat">
-                <span className="ws-progress-value">
-                  {leads.filter(l => l.status === 'contacted').length}
-                </span>
-                <span className="ws-progress-label">Contacts Made</span>
-              </div>
-            </div>
-          </section>
 
-          {/* Team */}
-          <TeamList teamMembers={teamMembers} limit={3} />
-        </div>
+            {/* Gmail */}
+            <div className="ws-secondary-widget">
+              <GoogleGmailWidget
+                emails={google.emails}
+                unreadCount={google.unreadCount}
+                loading={google.gmailLoading}
+                connected={google.status?.connected || false}
+                onConnect={google.connect}
+                onRefresh={google.fetchEmails}
+              />
+            </div>
+
+            {/* Alumni Outreach */}
+            <div className="ws-secondary-widget">
+              <LeadSection
+                leads={activeLeads}
+                onCreateLead={createLead}
+                onUpdateStatus={updateLeadStatus}
+                title="Alumni Outreach"
+                limit={3}
+                compact
+              />
+            </div>
+
+            {/* Weekly Progress */}
+            <div className="ws-secondary-widget">
+              <section className="ws-card ws-progress-card">
+                <div className="ws-card-header">
+                  <h3>
+                    <TrendingUp size={16} />
+                    This Week
+                  </h3>
+                </div>
+                <div className="ws-progress-stats">
+                  <div className="ws-progress-stat">
+                    <span className="ws-progress-value">{thisWeekTasks}</span>
+                    <span className="ws-progress-label">Tasks Done</span>
+                  </div>
+                  <div className="ws-progress-stat">
+                    <span className="ws-progress-value">{thisWeekContacts}</span>
+                    <span className="ws-progress-label">Contacts Made</span>
+                  </div>
+                </div>
+                
+                {/* Team Preview */}
+                <div className="ws-team-avatars" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--ws-border)' }}>
+                  {teamMembers.slice(0, 5).map((member, i) => (
+                    <div 
+                      key={member.id} 
+                      className="ws-team-avatar-small"
+                      style={{ 
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'][i % 5],
+                        zIndex: 5 - i
+                      }}
+                      title={member.name}
+                    >
+                      {member.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    </div>
+                  ))}
+                  {teamMembers.length > 5 && (
+                    <div className="ws-team-avatar-more">
+                      +{teamMembers.length - 5}
+                    </div>
+                  )}
+                </div>
+                <Link href="/workspace/team" className="ws-card-link">
+                  View Team
+                  <ArrowRight size={14} />
+                </Link>
+              </section>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
