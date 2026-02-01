@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, Employee } from '@/lib/supabase';
+import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 
 export default function EmployeesModule() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -14,7 +14,9 @@ export default function EmployeesModule() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: '',
+    role: 'intern' as EmployeeRole,
+    seniority: 1 as 1 | 2 | 3 | 4 | 5,
+    department: '',
     status: 'onboarding' as Employee['status'],
     start_date: new Date().toISOString().split('T')[0],
   });
@@ -96,7 +98,9 @@ export default function EmployeesModule() {
     setFormData({
       name: '',
       email: '',
-      role: '',
+      role: 'intern',
+      seniority: 1,
+      department: '',
       status: 'onboarding',
       start_date: new Date().toISOString().split('T')[0],
     });
@@ -109,7 +113,9 @@ export default function EmployeesModule() {
     setFormData({
       name: employee.name,
       email: employee.email || '',
-      role: employee.role,
+      role: employee.role || 'intern',
+      seniority: employee.seniority || 1,
+      department: employee.department || '',
       status: employee.status,
       start_date: employee.start_date,
     });
@@ -220,13 +226,20 @@ export default function EmployeesModule() {
                   <tr key={employee.id}>
                     <td className="module-table-name">{employee.name}</td>
                     <td>{employee.email}</td>
-                    <td>{employee.role}</td>
+                    <td>
+                      <span className={`employee-role ${employee.role}`}>
+                        {ROLE_LABELS[employee.role] || employee.role}
+                      </span>
+                    </td>
                     <td>
                       <span className={`module-status ${employee.status}`}>{employee.status}</span>
                     </td>
                     <td>{employee.start_date}</td>
                     <td>
                       <div className="module-table-actions">
+                        <Link href="/workspace" className="module-table-action" title="View Workspace">
+                          <ExternalLink size={14} />
+                        </Link>
                         <button className="module-table-action" onClick={() => openEditModal(employee)}>
                           <Edit2 size={14} />
                         </button>
@@ -260,43 +273,77 @@ export default function EmployeesModule() {
               </button>
             </div>
             <div className="module-modal-body">
-              <div className="module-form-group">
-                <label>Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter name"
-                />
+              <div className="module-form-row">
+                <div className="module-form-group">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Full name"
+                  />
+                </div>
+                <div className="module-form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="email@trailblaize.net"
+                  />
+                </div>
               </div>
-              <div className="module-form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Enter email"
-                />
+              <div className="module-form-row">
+                <div className="module-form-group">
+                  <label>Role *</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as EmployeeRole })}
+                  >
+                    <option value="intern">Intern</option>
+                    <option value="member">Team Member</option>
+                    <option value="lead">Team Lead</option>
+                    <option value="manager">Manager</option>
+                    <option value="director">Director</option>
+                    <option value="cofounder">Co-Founder</option>
+                    <option value="founder">Founder</option>
+                  </select>
+                </div>
+                <div className="module-form-group">
+                  <label>Seniority Level</label>
+                  <select
+                    value={formData.seniority}
+                    onChange={(e) => setFormData({ ...formData, seniority: parseInt(e.target.value) as 1|2|3|4|5 })}
+                  >
+                    <option value={1}>1 - Entry</option>
+                    <option value={2}>2 - Junior</option>
+                    <option value={3}>3 - Mid</option>
+                    <option value={4}>4 - Senior</option>
+                    <option value={5}>5 - Principal</option>
+                  </select>
+                </div>
               </div>
-              <div className="module-form-group">
-                <label>Role *</label>
-                <input
-                  type="text"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  placeholder="e.g. Software Engineer"
-                />
-              </div>
-              <div className="module-form-group">
-                <label>Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Employee['status'] })}
-                >
-                  <option value="onboarding">Onboarding</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              <div className="module-form-row">
+                <div className="module-form-group">
+                  <label>Department</label>
+                  <input
+                    type="text"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    placeholder="e.g. Engineering, Sales"
+                  />
+                </div>
+                <div className="module-form-group">
+                  <label>Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as Employee['status'] })}
+                  >
+                    <option value="onboarding">Onboarding</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
               <div className="module-form-group">
                 <label>Start Date</label>
@@ -314,7 +361,7 @@ export default function EmployeesModule() {
               <button
                 className="module-primary-btn"
                 onClick={editingEmployee ? updateEmployee : createEmployee}
-                disabled={!formData.name || !formData.role}
+                disabled={!formData.name}
               >
                 {editingEmployee ? 'Update' : 'Create'}
               </button>

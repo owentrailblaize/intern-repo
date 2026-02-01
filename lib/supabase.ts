@@ -17,11 +17,49 @@ export interface Employee {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: EmployeeRole;
+  seniority: EmployeeSeniority;
+  department: string;
   status: 'active' | 'onboarding' | 'inactive';
   start_date: string;
+  avatar_url: string;
   created_at: string;
 }
+
+// Role hierarchy (higher number = more access)
+export type EmployeeRole = 'intern' | 'member' | 'lead' | 'manager' | 'director' | 'cofounder' | 'founder';
+export type EmployeeSeniority = 1 | 2 | 3 | 4 | 5;
+
+export const ROLE_HIERARCHY: Record<EmployeeRole, number> = {
+  intern: 1,
+  member: 2,
+  lead: 3,
+  manager: 4,
+  director: 5,
+  cofounder: 6,
+  founder: 7,
+};
+
+export const ROLE_LABELS: Record<EmployeeRole, string> = {
+  intern: 'Intern',
+  member: 'Team Member',
+  lead: 'Team Lead',
+  manager: 'Manager',
+  director: 'Director',
+  cofounder: 'Co-Founder',
+  founder: 'Founder',
+};
+
+// What each role can access
+export const ROLE_PERMISSIONS: Record<EmployeeRole, string[]> = {
+  intern: ['tasks', 'announcements', 'team'],
+  member: ['tasks', 'announcements', 'team', 'projects'],
+  lead: ['tasks', 'announcements', 'team', 'projects', 'reports'],
+  manager: ['tasks', 'announcements', 'team', 'projects', 'reports', 'pipeline'],
+  director: ['tasks', 'announcements', 'team', 'projects', 'reports', 'pipeline', 'customers'],
+  cofounder: ['nucleus'], // Full access to Nucleus
+  founder: ['nucleus'],   // Full access to Nucleus
+};
 
 export interface NetworkContact {
   id: string;
