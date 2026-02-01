@@ -1,9 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create client only if credentials are available
+let supabase: SupabaseClient | null = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+export { supabase };
 
 // Database Types
 export interface Employee {
@@ -16,16 +23,44 @@ export interface Employee {
   created_at: string;
 }
 
-export interface FundraisingContact {
+export interface NetworkContact {
   id: string;
   name: string;
-  firm: string;
+  title: string;
+  organization: string;
+  phone: string;
   email: string;
-  stage: 'outreach' | 'meeting_set' | 'in_conversation' | 'committed' | 'passed';
+  linkedin: string;
+  contact_type: 'investor' | 'angel' | 'vc' | 'partnership' | 'competitor' | 'connector' | 'ifc_president' | 'ifc_advisor' | 'greek_life' | 'consultant' | 'other';
+  priority: 'hot' | 'warm' | 'cold';
+  stage: 'identified' | 'researching' | 'outreach_pending' | 'first_contact' | 'follow_up' | 'in_conversation' | 'meeting_scheduled' | 'met' | 'nurturing' | 'committed' | 'passed' | 'dormant';
+  first_contact_date: string;
+  last_contact_date: string;
+  next_followup_date: string;
+  followup_count: number;
+  potential_value: string;
+  how_they_can_help: string;
+  how_we_met: string;
+  referred_by: string;
   notes: string;
-  last_contact: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactFollowup {
+  id: string;
+  contact_id: string;
+  followup_type: 'email' | 'call' | 'meeting' | 'text' | 'linkedin' | 'other';
+  summary: string;
+  outcome: string;
+  next_action: string;
+  followup_date: string;
   created_at: string;
 }
+
+// Legacy alias for backwards compatibility
+export type FundraisingContact = NetworkContact;
 
 export interface Deal {
   id: string;

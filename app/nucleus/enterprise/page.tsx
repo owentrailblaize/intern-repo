@@ -27,6 +27,7 @@ export default function EnterpriseModule() {
   }, []);
 
   async function fetchContracts() {
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('enterprise_contracts')
@@ -43,6 +44,7 @@ export default function EnterpriseModule() {
 
   // Create contract
   async function createContract() {
+    if (!supabase) return;
     const { error } = await supabase
       .from('enterprise_contracts')
       .insert([formData]);
@@ -58,7 +60,7 @@ export default function EnterpriseModule() {
 
   // Update contract
   async function updateContract() {
-    if (!editingContract) return;
+    if (!supabase || !editingContract) return;
 
     const { error } = await supabase
       .from('enterprise_contracts')
@@ -76,6 +78,7 @@ export default function EnterpriseModule() {
 
   // Delete contract
   async function deleteContract(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this contract?')) return;
 
     const { error } = await supabase

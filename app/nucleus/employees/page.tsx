@@ -25,6 +25,7 @@ export default function EmployeesModule() {
   }, []);
 
   async function fetchEmployees() {
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('employees')
@@ -41,6 +42,7 @@ export default function EmployeesModule() {
 
   // Create employee
   async function createEmployee() {
+    if (!supabase) return;
     const { error } = await supabase
       .from('employees')
       .insert([formData]);
@@ -56,7 +58,7 @@ export default function EmployeesModule() {
 
   // Update employee
   async function updateEmployee() {
-    if (!editingEmployee) return;
+    if (!supabase || !editingEmployee) return;
 
     const { error } = await supabase
       .from('employees')
@@ -74,6 +76,7 @@ export default function EmployeesModule() {
 
   // Delete employee
   async function deleteEmployee(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this employee?')) return;
 
     const { error } = await supabase

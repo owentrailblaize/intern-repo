@@ -27,6 +27,7 @@ export default function PipelineModule() {
   }, []);
 
   async function fetchDeals() {
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('deals')
@@ -43,6 +44,7 @@ export default function PipelineModule() {
 
   // Create deal
   async function createDeal() {
+    if (!supabase) return;
     const { error } = await supabase
       .from('deals')
       .insert([formData]);
@@ -58,7 +60,7 @@ export default function PipelineModule() {
 
   // Update deal
   async function updateDeal() {
-    if (!editingDeal) return;
+    if (!supabase || !editingDeal) return;
 
     const { error } = await supabase
       .from('deals')
@@ -76,6 +78,7 @@ export default function PipelineModule() {
 
   // Delete deal
   async function deleteDeal(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this deal?')) return;
 
     const { error } = await supabase

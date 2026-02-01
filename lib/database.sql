@@ -12,15 +12,63 @@ CREATE TABLE IF NOT EXISTS employees (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Fundraising Contacts Table
-CREATE TABLE IF NOT EXISTS fundraising_contacts (
+-- Network Contacts Table (Enhanced Fundraising & Networking)
+DROP TABLE IF EXISTS fundraising_contacts;
+CREATE TABLE IF NOT EXISTS network_contacts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
-  firm TEXT,
+  title TEXT,
+  organization TEXT,
+  phone TEXT,
   email TEXT,
-  stage TEXT DEFAULT 'outreach' CHECK (stage IN ('outreach', 'meeting_set', 'in_conversation', 'committed', 'passed')),
+  linkedin TEXT,
+  
+  -- Contact Type & Priority
+  contact_type TEXT DEFAULT 'other' CHECK (contact_type IN (
+    'investor', 'angel', 'vc', 
+    'partnership', 'competitor',
+    'connector', 'ifc_president', 'ifc_advisor', 
+    'greek_life', 'consultant', 'other'
+  )),
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('hot', 'warm', 'cold')),
+  
+  -- Relationship Stage
+  stage TEXT DEFAULT 'identified' CHECK (stage IN (
+    'identified', 'researching', 'outreach_pending',
+    'first_contact', 'follow_up', 'in_conversation', 
+    'meeting_scheduled', 'met', 'nurturing',
+    'committed', 'passed', 'dormant'
+  )),
+  
+  -- Tracking
+  first_contact_date DATE,
+  last_contact_date DATE,
+  next_followup_date DATE,
+  followup_count INTEGER DEFAULT 0,
+  
+  -- Value & Context
+  potential_value TEXT,
+  how_they_can_help TEXT,
+  how_we_met TEXT,
+  referred_by TEXT,
+  
+  -- Notes & Tags
   notes TEXT,
-  last_contact DATE DEFAULT CURRENT_DATE,
+  tags TEXT[], -- Array for flexible tagging
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Follow-up Log Table (Track all touchpoints)
+CREATE TABLE IF NOT EXISTS contact_followups (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id UUID REFERENCES network_contacts(id) ON DELETE CASCADE,
+  followup_type TEXT CHECK (followup_type IN ('email', 'call', 'meeting', 'text', 'linkedin', 'other')),
+  summary TEXT,
+  outcome TEXT,
+  next_action TEXT,
+  followup_date DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -75,17 +123,30 @@ CREATE TABLE IF NOT EXISTS enterprise_contracts (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security (optional, for production)
--- ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE fundraising_contacts ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE enterprise_contracts ENABLE ROW LEVEL SECURITY;
-
 -- Create indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
+CREATE INDEX IF NOT EXISTS idx_network_contacts_type ON network_contacts(contact_type);
+CREATE INDEX IF NOT EXISTS idx_network_contacts_stage ON network_contacts(stage);
+CREATE INDEX IF NOT EXISTS idx_network_contacts_priority ON network_contacts(priority);
+CREATE INDEX IF NOT EXISTS idx_network_contacts_next_followup ON network_contacts(next_followup_date);
+CREATE INDEX IF NOT EXISTS idx_contact_followups_contact ON contact_followups(contact_id);
 CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_customers_stage ON customers(stage);
 CREATE INDEX IF NOT EXISTS idx_enterprise_stage ON enterprise_contracts(stage);
+
+-- Function to auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Trigger for network_contacts
+DROP TRIGGER IF EXISTS update_network_contacts_updated_at ON network_contacts;
+CREATE TRIGGER update_network_contacts_updated_at
+    BEFORE UPDATE ON network_contacts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

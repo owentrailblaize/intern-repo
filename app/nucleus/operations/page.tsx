@@ -26,6 +26,7 @@ export default function OperationsModule() {
   }, []);
 
   async function fetchTasks() {
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('tasks')
@@ -42,6 +43,7 @@ export default function OperationsModule() {
 
   // Create task
   async function createTask() {
+    if (!supabase) return;
     const { error } = await supabase
       .from('tasks')
       .insert([formData]);
@@ -57,7 +59,7 @@ export default function OperationsModule() {
 
   // Update task
   async function updateTask() {
-    if (!editingTask) return;
+    if (!supabase || !editingTask) return;
 
     const { error } = await supabase
       .from('tasks')
@@ -75,6 +77,7 @@ export default function OperationsModule() {
 
   // Quick complete task
   async function toggleTaskComplete(task: Task) {
+    if (!supabase) return;
     const newStatus = task.status === 'done' ? 'todo' : 'done';
     const { error } = await supabase
       .from('tasks')
@@ -90,6 +93,7 @@ export default function OperationsModule() {
 
   // Delete task
   async function deleteTask(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this task?')) return;
 
     const { error } = await supabase

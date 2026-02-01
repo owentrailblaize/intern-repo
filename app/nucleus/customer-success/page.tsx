@@ -27,6 +27,7 @@ export default function CustomerSuccessModule() {
   }, []);
 
   async function fetchCustomers() {
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('customers')
@@ -43,6 +44,7 @@ export default function CustomerSuccessModule() {
 
   // Create customer
   async function createCustomer() {
+    if (!supabase) return;
     const { error } = await supabase
       .from('customers')
       .insert([formData]);
@@ -58,7 +60,7 @@ export default function CustomerSuccessModule() {
 
   // Update customer
   async function updateCustomer() {
-    if (!editingCustomer) return;
+    if (!supabase || !editingCustomer) return;
 
     const { error } = await supabase
       .from('customers')
@@ -76,6 +78,7 @@ export default function CustomerSuccessModule() {
 
   // Delete customer
   async function deleteCustomer(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this customer?')) return;
 
     const { error } = await supabase
