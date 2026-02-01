@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          fetchProfile(session.user.id);
+          fetchProfile(session.user.id, session.user.email || '');
         } else {
           // No session = not logged in, show login
           setLoading(false);
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user.email || '');
         } else {
           setProfile(null);
           setLoading(false);
@@ -105,16 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(userId: string, userEmail: string) {
     if (!supabase) {
       setLoading(false);
       loadingRef.current = false;
       return;
     }
-    
-    // Get current user email for admin fallback
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const userEmail = currentUser?.email || '';
     
     try {
       console.log('Fetching profile for user_id:', userId, 'email:', userEmail);
