@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function EmployeesModule() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -11,6 +12,7 @@ export default function EmployeesModule() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -79,7 +81,6 @@ export default function EmployeesModule() {
   // Delete employee
   async function deleteEmployee(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this employee?')) return;
 
     const { error } = await supabase
       .from('employees')
@@ -92,6 +93,7 @@ export default function EmployeesModule() {
     } else {
       fetchEmployees();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -243,7 +245,7 @@ export default function EmployeesModule() {
                         <button className="module-table-action" onClick={() => openEditModal(employee)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="module-table-action delete" onClick={() => deleteEmployee(employee.id)}>
+                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: employee.id })}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -369,6 +371,18 @@ export default function EmployeesModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Employee"
+        message="Are you sure you want to delete this employee? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteEmployee(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }

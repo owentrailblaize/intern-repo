@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Chapter, ONBOARDING_STEPS } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function CustomerSuccessModule() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -13,6 +14,7 @@ export default function CustomerSuccessModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     chapter_name: '',
     school: '',
@@ -129,7 +131,6 @@ export default function CustomerSuccessModule() {
 
   async function deleteChapter(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this chapter?')) return;
 
     const { error } = await supabase
       .from('chapters')
@@ -142,6 +143,7 @@ export default function CustomerSuccessModule() {
     } else {
       fetchChapters();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -348,7 +350,7 @@ export default function CustomerSuccessModule() {
                     <button className="module-table-action" onClick={() => openEditModal(chapter)}>
                       <Edit2 size={14} />
                     </button>
-                    <button className="module-table-action delete" onClick={() => deleteChapter(chapter.id)}>
+                    <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: chapter.id })}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -543,6 +545,18 @@ export default function CustomerSuccessModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Chapter"
+        message="Are you sure you want to delete this chapter? All onboarding progress will be lost."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteChapter(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }

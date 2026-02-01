@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Deal } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function PipelineModule() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -11,6 +12,7 @@ export default function PipelineModule() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     name: '',
     organization: '',
@@ -79,7 +81,6 @@ export default function PipelineModule() {
   // Delete deal
   async function deleteDeal(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this deal?')) return;
 
     const { error } = await supabase
       .from('deals')
@@ -92,6 +93,7 @@ export default function PipelineModule() {
     } else {
       fetchDeals();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -250,7 +252,7 @@ export default function PipelineModule() {
                         <button className="module-table-action" onClick={() => openEditModal(deal)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="module-table-action delete" onClick={() => deleteDeal(deal.id)}>
+                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: deal.id })}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -363,6 +365,18 @@ export default function PipelineModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Deal"
+        message="Are you sure you want to delete this deal from the pipeline?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteDeal(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }

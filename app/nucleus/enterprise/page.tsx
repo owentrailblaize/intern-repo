@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Building2, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, EnterpriseContract } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function EnterpriseModule() {
   const [contracts, setContracts] = useState<EnterpriseContract[]>([]);
@@ -11,6 +12,7 @@ export default function EnterpriseModule() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingContract, setEditingContract] = useState<EnterpriseContract | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     organization: '',
     type: 'other' as EnterpriseContract['type'],
@@ -79,7 +81,6 @@ export default function EnterpriseModule() {
   // Delete contract
   async function deleteContract(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this contract?')) return;
 
     const { error } = await supabase
       .from('enterprise_contracts')
@@ -92,6 +93,7 @@ export default function EnterpriseModule() {
     } else {
       fetchContracts();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -252,7 +254,7 @@ export default function EnterpriseModule() {
                         <button className="module-table-action" onClick={() => openEditModal(contract)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="module-table-action delete" onClick={() => deleteContract(contract.id)}>
+                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: contract.id })}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -368,6 +370,18 @@ export default function EnterpriseModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Contract"
+        message="Are you sure you want to delete this enterprise contract?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteContract(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }

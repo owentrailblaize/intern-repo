@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Network, Plus, Search, Filter, X, Trash2, Edit2, Phone, Mail, Linkedin, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, NetworkContact } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function FundraisingModule() {
   const [contacts, setContacts] = useState<NetworkContact[]>([]);
@@ -13,6 +14,7 @@ export default function FundraisingModule() {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<NetworkContact | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -143,7 +145,6 @@ export default function FundraisingModule() {
   // Delete contact
   async function deleteContact(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this contact?')) return;
 
     const { error } = await supabase
       .from('network_contacts')
@@ -156,6 +157,7 @@ export default function FundraisingModule() {
     } else {
       fetchContacts();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -419,7 +421,7 @@ export default function FundraisingModule() {
                         <button className="module-table-action" onClick={() => openEditModal(contact)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="module-table-action delete" onClick={() => deleteContact(contact.id)}>
+                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -624,6 +626,18 @@ export default function FundraisingModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Contact"
+        message="Are you sure you want to delete this contact? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteContact(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }

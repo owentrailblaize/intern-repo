@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckSquare, Plus, Search, Filter, X, Trash2, Edit2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Task } from '@/lib/supabase';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function OperationsModule() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -11,6 +12,7 @@ export default function OperationsModule() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -94,7 +96,6 @@ export default function OperationsModule() {
   // Delete task
   async function deleteTask(id: string) {
     if (!supabase) return;
-    if (!confirm('Are you sure you want to delete this task?')) return;
 
     const { error } = await supabase
       .from('tasks')
@@ -107,6 +108,7 @@ export default function OperationsModule() {
     } else {
       fetchTasks();
     }
+    setDeleteConfirm({ show: false, id: null });
   }
 
   function resetForm() {
@@ -272,7 +274,7 @@ export default function OperationsModule() {
                         <button className="module-table-action" onClick={() => openEditModal(task)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="module-table-action delete" onClick={() => deleteTask(task.id)}>
+                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: task.id })}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -375,6 +377,18 @@ export default function OperationsModule() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Task"
+        message="Are you sure you want to delete this task?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteTask(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
     </div>
   );
 }
