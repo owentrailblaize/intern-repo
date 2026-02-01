@@ -1,14 +1,25 @@
 'use client';
 
 import React from 'react';
-import { Users, UserPlus, TrendingUp, CheckSquare, ArrowRight } from 'lucide-react';
+import { 
+  Users, 
+  UserPlus, 
+  TrendingUp, 
+  CheckSquare, 
+  ArrowRight,
+  DollarSign,
+  School,
+  Handshake,
+  Building2,
+  Rocket
+} from 'lucide-react';
 
 export default function Nucleus() {
   const stats = [
-    { label: 'Active Employees', value: '—', icon: Users, change: null },
-    { label: 'New This Week', value: '—', icon: UserPlus, change: null },
-    { label: 'Pipeline Value', value: '—', icon: TrendingUp, change: null },
-    { label: 'Open Tasks', value: '—', icon: CheckSquare, change: null },
+    { label: 'ARR', value: '$17.9k', icon: DollarSign },
+    { label: 'MRR', value: '$1.5k', icon: TrendingUp },
+    { label: 'Schools', value: '5', icon: School },
+    { label: 'Users', value: '5.5k', icon: Users },
   ];
 
   const modules = [
@@ -20,9 +31,9 @@ export default function Nucleus() {
       color: '#3b82f6',
     },
     {
-      title: 'Contacts & Network',
-      description: 'Track valuable business connections and maintain relationship history.',
-      icon: UserPlus,
+      title: 'Fundraising & Network',
+      description: 'Build investor relationships, track outreach, and manage your fundraising pipeline.',
+      icon: Rocket,
       status: 'coming-soon',
       color: '#10b981',
     },
@@ -39,6 +50,20 @@ export default function Nucleus() {
       icon: CheckSquare,
       status: 'coming-soon',
       color: '#8b5cf6',
+    },
+    {
+      title: 'Customer Success',
+      description: 'Track the entire onboarding and customer success process from signup to expansion.',
+      icon: Handshake,
+      status: 'coming-soon',
+      color: '#ec4899',
+    },
+    {
+      title: 'Enterprise Contracts',
+      description: 'Manage enterprise deals with IFCs, national organizations, and large partnerships.',
+      icon: Building2,
+      status: 'coming-soon',
+      color: '#06b6d4',
     },
   ];
 
@@ -106,15 +131,23 @@ export default function Nucleus() {
           <div className="nucleus-actions-grid">
             <button className="nucleus-action-button" disabled>
               <UserPlus size={18} />
-              Add New Employee
+              Add Employee
             </button>
             <button className="nucleus-action-button" disabled>
-              <Users size={18} />
-              Add Contact
+              <Rocket size={18} />
+              Log Investor Contact
             </button>
             <button className="nucleus-action-button" disabled>
               <TrendingUp size={18} />
               Create Deal
+            </button>
+            <button className="nucleus-action-button" disabled>
+              <Building2 size={18} />
+              New Enterprise Lead
+            </button>
+            <button className="nucleus-action-button" disabled>
+              <Handshake size={18} />
+              Track Customer
             </button>
             <button className="nucleus-action-button" disabled>
               <CheckSquare size={18} />
