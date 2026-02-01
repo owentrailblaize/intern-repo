@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, profile, loading, isAdmin } = useAuth();
+  const { user, profile, loading, isAdmin, signOut } = useAuth();
 
   // Show loading state
   if (loading) {
@@ -30,18 +30,37 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     return <NucleusLogin />;
   }
 
-  // Authenticated but no admin profile - no nucleus access
+  // Authenticated but no profile found - account setup issue
   if (!profile) {
     return (
       <div className="nucleus-access-denied">
         <div className="nucleus-access-denied-content">
           <img src="/logo-icon.svg" alt="Trailblaize" className="nucleus-access-denied-logo" />
-          <h1>Access Denied</h1>
-          <p>You don't have permission to access Nucleus.</p>
+          <h1>Account Setup Required</h1>
+          <p className="nucleus-access-denied-message">
+            Your account exists but hasn&apos;t been fully set up yet.
+          </p>
+          <p className="nucleus-access-denied-hint">
+            Please contact your administrator to ensure your employee profile is properly configured.
+          </p>
           <p className="nucleus-access-denied-email">Signed in as: {user.email}</p>
-          <button onClick={() => window.location.href = '/workspace'} className="nucleus-access-denied-btn">
-            Go to Workspace
-          </button>
+          <div className="nucleus-access-denied-actions">
+            <button 
+              onClick={async () => {
+                await signOut();
+                window.location.href = '/nucleus';
+              }} 
+              className="nucleus-access-denied-btn secondary"
+            >
+              Sign Out
+            </button>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="nucleus-access-denied-btn"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );

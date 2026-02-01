@@ -121,41 +121,34 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE engineering_tasks ENABLE ROW LEVEL SECURITY;
 
 -- EMPLOYEES TABLE POLICIES
--- Users can view their own employee record (by auth_user_id or email)
+-- Users can view their own employee record (by auth_user_id or email from JWT)
+-- Using auth.jwt() ->> 'email' instead of subquery to auth.users for reliability
 CREATE POLICY "Users can view own employee record" ON employees
   FOR SELECT USING (
     auth_user_id = auth.uid() OR 
-    email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    email = (auth.jwt() ->> 'email')
   );
 
 -- Admins/Founders can view all employees
 CREATE POLICY "Admins can view all employees" ON employees
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM employees 
-      WHERE auth_user_id = auth.uid() 
-      AND role IN ('founder', 'cofounder')
-    ) OR
-    EXISTS (
       SELECT 1 FROM admin_profiles 
       WHERE user_id = auth.uid() 
       AND role = 'admin'
-    )
+    ) OR
+    auth_user_id = auth.uid() AND role IN ('founder', 'cofounder')
   );
 
 -- Admins can manage employees
 CREATE POLICY "Admins can manage employees" ON employees
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM employees 
-      WHERE auth_user_id = auth.uid() 
-      AND role IN ('founder', 'cofounder')
-    ) OR
-    EXISTS (
       SELECT 1 FROM admin_profiles 
       WHERE user_id = auth.uid() 
       AND role = 'admin'
-    )
+    ) OR
+    auth_user_id = auth.uid() AND role IN ('founder', 'cofounder')
   );
 
 -- EMPLOYEE_TASKS POLICIES
@@ -165,7 +158,7 @@ CREATE POLICY "Users can manage own tasks" ON employee_tasks
     employee_id IN (
       SELECT id FROM employees 
       WHERE auth_user_id = auth.uid() OR 
-      email = (SELECT email FROM auth.users WHERE id = auth.uid())
+      email = (auth.jwt() ->> 'email')
     )
   );
 
@@ -176,6 +169,11 @@ CREATE POLICY "Admins can view all tasks" ON employee_tasks
       SELECT 1 FROM employees 
       WHERE auth_user_id = auth.uid() 
       AND role IN ('founder', 'cofounder')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
     )
   );
 
@@ -186,7 +184,7 @@ CREATE POLICY "Users can manage own leads" ON personal_leads
     employee_id IN (
       SELECT id FROM employees 
       WHERE auth_user_id = auth.uid() OR 
-      email = (SELECT email FROM auth.users WHERE id = auth.uid())
+      email = (auth.jwt() ->> 'email')
     )
   );
 
@@ -196,7 +194,7 @@ CREATE POLICY "Users can view targeted announcements" ON announcements
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM employees 
-      WHERE (auth_user_id = auth.uid() OR email = (SELECT email FROM auth.users WHERE id = auth.uid()))
+      WHERE (auth_user_id = auth.uid() OR email = (auth.jwt() ->> 'email'))
       AND role = ANY(target_roles)
     )
   );
@@ -208,6 +206,11 @@ CREATE POLICY "Admins can manage announcements" ON announcements
       SELECT 1 FROM employees 
       WHERE auth_user_id = auth.uid() 
       AND role IN ('founder', 'cofounder')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
     )
   );
 
@@ -219,6 +222,11 @@ CREATE POLICY "Engineers can view engineering tasks" ON engineering_tasks
       SELECT 1 FROM employees 
       WHERE auth_user_id = auth.uid() 
       AND role IN ('founder', 'cofounder', 'engineer')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
     )
   );
 
@@ -229,5 +237,10 @@ CREATE POLICY "Admins can manage engineering tasks" ON engineering_tasks
       SELECT 1 FROM employees 
       WHERE auth_user_id = auth.uid() 
       AND role IN ('founder', 'cofounder')
+    ) OR
+    EXISTS (
+      SELECT 1 FROM admin_profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
     )
   );

@@ -131,7 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // If not in admin_profiles, check employees table by auth_user_id first
+      // If not in admin_profiles, check employees table
+      // RLS policy uses auth.jwt() ->> 'email' so both auth_user_id and email should work
       console.log('Not in admin_profiles, checking employees table...');
       let employeeData = null;
       
@@ -146,6 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         employeeData = byAuthId;
         console.log('Found employee by auth_user_id:', byAuthId);
       } else {
+        // Log the error for debugging
+        if (authIdError && authIdError.code !== 'PGRST116') {
+          console.log('auth_user_id lookup error:', authIdError.message, authIdError.code);
+        }
+        
         // Fallback: try by email
         console.log('Not found by auth_user_id, trying email:', userEmail);
         const { data: byEmail, error: emailError } = await supabase
@@ -161,11 +167,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Auto-link auth_user_id if not set (helpful for migration)
           if (!byEmail.auth_user_id) {
             console.log('Linking auth_user_id to employee record...');
-            await supabase
+            const { error: linkError } = await supabase
               .from('employees')
               .update({ auth_user_id: userId })
               .eq('id', byEmail.id);
+            
+            if (linkError) {
+              console.warn('Could not auto-link auth_user_id:', linkError.message);
+            }
           }
+        } else if (emailError && emailError.code !== 'PGRST116') {
+          console.log('Email lookup error:', emailError.message, emailError.code);
         }
       }
 
@@ -201,7 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setProfile(fallbackProfile);
       } else {
-        console.log('No profile found for user');
+        // User exists in Auth but has no profile - likely needs to be added to employees
+        console.log('No profile found for user - user may need to be added to employees table');
         setProfile(null);
       }
     } catch (err) {
