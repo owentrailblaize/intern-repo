@@ -19,7 +19,11 @@ import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
 import { MetricsCards } from '../MetricsCards';
 import { TeamView, TeamList } from '../TeamView';
+import { GoogleCalendarWidget } from '../GoogleCalendarWidget';
+import { GoogleGmailWidget } from '../GoogleGmailWidget';
+import { GoogleIntegrationCard } from '../GoogleIntegrationCard';
 import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
+import { useGoogleIntegration } from '../../hooks/useGoogleIntegration';
 import { Employee } from '@/lib/supabase';
 
 interface FounderDashboardProps {
@@ -46,6 +50,9 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
   } = data;
 
   const [showTeamMetrics, setShowTeamMetrics] = useState(false);
+
+  // Google Integration
+  const google = useGoogleIntegration(currentEmployee?.id);
 
   // Priority tasks for this week
   const thisWeekTasks = tasks.filter(t => {
@@ -128,34 +135,37 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
           </section>
         </div>
 
-        {/* Right Column - Timer, Calendar, Team Overview */}
+        {/* Right Column - Timer, Calendar, Gmail, Team Overview */}
         <div className="ws-col-side">
+          {/* Google Integration Status */}
+          <GoogleIntegrationCard
+            status={google.status}
+            loading={google.loading}
+            onConnect={google.connect}
+            onDisconnect={google.disconnect}
+          />
+
           {/* Focus Timer */}
           <FocusTimer />
 
-          {/* Calendar Overview */}
-          <section className="ws-card ws-calendar-card">
-            <div className="ws-card-header">
-              <h3>
-                <Calendar size={16} />
-                Today&apos;s Schedule
-              </h3>
-            </div>
-            <div className="ws-calendar-list">
-              <div className="ws-calendar-item">
-                <span className="ws-calendar-time">10:00</span>
-                <span className="ws-calendar-event">Team Standup</span>
-              </div>
-              <div className="ws-calendar-item">
-                <span className="ws-calendar-time">14:00</span>
-                <span className="ws-calendar-event">Investor Call</span>
-              </div>
-              <div className="ws-calendar-item">
-                <span className="ws-calendar-time">16:00</span>
-                <span className="ws-calendar-event">Product Review</span>
-              </div>
-            </div>
-          </section>
+          {/* Google Calendar */}
+          <GoogleCalendarWidget
+            events={google.calendarEvents}
+            loading={google.calendarLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchCalendarEvents}
+          />
+
+          {/* Google Gmail */}
+          <GoogleGmailWidget
+            emails={google.emails}
+            unreadCount={google.unreadCount}
+            loading={google.gmailLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchEmails}
+          />
 
           {/* Team Performance (Collapsible) */}
           <section className="ws-card ws-team-metrics-card">

@@ -7,6 +7,11 @@ export { TaskSection } from './TaskSection';
 export { LeadSection } from './LeadSection';
 export { TeamView, TeamList } from './TeamView';
 
+// Google Integration
+export { GoogleCalendarWidget } from './GoogleCalendarWidget';
+export { GoogleGmailWidget } from './GoogleGmailWidget';
+export { GoogleIntegrationCard } from './GoogleIntegrationCard';
+
 // Dashboard variants
 export { FounderDashboard } from './dashboards/FounderDashboard';
 export { EngineerDashboard } from './dashboards/EngineerDashboard';
