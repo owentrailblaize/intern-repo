@@ -1,0 +1,124 @@
+# Trailblaize Internal CRM - Cursor Rules
+
+## Project Overview
+
+Internal CRM platform for managing employees, operations, sales pipeline, onboarding processes, and business connections. Built for speed, reliability, and internal team use.
+
+## Core Principles
+
+- **Lean & Fast**: Prioritize performance and minimal dependencies
+- **No Hallucination**: Only implement features explicitly requested or clearly needed
+- **Production-Ready**: Write code as if shipping to production immediately
+- **Internal Tool**: Optimize for team efficiency, not public-facing polish
+
+## Technical Standards
+
+### Code Quality
+
+- Write TypeScript with strict type safety - no `any` types without explicit justification
+- Prefer explicit over implicit - be clear about data structures, API contracts, and business logic
+- Use meaningful variable names that reflect business domain (e.g., `onboardingSteps`, `salesPipeline`)
+- Keep functions small and single-purpose (max 50 lines)
+- Add JSDoc comments only for complex business logic or non-obvious implementations
+
+### Architecture Decisions
+
+- **Database**: Use PostgreSQL for relational data integrity
+- **Backend**: Prefer REST APIs with clear endpoint naming (`/api/employees`, `/api/contacts`)
+- **Frontend**: React with minimal abstraction - avoid over-engineering component hierarchies
+- **State Management**: Use React Query for server state, Context for minimal global state
+- **Forms**: React Hook Form for performance with complex forms
+- **Validation**: Zod for runtime type validation on API boundaries
+
+### Performance First
+
+- Implement pagination for all list views (employees, contacts, deals)
+- Use database indexes on frequently queried fields
+- Lazy load components and routes
+- Avoid unnecessary re-renders - memoize appropriately
+- Keep bundle size minimal - code split by route
+
+### Data Integrity
+
+- Always validate user input on both client and server
+- Use database constraints (foreign keys, unique constraints, not null)
+- Handle errors explicitly - no silent failures
+- Log errors with context for debugging
+- Use transactions for multi-step operations (e.g., creating employee + assigning role)
+
+## What NOT to Do
+
+- Don't add features not explicitly requested
+- Don't install packages without justification
+- Don't create abstraction layers unless there's clear repeated code
+- Don't use ORMs that hide SQL complexity (prefer Prisma or raw queries with query builders)
+- Don't implement authentication/authorization beyond basic needs initially
+- Don't add animations or transitions unless specifically requested
+- Don't create generic "utility" functions for single-use cases
+
+## Development Workflow
+
+1. **Understand First**: Ask clarifying questions if requirements are ambiguous
+2. **Plan Database Schema**: Start with data model before building features
+3. **API First**: Define API contracts before implementation
+4. **Incremental**: Build smallest working version, then iterate
+5. **Test Critical Paths**: Focus testing on data integrity and core workflows
+
+## Common Patterns
+
+### API Responses
+
+```typescript
+// Success
+{ data: T, error: null }
+// Error
+{ data: null, error: { message: string, code: string } }
+```
+
+### Database Queries
+
+- Always include error handling
+- Use parameterized queries to prevent SQL injection
+- Return typed results
+
+### Component Structure
+
+```text
+/components
+  /employees
+    EmployeeList.tsx
+    EmployeeForm.tsx
+    EmployeeCard.tsx
+  /contacts
+  /onboarding
+```
+
+## Business Domain Terminology
+
+- **Employee**: Internal team members (interns, full-time)
+- **Contact**: External people who can bring value to business
+- **Pipeline**: Sales opportunities and their stages
+- **Onboarding**: Multi-step process for new hires
+- **Operations**: Day-to-day business management tasks
+
+## Security Basics
+
+- Validate all inputs
+- Use environment variables for secrets
+- Implement rate limiting on API endpoints
+- Sanitize data before database insertion
+- Use HTTPS in production
+
+## When In Doubt
+
+- Ask for clarification rather than assuming requirements
+- Choose the simpler solution over the clever one
+- Prioritize working code over perfect code
+- Reference existing code patterns in the project before creating new ones
+
+## Prohibited Actions
+
+- Never commit sensitive data (API keys, passwords)
+- Never delete or truncate production database tables
+- Never bypass validation "temporarily"
+- Never use `eval()` or `dangerouslySetInnerHTML` without explicit approval
