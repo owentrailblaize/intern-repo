@@ -8,8 +8,8 @@ import {
   CheckSquare, 
   ArrowRight,
   DollarSign,
-  School,
-  Handshake,
+  GraduationCap,
+  HeartHandshake,
   Building2,
   Rocket
 } from 'lucide-react';
@@ -18,7 +18,7 @@ export default function Nucleus() {
   const stats = [
     { label: 'ARR', value: '$17.9k', icon: DollarSign },
     { label: 'MRR', value: '$1.5k', icon: TrendingUp },
-    { label: 'Schools', value: '5', icon: School },
+    { label: 'Schools', value: '5', icon: GraduationCap },
     { label: 'Users', value: '5.5k', icon: Users },
   ];
 
@@ -54,7 +54,7 @@ export default function Nucleus() {
     {
       title: 'Customer Success',
       description: 'Track the entire onboarding and customer success process from signup to expansion.',
-      icon: Handshake,
+      icon: HeartHandshake,
       status: 'coming-soon',
       color: '#ec4899',
     },
@@ -146,7 +146,7 @@ export default function Nucleus() {
               New Enterprise Lead
             </button>
             <button className="nucleus-action-button" disabled>
-              <Handshake size={18} />
+              <HeartHandshake size={18} />
               Track Customer
             </button>
             <button className="nucleus-action-button" disabled>
