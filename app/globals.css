@@ -2794,3 +2794,325 @@ input:focus {
 .confirm-modal-confirm:hover {
   filter: brightness(0.9);
 }
+
+/* ===== NUCLEUS LOGIN ===== */
+.nucleus-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  padding: 2rem;
+}
+
+.nucleus-login-container {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+.nucleus-login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.nucleus-login-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1rem;
+}
+
+.nucleus-login-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.25rem;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.nucleus-login-header p {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.nucleus-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.nucleus-login-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.nucleus-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nucleus-login-field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.nucleus-login-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nucleus-login-input-icon {
+  position: absolute;
+  left: 1rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.nucleus-login-input-wrapper input {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 2.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.nucleus-login-input-wrapper input:focus {
+  outline: none;
+  border-color: #1a2744;
+  box-shadow: 0 0 0 3px rgba(26, 39, 68, 0.1);
+}
+
+.nucleus-login-toggle-password {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nucleus-login-toggle-password:hover {
+  color: #6b7280;
+}
+
+.nucleus-login-submit {
+  padding: 1rem;
+  background: #1a2744;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+
+.nucleus-login-submit:hover:not(:disabled) {
+  background: #0f172a;
+  transform: translateY(-1px);
+}
+
+.nucleus-login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.nucleus-login-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.nucleus-login-footer p {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.nucleus-login-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem !important;
+  color: #10b981 !important;
+}
+
+/* Loading Screen */
+.nucleus-loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+}
+
+.nucleus-loading-content {
+  text-align: center;
+  color: white;
+}
+
+.nucleus-loading-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+.nucleus-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.nucleus-loading-content p {
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+/* Access Denied */
+.nucleus-access-denied {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  padding: 2rem;
+}
+
+.nucleus-access-denied-content {
+  text-align: center;
+  background: white;
+  padding: 3rem;
+  border-radius: 20px;
+  max-width: 400px;
+}
+
+.nucleus-access-denied-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1.5rem;
+  opacity: 0.5;
+}
+
+.nucleus-access-denied-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.5rem;
+}
+
+.nucleus-access-denied-content p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.nucleus-access-denied-email {
+  font-size: 0.875rem;
+  margin-top: 1rem !important;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.nucleus-access-denied-btn {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #1a2744;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nucleus-access-denied-btn:hover {
+  background: #0f172a;
+}
+
+/* Nucleus Header User Info */
+.nucleus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nucleus-header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nucleus-admin-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1a2744;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.nucleus-user-name {
+  font-size: 0.9rem;
+  color: white;
+  opacity: 0.9;
+}
+
+.nucleus-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nucleus-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

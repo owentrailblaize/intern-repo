@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Users, 
   UserPlus, 
@@ -12,10 +13,13 @@ import {
   GraduationCap,
   HeartHandshake,
   Building2,
-  Rocket
+  Rocket,
+  LogOut,
+  Shield
 } from 'lucide-react';
 
 export default function Nucleus() {
+  const { profile, signOut, isAdmin } = useAuth();
   const stats = [
     { label: 'ARR', value: '$17.9k', icon: DollarSign },
     { label: 'MRR', value: '$1.5k', icon: TrendingUp },
@@ -80,6 +84,18 @@ export default function Nucleus() {
             <h1>Nucleus</h1>
             <span className="nucleus-subtitle">Command Center</span>
           </div>
+        </div>
+        <div className="nucleus-header-user">
+          {isAdmin && (
+            <span className="nucleus-admin-badge">
+              <Shield size={14} />
+              Admin
+            </span>
+          )}
+          <span className="nucleus-user-name">{profile?.name}</span>
+          <button onClick={signOut} className="nucleus-logout-btn">
+            <LogOut size={16} />
+          </button>
         </div>
       </header>
 
