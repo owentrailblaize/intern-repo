@@ -97,6 +97,68 @@ export interface Customer {
   created_at: string;
 }
 
+// Chapter with full onboarding checklist
+export interface Chapter {
+  id: string;
+  chapter_name: string;
+  school: string;
+  fraternity: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  
+  status: 'onboarding' | 'active' | 'at_risk' | 'churned';
+  health: 'good' | 'warning' | 'critical';
+  mrr: number;
+  
+  // Onboarding Checklist
+  chapter_created: boolean;
+  exec_account: boolean;
+  scheduled_first_call: boolean;
+  exec_demo: boolean;
+  alumni_list: boolean;
+  alumni_emails_sent: boolean;
+  member_onboarding: boolean;
+  budget_set: boolean;
+  simple_function_guide: boolean;
+  events_scheduled: boolean;
+  test_announcements: boolean;
+  message_board_started: boolean;
+  invitations_created: boolean;
+  facebook_group: boolean;
+  linkedin_group: boolean;
+  instagram_post: boolean;
+  
+  onboarding_started: string;
+  onboarding_completed: string;
+  last_activity: string;
+  next_action: string;
+  notes: string;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+// Onboarding step definition for UI
+export const ONBOARDING_STEPS = [
+  { key: 'chapter_created', label: 'Chapter Created', category: 'setup' },
+  { key: 'exec_account', label: 'Exec Account', category: 'setup' },
+  { key: 'scheduled_first_call', label: 'Scheduled First Call', category: 'setup' },
+  { key: 'exec_demo', label: 'Exec Demo', category: 'setup' },
+  { key: 'alumni_list', label: 'Alumni List', category: 'alumni' },
+  { key: 'alumni_emails_sent', label: 'Alumni Emails Sent', category: 'alumni' },
+  { key: 'member_onboarding', label: 'Member Onboarding', category: 'members' },
+  { key: 'budget_set', label: 'Budget Set', category: 'members' },
+  { key: 'simple_function_guide', label: 'Simple Function Guide', category: 'training' },
+  { key: 'events_scheduled', label: 'Events Scheduled', category: 'engagement' },
+  { key: 'test_announcements', label: 'Test Announcements', category: 'engagement' },
+  { key: 'message_board_started', label: 'Message Board Started', category: 'engagement' },
+  { key: 'invitations_created', label: 'Invitations Created', category: 'social' },
+  { key: 'facebook_group', label: 'Facebook Group', category: 'social' },
+  { key: 'linkedin_group', label: 'LinkedIn Group', category: 'social' },
+  { key: 'instagram_post', label: 'Instagram Post', category: 'social' },
+] as const;
+
 export interface EnterpriseContract {
   id: string;
   organization: string;
