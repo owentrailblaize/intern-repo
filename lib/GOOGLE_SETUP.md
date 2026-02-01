@@ -73,12 +73,15 @@ This creates the `google_oauth_tokens` table with Row Level Security policies.
 ## Troubleshooting
 
 ### "Access blocked: App not verified"
+
 While in testing mode, only users added to the test users list can authorize. Add your email to the OAuth consent screen's test users.
 
 ### "Token expired" errors
+
 The integration automatically refreshes tokens. If you see persistent errors, try disconnecting and reconnecting your Google account.
 
 ### Missing emails or calendar events
+
 Ensure the Gmail API and Calendar API are enabled in your Google Cloud project.
 
 ## Security Notes

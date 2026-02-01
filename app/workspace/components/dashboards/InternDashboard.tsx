@@ -16,7 +16,11 @@ import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
 import { MetricsCards } from '../MetricsCards';
 import { TeamList } from '../TeamView';
+import { GoogleCalendarWidget } from '../GoogleCalendarWidget';
+import { GoogleGmailWidget } from '../GoogleGmailWidget';
+import { GoogleIntegrationCard } from '../GoogleIntegrationCard';
 import { UseWorkspaceDataReturn, WorkspaceStats } from '../../hooks/useWorkspaceData';
+import { useGoogleIntegration } from '../../hooks/useGoogleIntegration';
 import { Employee } from '@/lib/supabase';
 
 interface InternDashboardProps {
@@ -30,6 +34,7 @@ interface InternDashboardProps {
  */
 export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
   const {
+    currentEmployee,
     tasks,
     leads,
     stats,
@@ -38,6 +43,9 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
     createLead,
     updateLeadStatus
   } = data;
+
+  // Google Integration
+  const google = useGoogleIntegration(currentEmployee?.id);
 
   // Quick action handlers
   const quickActions = [
@@ -117,10 +125,37 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
           />
         </div>
 
-        {/* Right Column - Timer, Activity, Team */}
+        {/* Right Column - Google, Timer, Activity, Team */}
         <div className="ws-col-side">
+          {/* Google Integration Status */}
+          <GoogleIntegrationCard
+            status={google.status}
+            loading={google.loading}
+            onConnect={google.connect}
+            onDisconnect={google.disconnect}
+          />
+
           {/* Focus Timer - Prominent */}
           <FocusTimer />
+
+          {/* Google Calendar */}
+          <GoogleCalendarWidget
+            events={google.calendarEvents}
+            loading={google.calendarLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchCalendarEvents}
+          />
+
+          {/* Google Gmail */}
+          <GoogleGmailWidget
+            emails={google.emails}
+            unreadCount={google.unreadCount}
+            loading={google.gmailLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchEmails}
+          />
 
           {/* Weekly Progress */}
           <section className="ws-card ws-progress-card">
@@ -140,28 +175,6 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
                   {leads.filter(l => l.status === 'contacted').length}
                 </span>
                 <span className="ws-progress-label">Contacts Made</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Collaboration Feed */}
-          <section className="ws-card">
-            <div className="ws-card-header">
-              <h3>
-                <MessageSquare size={16} />
-                Team Activity
-              </h3>
-            </div>
-            <div className="ws-activity-feed">
-              <div className="ws-activity-item">
-                <div className="ws-activity-dot" style={{ background: '#10b981' }} />
-                <span>New task assigned by team lead</span>
-                <span className="ws-activity-time">2h ago</span>
-              </div>
-              <div className="ws-activity-item">
-                <div className="ws-activity-dot" style={{ background: '#3b82f6' }} />
-                <span>Weekly sync scheduled</span>
-                <span className="ws-activity-time">4h ago</span>
               </div>
             </div>
           </section>

@@ -16,7 +16,11 @@ import { TaskSection } from '../TaskSection';
 import { FocusTimer } from '../FocusTimer';
 import { MetricsCards } from '../MetricsCards';
 import { TeamList } from '../TeamView';
+import { GoogleCalendarWidget } from '../GoogleCalendarWidget';
+import { GoogleGmailWidget } from '../GoogleGmailWidget';
+import { GoogleIntegrationCard } from '../GoogleIntegrationCard';
 import { UseWorkspaceDataReturn, WorkspaceStats } from '../../hooks/useWorkspaceData';
+import { useGoogleIntegration } from '../../hooks/useGoogleIntegration';
 import { Employee } from '@/lib/supabase';
 
 interface EngineerDashboardProps {
@@ -30,11 +34,15 @@ interface EngineerDashboardProps {
  */
 export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps) {
   const {
+    currentEmployee,
     tasks,
     stats,
     createTask,
     toggleTask,
   } = data;
+
+  // Google Integration
+  const google = useGoogleIntegration(currentEmployee?.id);
 
   // Engineering-specific task categories
   const devTasks = tasks.filter(t => t.category === 'engineering' || t.category === 'development');
@@ -141,10 +149,37 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
           </div>
         </div>
 
-        {/* Right Column - Focus, Links, Team */}
+        {/* Right Column - Focus, Links, Google, Team */}
         <div className="ws-col-side">
+          {/* Google Integration Status */}
+          <GoogleIntegrationCard
+            status={google.status}
+            loading={google.loading}
+            onConnect={google.connect}
+            onDisconnect={google.disconnect}
+          />
+
           {/* Focus Timer */}
           <FocusTimer />
+
+          {/* Google Calendar */}
+          <GoogleCalendarWidget
+            events={google.calendarEvents}
+            loading={google.calendarLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchCalendarEvents}
+          />
+
+          {/* Google Gmail */}
+          <GoogleGmailWidget
+            emails={google.emails}
+            unreadCount={google.unreadCount}
+            loading={google.gmailLoading}
+            connected={google.status?.connected || false}
+            onConnect={google.connect}
+            onRefresh={google.fetchEmails}
+          />
 
           {/* Engineering Quick Links */}
           <section className="ws-card">
@@ -155,10 +190,10 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
               </h3>
             </div>
             <div className="ws-quick-links">
-              <a 
-                href="https://github.com/trailblaize" 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href="https://github.com/trailblaize"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="ws-quick-link"
               >
                 <GitBranch size={16} />
@@ -175,30 +210,6 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
                 Feature Requests
                 <ChevronRight size={14} />
               </Link>
-            </div>
-          </section>
-
-          {/* Upcoming */}
-          <section className="ws-card">
-            <div className="ws-card-header">
-              <h3>
-                <Calendar size={16} />
-                Upcoming
-              </h3>
-            </div>
-            <div className="ws-upcoming-list">
-              <div className="ws-upcoming-item">
-                <span className="ws-upcoming-date">Today</span>
-                <span className="ws-upcoming-title">Sprint Planning</span>
-              </div>
-              <div className="ws-upcoming-item">
-                <span className="ws-upcoming-date">Wed</span>
-                <span className="ws-upcoming-title">Code Review Session</span>
-              </div>
-              <div className="ws-upcoming-item">
-                <span className="ws-upcoming-date">Fri</span>
-                <span className="ws-upcoming-title">Sprint Demo</span>
-              </div>
             </div>
           </section>
 

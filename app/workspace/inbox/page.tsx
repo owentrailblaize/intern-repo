@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
+import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
 import {
   Inbox,
   Send,
@@ -19,7 +20,10 @@ import {
   Reply,
   Forward,
   X,
-  Check
+  Check,
+  ExternalLink,
+  RefreshCw,
+  Link2
 } from 'lucide-react';
 
 interface Message {
@@ -36,6 +40,7 @@ interface Message {
 }
 
 type FilterType = 'inbox' | 'starred' | 'sent' | 'drafts';
+type InboxSource = 'team' | 'gmail';
 
 export default function InboxPage() {
   const { user } = useAuth();
@@ -48,6 +53,10 @@ export default function InboxPage() {
   const [showCompose, setShowCompose] = useState(false);
   const [newMessage, setNewMessage] = useState({ to: '', subject: '', content: '' });
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [inboxSource, setInboxSource] = useState<InboxSource>('team');
+
+  // Google Integration
+  const google = useGoogleIntegration(currentEmployee?.id);
 
   const fetchEmployee = useCallback(async () => {
     if (!supabase || !user) return;
@@ -177,52 +186,95 @@ export default function InboxPage() {
             <Inbox size={24} />
             Inbox
           </h1>
-          {unreadCount > 0 && (
+          {inboxSource === 'team' && unreadCount > 0 && (
             <span className="ws-subpage-count">{unreadCount} unread</span>
           )}
+          {inboxSource === 'gmail' && google.unreadCount > 0 && (
+            <span className="ws-subpage-count">{google.unreadCount} unread</span>
+          )}
         </div>
-        <button 
-          className="ws-add-btn"
-          onClick={() => setShowCompose(true)}
-        >
-          <Send size={18} />
-          Compose
-        </button>
+        <div className="ws-inbox-source-tabs">
+          <button
+            className={`ws-source-tab ${inboxSource === 'team' ? 'active' : ''}`}
+            onClick={() => setInboxSource('team')}
+          >
+            <Mail size={16} />
+            Team
+          </button>
+          <button
+            className={`ws-source-tab ${inboxSource === 'gmail' ? 'active' : ''}`}
+            onClick={() => setInboxSource('gmail')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Gmail
+            {google.status?.connected && google.unreadCount > 0 && (
+              <span className="ws-gmail-badge">{google.unreadCount}</span>
+            )}
+          </button>
+        </div>
+        {inboxSource === 'team' && (
+          <button
+            className="ws-add-btn"
+            onClick={() => setShowCompose(true)}
+          >
+            <Send size={18} />
+            Compose
+          </button>
+        )}
+        {inboxSource === 'gmail' && google.status?.connected && (
+          <a
+            href="https://mail.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ws-add-btn"
+          >
+            <ExternalLink size={18} />
+            Open Gmail
+          </a>
+        )}
       </header>
 
-      {/* Filters */}
-      <div className="ws-subpage-filters">
-        <div className="ws-search-bar">
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="Search messages..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      {/* Team Messages Section */}
+      {inboxSource === 'team' && (
+        <>
+          {/* Filters */}
+          <div className="ws-subpage-filters">
+            <div className="ws-search-bar">
+              <Search size={18} />
+              <input
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-        <div className="ws-filter-tabs">
-          {[
-            { id: 'inbox', label: 'Inbox', icon: Inbox },
-            { id: 'starred', label: 'Starred', icon: Star },
-            { id: 'sent', label: 'Sent', icon: Send },
-            { id: 'drafts', label: 'Drafts', icon: Archive },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              className={`ws-filter-tab ${filter === tab.id ? 'active' : ''}`}
-              onClick={() => setFilter(tab.id as FilterType)}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+            <div className="ws-filter-tabs">
+              {[
+                { id: 'inbox', label: 'Inbox', icon: Inbox },
+                { id: 'starred', label: 'Starred', icon: Star },
+                { id: 'sent', label: 'Sent', icon: Send },
+                { id: 'drafts', label: 'Drafts', icon: Archive },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  className={`ws-filter-tab ${filter === tab.id ? 'active' : ''}`}
+                  onClick={() => setFilter(tab.id as FilterType)}
+                >
+                  <tab.icon size={16} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Message List & Detail */}
-      <div className="ws-inbox-container">
+          {/* Message List & Detail */}
+          <div className="ws-inbox-container">
         <div className="ws-message-list">
           {filteredMessages.length === 0 ? (
             <div className="ws-subpage-empty">
@@ -309,6 +361,113 @@ export default function InboxPage() {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* Gmail Section */}
+      {inboxSource === 'gmail' && (
+        <div className="ws-gmail-section">
+          {!google.status?.connected ? (
+            <div className="ws-gmail-connect-prompt">
+              <div className="ws-gmail-connect-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+              </div>
+              <h3>Connect your Gmail</h3>
+              <p>View and manage your Gmail inbox directly in Trailblaize</p>
+              <button className="ws-google-connect-btn" onClick={google.connect}>
+                <Link2 size={16} />
+                Connect Gmail
+              </button>
+            </div>
+          ) : google.gmailLoading ? (
+            <div className="ws-gmail-loading">
+              <RefreshCw size={24} className="spinning" />
+              <p>Loading your emails...</p>
+            </div>
+          ) : (
+            <>
+              <div className="ws-gmail-header">
+                <span className="ws-gmail-count">
+                  {google.emails.length} messages • {google.unreadCount} unread
+                </span>
+                <button
+                  className="ws-refresh-btn"
+                  onClick={google.fetchEmails}
+                  disabled={google.gmailLoading}
+                >
+                  <RefreshCw size={14} className={google.gmailLoading ? 'spinning' : ''} />
+                  Refresh
+                </button>
+              </div>
+              <div className="ws-gmail-list">
+                {google.emails.length === 0 ? (
+                  <div className="ws-subpage-empty">
+                    <Mail size={48} />
+                    <h3>No emails</h3>
+                    <p>Your Gmail inbox is empty</p>
+                  </div>
+                ) : (
+                  google.emails.map(email => (
+                    <a
+                      key={email.id}
+                      href={`https://mail.google.com/mail/u/0/#inbox/${email.threadId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`ws-gmail-item ${email.isUnread ? 'unread' : ''}`}
+                    >
+                      <div
+                        className="ws-gmail-avatar"
+                        style={{
+                          backgroundColor: (() => {
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+                            let hash = 0;
+                            for (let i = 0; i < email.fromEmail.length; i++) {
+                              hash = email.fromEmail.charCodeAt(i) + ((hash << 5) - hash);
+                            }
+                            return colors[Math.abs(hash) % colors.length];
+                          })()
+                        }}
+                      >
+                        {email.from.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                      </div>
+                      <div className="ws-gmail-item-content">
+                        <div className="ws-gmail-item-header">
+                          <span className="ws-gmail-from">{email.from}</span>
+                          <span className="ws-gmail-date">
+                            {(() => {
+                              const date = new Date(email.date);
+                              const now = new Date();
+                              const diff = now.getTime() - date.getTime();
+                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                              if (days === 0) {
+                                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                              } else if (days === 1) {
+                                return 'Yesterday';
+                              } else if (days < 7) {
+                                return date.toLocaleDateString('en-US', { weekday: 'short' });
+                              }
+                              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            })()}
+                          </span>
+                        </div>
+                        <span className="ws-gmail-subject">{email.subject}</span>
+                        <span className="ws-gmail-snippet">{email.snippet}</span>
+                      </div>
+                      {email.isUnread && <div className="ws-gmail-unread-dot" />}
+                      <ExternalLink size={14} className="ws-gmail-external" />
+                    </a>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Compose Modal */}
       {showCompose && (

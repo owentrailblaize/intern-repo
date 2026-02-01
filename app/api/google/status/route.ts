@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       connected: true,
       isExpired,
       scopes,
-      hasCalendar: scopes.some(s => s.includes('calendar')),
-      hasGmail: scopes.some(s => s.includes('gmail')),
+      hasCalendar: scopes.some((s: string) => s.includes('calendar')),
+      hasGmail: scopes.some((s: string) => s.includes('gmail')),
     });
   } catch (error) {
     console.error('Status check error:', error);
