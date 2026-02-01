@@ -8,9 +8,10 @@ interface UserProfile {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'employee';
+  role: string; // 'admin' or employee roles like 'engineer', 'growth_intern', etc.
   seniority: number;
   created_at: string;
+  isEmployee?: boolean; // true if from employees table
 }
 
 // Admin emails that always have access (fallback when admin_profiles table has issues)
@@ -115,35 +116,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Fetching profile for user_id:', userId, 'email:', userEmail);
       
-      const { data, error, status } = await supabase
+      // First, check admin_profiles table
+      const { data: adminData, error: adminError } = await supabase
         .from('admin_profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      console.log('Profile query result:', { data, error, status });
+      if (!adminError && adminData) {
+        console.log('Admin profile loaded:', adminData);
+        setProfile(adminData);
+        setLoading(false);
+        loadingRef.current = false;
+        return;
+      }
 
-      if (error) {
-        console.error('Error fetching profile:', error.message, error.code, error.details);
-        
-        // Fallback: If user email is in admin list, create a virtual profile
-        if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-          console.log('Admin email detected, creating fallback profile');
-          const fallbackProfile: UserProfile = {
-            id: userId,
-            email: userEmail,
-            name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
-            role: 'admin',
-            seniority: 5,
-            created_at: new Date().toISOString(),
-          };
-          setProfile(fallbackProfile);
-        } else {
-          setProfile(null);
-        }
+      // If not in admin_profiles, check employees table
+      console.log('Not in admin_profiles, checking employees table...');
+      const { data: employeeData, error: employeeError } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('auth_user_id', userId)
+        .single();
+
+      if (!employeeError && employeeData) {
+        console.log('Employee profile loaded:', employeeData);
+        const employeeProfile: UserProfile = {
+          id: employeeData.id,
+          email: employeeData.email,
+          name: employeeData.name,
+          role: employeeData.role,
+          seniority: employeeData.seniority || 1,
+          created_at: employeeData.created_at,
+          isEmployee: true,
+        };
+        setProfile(employeeProfile);
+        setLoading(false);
+        loadingRef.current = false;
+        return;
+      }
+
+      console.log('Not found in employees either, checking fallbacks...');
+      
+      // Fallback: If user email is in admin list, create a virtual profile
+      if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+        console.log('Admin email detected, creating fallback profile');
+        const fallbackProfile: UserProfile = {
+          id: userId,
+          email: userEmail,
+          name: userEmail.split('@')[0].charAt(0).toUpperCase() + userEmail.split('@')[0].slice(1),
+          role: 'admin',
+          seniority: 5,
+          created_at: new Date().toISOString(),
+        };
+        setProfile(fallbackProfile);
       } else {
-        console.log('Profile loaded successfully:', data);
-        setProfile(data);
+        console.log('No profile found for user');
+        setProfile(null);
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
@@ -188,7 +217,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
-  const isAdmin = profile?.role === 'admin' && profile?.seniority === 5;
+  const isAdmin = profile?.role === 'admin' || 
+    profile?.role === 'founder' || 
+    profile?.role === 'cofounder' ||
+    ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '');
 
   const value = {
     user,
