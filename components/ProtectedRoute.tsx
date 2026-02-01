@@ -16,23 +16,17 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
   const router = useRouter();
   const pathname = usePathname();
 
-  // Handle role-based routing after profile loads
+  // Handle role-based routing after login
   useEffect(() => {
     if (loading || !user || !profile) return;
     
     const isNucleusRoute = pathname.startsWith('/nucleus');
-    const isPortalRoute = pathname.startsWith('/portal');
     
-    // If user is on /nucleus but is NOT an admin (founder/cofounder), redirect to /portal
+    // Non-admins trying to access /nucleus get redirected to /portal
     if (isNucleusRoute && !isAdmin) {
-      console.log('Non-admin on nucleus route, redirecting to portal');
+      console.log('Redirecting non-admin to portal. Role:', profile.role);
       router.replace('/portal');
-      return;
     }
-    
-    // Optionally: If admin lands on /portal, they can stay (they have access to both)
-    // No redirect needed for admins on portal
-    
   }, [loading, user, profile, isAdmin, pathname, router]);
 
   // Show loading state
@@ -53,51 +47,21 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     return <NucleusLogin />;
   }
 
-  // Authenticated but no employee record found
+  // Profile should always exist now (built from JWT metadata)
+  // But just in case, handle the edge case
   if (!profile) {
-    const handleSignOut = () => {
-      // Clear all Supabase auth data from localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-') || key.includes('supabase')) {
-          localStorage.removeItem(key);
-        }
-      });
-      signOut().finally(() => {
-        window.location.href = '/nucleus';
-      });
-    };
-
     return (
-      <div className="nucleus-access-denied">
-        <div className="nucleus-access-denied-content">
-          <img src="/logo-icon.svg" alt="Trailblaize" className="nucleus-access-denied-logo" />
-          <h1>Employee Profile Not Found</h1>
-          <p className="nucleus-access-denied-message">
-            Your account exists but you&apos;re not registered as an employee yet.
-          </p>
-          <p className="nucleus-access-denied-hint">
-            Please ask a founder to add you to the Employees module with your email: <strong>{user.email}</strong>
-          </p>
-          <div className="nucleus-access-denied-actions">
-            <button 
-              onClick={handleSignOut}
-              className="nucleus-access-denied-btn secondary"
-            >
-              Sign Out
-            </button>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="nucleus-access-denied-btn"
-            >
-              Try Again
-            </button>
-          </div>
+      <div className="nucleus-loading-screen">
+        <div className="nucleus-loading-content">
+          <img src="/logo-icon.svg" alt="Trailblaize" className="nucleus-loading-logo" />
+          <div className="nucleus-loading-spinner" />
+          <p>Setting up your workspace...</p>
         </div>
       </div>
     );
   }
 
-  // Non-admin trying to access nucleus routes - show redirect message briefly
+  // Non-admin on nucleus routes - show brief redirect message
   const isNucleusRoute = pathname.startsWith('/nucleus');
   if (isNucleusRoute && !isAdmin) {
     return (
