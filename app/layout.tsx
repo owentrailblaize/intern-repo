@@ -18,9 +18,6 @@ export const metadata: Metadata = {
     title: "Join the Trailblaize Team",
     description: "We're looking for 5 exceptional individuals to help us revolutionize alumni engagement.",
   },
-  icons: {
-    icon: "/logo-icon.svg",
-  },
 };
 
 export default function RootLayout({
