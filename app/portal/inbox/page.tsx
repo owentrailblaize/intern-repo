@@ -289,7 +289,7 @@ export default function InboxPage() {
     { id: 'external' as TabType, label: 'Gmail', icon: ExternalLink, isExternal: true },
   ];
 
-  const filteredMessages = messages.filter(msg => 
+  const filteredMessages: Message[] = messages.filter(msg => 
     msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
     msg.sender_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -523,44 +523,43 @@ export default function InboxPage() {
             ) : (
               /* Internal Messages List */
               <div className="inbox-list">
-                {filteredMessages.length === 0 ? (
+                {filteredMessages.length === 0 && (
                   <div className="inbox-empty">
                     <Inbox size={48} />
                     <h3>No messages</h3>
                     <p>{activeTab === 'inbox' ? 'Your inbox is empty' : `No ${activeTab} messages`}</p>
                   </div>
-                ) : (
-                  filteredMessages.map(msg => (
-                    <div 
-                      key={msg.id}
-                      className={`inbox-item ${msg.is_read ? 'read' : 'unread'} ${selectedMessage?.id === msg.id ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedMessage(msg);
-                        if (!msg.is_read) toggleRead(msg);
-                      }}
-                    >
-                      <div className="inbox-item-checkbox">
-                        <input type="checkbox" onClick={(e) => e.stopPropagation()} />
-                      </div>
-                      <button 
-                        className={`inbox-item-star ${msg.is_starred ? 'starred' : ''}`}
-                        onClick={(e) => toggleStar(msg, e)}
-                      >
-                        <Star size={16} />
-                      </button>
-                      <div className="inbox-item-sender">
-                        {activeTab === 'sent' ? 'To: ' : ''}{msg.sender_name}
-                      </div>
-                      <div className="inbox-item-content">
-                        <span className="inbox-item-subject">{msg.subject || '(No subject)'}</span>
-                        <span className="inbox-item-snippet">{msg.body?.slice(0, 80) || ''}</span>
-                      </div>
-                      <span className="inbox-item-date">
-                        {new Date(msg.sent_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))
                 )}
+                {filteredMessages.length > 0 && filteredMessages.map(msg => (
+                  <div 
+                    key={msg.id}
+                    className={`inbox-item ${msg.is_read ? 'read' : 'unread'} ${selectedMessage?.id === msg.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedMessage(msg);
+                      if (!msg.is_read) toggleRead(msg);
+                    }}
+                  >
+                    <div className="inbox-item-checkbox">
+                      <input type="checkbox" onClick={(e) => e.stopPropagation()} />
+                    </div>
+                    <button 
+                      className={`inbox-item-star ${msg.is_starred ? 'starred' : ''}`}
+                      onClick={(e) => toggleStar(msg, e)}
+                    >
+                      <Star size={16} />
+                    </button>
+                    <div className="inbox-item-sender">
+                      {activeTab === 'sent' ? 'To: ' : ''}{msg.sender_name}
+                    </div>
+                    <div className="inbox-item-content">
+                      <span className="inbox-item-subject">{msg.subject || '(No subject)'}</span>
+                      <span className="inbox-item-snippet">{msg.body?.slice(0, 80) || ''}</span>
+                    </div>
+                    <span className="inbox-item-date">
+                      {new Date(msg.sent_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
