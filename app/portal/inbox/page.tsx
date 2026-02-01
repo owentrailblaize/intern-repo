@@ -530,10 +530,10 @@ export default function InboxPage() {
                     <p>{activeTab === 'inbox' ? 'Your inbox is empty' : `No ${activeTab} messages`}</p>
                   </div>
                 )}
-                {filteredMessages.length > 0 && filteredMessages.map(msg => (
+                {filteredMessages.map((msg: Message) => (
                   <div 
                     key={msg.id}
-                    className={`inbox-item ${msg.is_read ? 'read' : 'unread'} ${selectedMessage?.id === msg.id ? 'selected' : ''}`}
+                    className={`inbox-item ${msg.is_read ? 'read' : 'unread'}`}
                     onClick={() => {
                       setSelectedMessage(msg);
                       if (!msg.is_read) toggleRead(msg);
