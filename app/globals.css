@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 * {
@@ -3953,8 +3955,6 @@ input:focus {
    EMPLOYEE PORTAL - Main Layout & Components
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-
 /* Portal Layout */
 .portal-layout {
   display: flex;
@@ -7771,8 +7771,6 @@ input:focus {
    LANDING PAGE STYLES
    Beautiful, forward-thinking startup aesthetic
    ================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 /* Landing Page - Main Container */
 .landing-page {
