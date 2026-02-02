@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
+import { useGoogleIntegration } from '@/app/workspace/hooks/useGoogleIntegration';
 import {
   Inbox,
   Send,
@@ -25,7 +26,8 @@ import {
   AlertCircle,
   ExternalLink,
   Settings,
-  Plus
+  Plus,
+  Link2
 } from 'lucide-react';
 
 interface Message {
@@ -45,25 +47,12 @@ interface Message {
   thread_id: string;
 }
 
-interface ExternalEmail {
-  id: string;
-  from_email: string;
-  from_name: string;
-  subject: string;
-  snippet: string;
-  is_read: boolean;
-  is_starred: boolean;
-  email_date: string;
-  labels: string[];
-}
-
 type TabType = 'inbox' | 'sent' | 'starred' | 'drafts' | 'external';
 
 export default function InboxPage() {
   const { user } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [externalEmails, setExternalEmails] = useState<ExternalEmail[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('inbox');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,8 +66,8 @@ export default function InboxPage() {
   const [composeBody, setComposeBody] = useState('');
   const [employees, setEmployees] = useState<Employee[]>([]);
   
-  // Gmail connection state
-  const [gmailConnected, setGmailConnected] = useState(false);
+  // Gmail integration using proper Google OAuth
+  const google = useGoogleIntegration(currentEmployee?.id);
   const [showGmailSetup, setShowGmailSetup] = useState(false);
 
   const fetchEmployee = useCallback(async () => {
@@ -107,17 +96,13 @@ export default function InboxPage() {
   useEffect(() => {
     fetchEmployee();
     fetchAllEmployees();
-    checkGmailConnection();
   }, [fetchEmployee]);
 
   useEffect(() => {
     if (currentEmployee) {
       fetchMessages();
-      if (gmailConnected) {
-        fetchExternalEmails();
-      }
     }
-  }, [currentEmployee, activeTab, gmailConnected]);
+  }, [currentEmployee, activeTab]);
 
   async function fetchAllEmployees() {
     if (!supabase) return;
@@ -127,19 +112,6 @@ export default function InboxPage() {
       .eq('status', 'active')
       .order('name');
     setEmployees(data || []);
-  }
-
-  async function checkGmailConnection() {
-    if (!supabase || !user) return;
-    // Check if user has connected Gmail
-    const { data } = await supabase
-      .from('portal_email_accounts')
-      .select('*')
-      .eq('employee_id', currentEmployee?.id)
-      .eq('is_connected', true)
-      .single();
-    
-    setGmailConnected(!!data);
   }
 
   async function fetchMessages() {
@@ -181,17 +153,6 @@ export default function InboxPage() {
       sender_name: (m.sender as { name: string } | null)?.name || 'Unknown',
       sender_email: (m.sender as { email: string } | null)?.email || ''
     })) || []);
-  }
-
-  async function fetchExternalEmails() {
-    if (!supabase || !currentEmployee) return;
-    const { data } = await supabase
-      .from('portal_external_emails')
-      .select('*')
-      .eq('employee_id', currentEmployee.id)
-      .order('email_date', { ascending: false })
-      .limit(50);
-    setExternalEmails(data || []);
   }
 
   async function toggleRead(msg: Message) {
@@ -273,8 +234,8 @@ export default function InboxPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchMessages();
-    if (gmailConnected) {
-      await fetchExternalEmails();
+    if (google.status?.connected) {
+      await google.fetchEmails();
     }
     setRefreshing(false);
   };
@@ -286,7 +247,7 @@ export default function InboxPage() {
     { id: 'sent' as TabType, label: 'Sent', icon: Send },
     { id: 'starred' as TabType, label: 'Starred', icon: Star },
     { id: 'drafts' as TabType, label: 'Drafts', icon: Mail },
-    { id: 'external' as TabType, label: 'Gmail', icon: ExternalLink, isExternal: true },
+    { id: 'external' as TabType, label: 'Gmail', icon: ExternalLink, isExternal: true, gmailCount: google.unreadCount },
   ];
 
   const filteredMessages: Message[] = messages.filter(msg => 
@@ -327,9 +288,9 @@ export default function InboxPage() {
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                className={`inbox-tab ${activeTab === tab.id ? 'active' : ''} ${tab.isExternal && !gmailConnected ? 'disconnected' : ''}`}
+                className={`inbox-tab ${activeTab === tab.id ? 'active' : ''} ${tab.isExternal && !google.status?.connected ? 'disconnected' : ''}`}
                 onClick={() => {
-                  if (tab.id === 'external' && !gmailConnected) {
+                  if (tab.id === 'external' && !google.status?.connected) {
                     setShowGmailSetup(true);
                   } else {
                     setActiveTab(tab.id);
@@ -342,7 +303,10 @@ export default function InboxPage() {
                 {tab.count && tab.count > 0 && (
                   <span className="inbox-tab-count">{tab.count}</span>
                 )}
-                {tab.isExternal && !gmailConnected && (
+                {tab.isExternal && google.status?.connected && google.unreadCount > 0 && (
+                  <span className="inbox-tab-count">{google.unreadCount}</span>
+                )}
+                {tab.isExternal && !google.status?.connected && (
                   <span className="inbox-tab-badge">Connect</span>
                 )}
               </button>
@@ -352,7 +316,7 @@ export default function InboxPage() {
           {/* Gmail Connection Status */}
           {activeTab === 'external' && (
             <div className="inbox-gmail-status">
-              {gmailConnected ? (
+              {google.status?.connected ? (
                 <div className="gmail-connected">
                   <Check size={16} />
                   <span>Gmail Connected</span>
@@ -360,9 +324,9 @@ export default function InboxPage() {
               ) : (
                 <button 
                   className="gmail-connect-btn"
-                  onClick={() => setShowGmailSetup(true)}
+                  onClick={google.connect}
                 >
-                  <ExternalLink size={16} />
+                  <Link2 size={16} />
                   Connect Gmail
                 </button>
               )}
@@ -469,54 +433,73 @@ export default function InboxPage() {
             ) : activeTab === 'external' ? (
               /* External Gmail View */
               <div className="inbox-list">
-                {!gmailConnected ? (
+                {!google.status?.connected ? (
                   <div className="inbox-empty">
                     <ExternalLink size={48} />
                     <h3>Connect Your Gmail</h3>
                     <p>Link your Gmail account to see all your emails in one place</p>
                     <button 
                       className="inbox-connect-gmail-btn"
-                      onClick={() => setShowGmailSetup(true)}
+                      onClick={google.connect}
                     >
+                      <Link2 size={16} />
                       Connect Gmail Account
                     </button>
                   </div>
-                ) : externalEmails.length === 0 ? (
+                ) : google.gmailLoading ? (
+                  <div className="inbox-empty">
+                    <RefreshCw size={48} className="spinning" />
+                    <h3>Loading emails...</h3>
+                    <p>Fetching your Gmail inbox</p>
+                  </div>
+                ) : google.error ? (
+                  <div className="inbox-empty">
+                    <AlertCircle size={48} />
+                    <h3>Connection Error</h3>
+                    <p>{google.error}</p>
+                    <button 
+                      className="inbox-connect-gmail-btn"
+                      onClick={google.connect}
+                    >
+                      Reconnect Gmail
+                    </button>
+                  </div>
+                ) : google.emails.length === 0 ? (
                   <div className="inbox-empty">
                     <Mail size={48} />
-                    <h3>No Gmail messages</h3>
-                    <p>Your synced emails will appear here</p>
+                    <h3>No emails</h3>
+                    <p>Your Gmail inbox is empty</p>
                   </div>
                 ) : (
-                  externalEmails.map(email => (
-                    <div 
+                  google.emails.map(email => (
+                    <a 
                       key={email.id}
-                      className={`inbox-item external ${email.is_read ? 'read' : 'unread'}`}
+                      href={`https://mail.google.com/mail/u/0/#inbox/${email.threadId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inbox-item external ${email.isUnread ? 'unread' : 'read'}`}
                     >
-                      <div className="inbox-item-checkbox">
+                      <div className="inbox-item-checkbox" onClick={e => e.preventDefault()}>
                         <input type="checkbox" />
                       </div>
                       <button 
-                        className={`inbox-item-star ${email.is_starred ? 'starred' : ''}`}
+                        className={`inbox-item-star`}
+                        onClick={e => e.preventDefault()}
                       >
                         <Star size={16} />
                       </button>
                       <div className="inbox-item-sender">
-                        {email.from_name || email.from_email}
+                        {email.from}
                       </div>
                       <div className="inbox-item-content">
                         <span className="inbox-item-subject">{email.subject || '(No subject)'}</span>
                         <span className="inbox-item-snippet">{email.snippet}</span>
                       </div>
-                      <div className="inbox-item-labels">
-                        {email.labels?.slice(0, 2).map(label => (
-                          <span key={label} className="inbox-label">{label}</span>
-                        ))}
-                      </div>
                       <span className="inbox-item-date">
-                        {new Date(email.email_date).toLocaleDateString()}
+                        {new Date(email.date).toLocaleDateString()}
                       </span>
-                    </div>
+                      <ExternalLink size={14} className="inbox-external-icon" />
+                    </a>
                   ))
                 )}
               </div>
@@ -700,12 +683,7 @@ export default function InboxPage() {
                 </div>
               </div>
 
-              <div className="inbox-gmail-notice">
-                <AlertCircle size={16} />
-                <span>This feature requires Google OAuth setup in production</span>
-              </div>
-
-              <button className="inbox-gmail-connect-btn">
+              <button className="inbox-gmail-connect-btn" onClick={() => { setShowGmailSetup(false); google.connect(); }}>
                 <svg viewBox="0 0 24 24" width="20" height="20">
                   <path fill="currentColor" d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
                 </svg>

@@ -172,13 +172,15 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     refreshStatus();
   }, [refreshStatus]);
 
-  // Fetch data when connected
+  // Fetch data when connected (API will handle token refresh if expired)
   useEffect(() => {
-    if (status?.connected && !status.isExpired) {
+    if (status?.connected) {
+      // Always try to fetch - the API endpoints will refresh expired tokens
+      // If refresh fails, the API returns NOT_CONNECTED and we update status
       fetchCalendarEvents();
       fetchEmails();
     }
-  }, [status?.connected, status?.isExpired, fetchCalendarEvents, fetchEmails]);
+  }, [status?.connected, fetchCalendarEvents, fetchEmails]);
 
   // Check for OAuth callback success
   useEffect(() => {

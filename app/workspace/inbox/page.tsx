@@ -389,6 +389,18 @@ export default function InboxPage() {
               <RefreshCw size={24} className="spinning" />
               <p>Loading your emails...</p>
             </div>
+          ) : google.error ? (
+            <div className="ws-gmail-connect-prompt">
+              <div className="ws-gmail-connect-icon">
+                <AlertCircle size={48} />
+              </div>
+              <h3>Connection Error</h3>
+              <p>{google.error}</p>
+              <button className="ws-google-connect-btn" onClick={google.connect}>
+                <Link2 size={16} />
+                Reconnect Gmail
+              </button>
+            </div>
           ) : (
             <>
               <div className="ws-gmail-header">
