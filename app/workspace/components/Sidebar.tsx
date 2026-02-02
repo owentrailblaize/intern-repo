@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  MessageCircle,
   LucideIcon
 } from 'lucide-react';
 
@@ -33,6 +34,7 @@ const iconMap: Record<string, LucideIcon> = {
   FolderKanban,
   Target,
   Users,
+  MessageCircle,
 };
 
 export function Sidebar({ unreadCount = 0 }: SidebarProps) {

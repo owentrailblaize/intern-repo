@@ -139,6 +139,7 @@ export function getNavigationItems(role: EmployeeRole, unreadCount?: number): Na
   const baseItems: NavItem[] = [
     { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard' },
     { name: 'Inbox', href: '/workspace/inbox', icon: 'Inbox', badge: unreadCount },
+    { name: 'Messages', href: '/workspace/messages', icon: 'MessageCircle' },
   ];
 
   switch (workspaceRole) {

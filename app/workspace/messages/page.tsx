@@ -110,29 +110,29 @@ const mockConversations: Conversation[] = [
 const mockMessages: Record<string, Message[]> = {
   '1': [
     { id: '1-1', content: 'Hey! Have you had a chance to look at the Q1 roadmap?', senderId: 'user-1', timestamp: new Date(Date.now() - 60 * 60 * 1000), status: 'read' },
-    { id: '1-2', content: 'Yes, I reviewed it this morning. Really like the direction for the dashboard redesign.', senderId: 'current-user', timestamp: new Date(Date.now() - 55 * 60 * 1000), status: 'read' },
+    { id: '1-2', content: 'Yes, reviewed it this morning. Really like the direction for the dashboard redesign.', senderId: 'current-user', timestamp: new Date(Date.now() - 55 * 60 * 1000), status: 'read' },
     { id: '1-3', content: 'The prioritization makes sense too. Should we sync on the timeline?', senderId: 'current-user', timestamp: new Date(Date.now() - 54 * 60 * 1000), status: 'read' },
-    { id: '1-4', content: 'Perfect! Let\'s schedule a quick call. I\'ve also updated the specs based on the stakeholder feedback.', senderId: 'user-1', timestamp: new Date(Date.now() - 45 * 60 * 1000), status: 'read' },
+    { id: '1-4', content: 'Perfect! Let\'s schedule a quick call. I\'ve also updated the specs based on stakeholder feedback.', senderId: 'user-1', timestamp: new Date(Date.now() - 45 * 60 * 1000), status: 'read' },
     { id: '1-5', content: 'How does tomorrow at 2pm work for you?', senderId: 'user-1', timestamp: new Date(Date.now() - 44 * 60 * 1000), status: 'read' },
-    { id: '1-6', content: 'Tomorrow at 2 works great. I\'ll send a calendar invite.', senderId: 'current-user', timestamp: new Date(Date.now() - 30 * 60 * 1000), status: 'read' },
+    { id: '1-6', content: 'Tomorrow at 2 works great! I\'ll send a calendar invite.', senderId: 'current-user', timestamp: new Date(Date.now() - 30 * 60 * 1000), status: 'read' },
     { id: '1-7', content: 'Sounds good! I\'ll prep the presentation deck by then.', senderId: 'user-1', timestamp: new Date(Date.now() - 20 * 60 * 1000), status: 'read' },
     { id: '1-8', content: 'Also, the design review looks great! The team did an amazing job on the new components.', senderId: 'user-1', timestamp: new Date(Date.now() - 5 * 60 * 1000), status: 'read' },
   ],
   '2': [
     { id: '2-1', content: 'Hey, the authentication refactor is complete. Ready for code review when you have time.', senderId: 'user-2', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), status: 'read' },
     { id: '2-2', content: 'Nice! I\'ll take a look this afternoon. Any breaking changes I should know about?', senderId: 'current-user', timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000), status: 'read' },
-    { id: '2-3', content: 'Just the session handling - documented it in the PR description. Tests are all passing.', senderId: 'user-2', timestamp: new Date(Date.now() - 1.25 * 60 * 60 * 1000), status: 'read' },
+    { id: '2-3', content: 'Just the session handling — documented it in the PR description. Tests are all passing.', senderId: 'user-2', timestamp: new Date(Date.now() - 1.25 * 60 * 60 * 1000), status: 'read' },
     { id: '2-4', content: 'Great, I appreciate the thorough documentation. Will review and merge by EOD.', senderId: 'current-user', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), status: 'read' },
     { id: '2-5', content: 'PR is ready for review 👍', senderId: 'user-2', timestamp: new Date(Date.now() - 30 * 60 * 1000), status: 'read' },
   ],
   '3': [
-    { id: '3-1', content: 'Quick update on the design system - I\'ve added the new color tokens and updated the component library.', senderId: 'user-3', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), status: 'read' },
+    { id: '3-1', content: 'Quick update on the design system — I\'ve added the new color tokens and updated the component library.', senderId: 'user-3', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), status: 'read' },
     { id: '3-2', content: 'The Figma file is now synced with the code.', senderId: 'user-3', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), status: 'read' },
     { id: '3-3', content: 'This is fantastic work, Emily! The consistency across components is much better now.', senderId: 'current-user', timestamp: new Date(Date.now() - 2.5 * 60 * 60 * 1000), status: 'read' },
     { id: '3-4', content: 'Thanks! Updated the Figma file with feedback from yesterday\'s design crit.', senderId: 'user-3', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), status: 'read' },
   ],
   '4': [
-    { id: '4-1', content: 'Weekly metrics are in - we\'re up 23% on user acquisition compared to last week.', senderId: 'user-4', timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), status: 'read' },
+    { id: '4-1', content: 'Weekly metrics are in — we\'re up 23% on user acquisition compared to last week.', senderId: 'user-4', timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), status: 'read' },
     { id: '4-2', content: 'That\'s excellent news! What\'s driving the increase?', senderId: 'current-user', timestamp: new Date(Date.now() - 4.75 * 60 * 60 * 1000), status: 'read' },
     { id: '4-3', content: 'The new onboarding flow is converting much better. Also seeing good traction from the partnership campaign.', senderId: 'user-4', timestamp: new Date(Date.now() - 4.5 * 60 * 60 * 1000), status: 'read' },
     { id: '4-4', content: 'Numbers are looking solid this week 📈', senderId: 'user-4', timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), status: 'read' },
@@ -140,7 +140,7 @@ const mockMessages: Record<string, Message[]> = {
   '5': [
     { id: '5-1', content: 'Just pushed a fix for the mobile navigation issues. Can you QA when you get a chance?', senderId: 'user-5', timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000), status: 'read' },
     { id: '5-2', content: 'Sure thing! I\'ll test it on the staging environment.', senderId: 'current-user', timestamp: new Date(Date.now() - 24.5 * 60 * 60 * 1000), status: 'read' },
-    { id: '5-3', content: 'Fixed the responsive issues - also improved the transition animations while I was in there.', senderId: 'user-5', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), status: 'read' },
+    { id: '5-3', content: 'Fixed the responsive issues — also improved the transition animations while I was in there.', senderId: 'user-5', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), status: 'read' },
   ]
 };
 
@@ -215,7 +215,17 @@ function TypingIndicator() {
 // Avatar Component
 function Avatar({ name, isOnline }: { name: string; isOnline?: boolean }) {
   const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const colors = ['#6366f1', '#8b5cf6', '#a855f7', '#3b82f6', '#06b6d4', '#10b981'];
+  // Rich, vibrant color palette
+  const colors = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+    'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
+  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -223,7 +233,7 @@ function Avatar({ name, isOnline }: { name: string; isOnline?: boolean }) {
   const color = colors[Math.abs(hash) % colors.length];
   
   return (
-    <div className="chat-avatar" style={{ backgroundColor: color }}>
+    <div className="chat-avatar" style={{ background: color }}>
       {initials}
       {isOnline !== undefined && (
         <span className={`chat-avatar-status ${isOnline ? 'online' : 'offline'}`} />
