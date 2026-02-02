@@ -98,8 +98,8 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
     openTasks: thisWeekTasks.length,
     overdueItems: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length,
     unreadMessages: google.unreadCount,
-    activeLeads: leads.filter(l => l.status === 'active').length,
-    pendingFollowups: leads.filter(l => l.status === 'follow_up').length,
+    activeLeads: leads.filter(l => !['converted', 'lost'].includes(l.status)).length,
+    pendingFollowups: leads.filter(l => l.status === 'contacted').length,
   };
 
   return (
