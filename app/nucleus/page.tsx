@@ -202,40 +202,6 @@ export default function Nucleus() {
 
   const modules = [
     {
-      title: 'Employees & Onboarding',
-      description: 'Manage team members and track onboarding progress.',
-      icon: Users,
-      href: '/nucleus/employees',
-      color: '#3b82f6',
-      gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-      stats: stats?.employees ? [
-        { label: 'Total', value: stats.employees.total, icon: Users },
-        { label: 'Active', value: stats.employees.active, icon: CheckCircle, color: '#10b981' },
-        { label: 'Onboarding', value: stats.employees.onboarding, icon: Clock, color: '#f59e0b' },
-      ] : [],
-      highlight: stats?.employees.newThisWeek ? { 
-        text: `${stats.employees.newThisWeek} new this week`, 
-        type: 'success' 
-      } : null,
-    },
-    {
-      title: 'Fundraising & Network',
-      description: 'Build relationships and manage your network.',
-      icon: Rocket,
-      href: '/nucleus/fundraising',
-      color: '#10b981',
-      gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      stats: stats?.fundraising ? [
-        { label: 'Contacts', value: stats.fundraising.total, icon: Users },
-        { label: 'Hot Leads', value: stats.fundraising.hot, icon: Flame, color: '#ef4444' },
-        { label: 'Investors', value: stats.fundraising.investors, icon: Target, color: '#8b5cf6' },
-      ] : [],
-      highlight: stats?.fundraising.needsFollowup ? { 
-        text: `${stats.fundraising.needsFollowup} need follow-up`, 
-        type: stats.fundraising.needsFollowup > 0 ? 'warning' : 'success' 
-      } : null,
-    },
-    {
       title: 'Sales Pipeline',
       description: 'Track deals and manage opportunities.',
       icon: TrendingUp,
@@ -249,6 +215,23 @@ export default function Nucleus() {
       ] : [],
       highlight: stats?.pipeline.avgDealSize ? { 
         text: `${formatCurrency(stats.pipeline.avgDealSize)} avg deal`, 
+        type: 'info' 
+      } : null,
+    },
+    {
+      title: 'Customer Success',
+      description: 'Track chapter onboarding and health.',
+      icon: HeartHandshake,
+      href: '/nucleus/customer-success',
+      color: '#ec4899',
+      gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+      stats: stats?.customerSuccess ? [
+        { label: 'Chapters', value: stats.customerSuccess.total, icon: GraduationCap },
+        { label: 'Active', value: stats.customerSuccess.active, icon: CheckCircle, color: '#10b981' },
+        { label: 'MRR', value: formatCurrency(stats.customerSuccess.mrr), icon: DollarSign, color: '#10b981' },
+      ] : [],
+      highlight: stats?.customerSuccess.onboarding ? { 
+        text: `${stats.customerSuccess.onboarding} onboarding`, 
         type: 'info' 
       } : null,
     },
@@ -270,23 +253,6 @@ export default function Nucleus() {
       } : null,
     },
     {
-      title: 'Customer Success',
-      description: 'Track chapter onboarding and health.',
-      icon: HeartHandshake,
-      href: '/nucleus/customer-success',
-      color: '#ec4899',
-      gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
-      stats: stats?.customerSuccess ? [
-        { label: 'Chapters', value: stats.customerSuccess.total, icon: GraduationCap },
-        { label: 'Active', value: stats.customerSuccess.active, icon: CheckCircle, color: '#10b981' },
-        { label: 'MRR', value: formatCurrency(stats.customerSuccess.mrr), icon: DollarSign, color: '#10b981' },
-      ] : [],
-      highlight: stats?.customerSuccess.onboarding ? { 
-        text: `${stats.customerSuccess.onboarding} onboarding`, 
-        type: 'info' 
-      } : null,
-    },
-    {
       title: 'Enterprise Contracts',
       description: 'Manage IFCs and large partnerships.',
       icon: Building2,
@@ -301,6 +267,40 @@ export default function Nucleus() {
       highlight: stats?.enterprise.pending ? { 
         text: `${stats.enterprise.pending} pending signature`, 
         type: 'warning' 
+      } : null,
+    },
+    {
+      title: 'Fundraising & Network',
+      description: 'Build relationships and manage your network.',
+      icon: Rocket,
+      href: '/nucleus/fundraising',
+      color: '#10b981',
+      gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      stats: stats?.fundraising ? [
+        { label: 'Contacts', value: stats.fundraising.total, icon: Users },
+        { label: 'Hot Leads', value: stats.fundraising.hot, icon: Flame, color: '#ef4444' },
+        { label: 'Investors', value: stats.fundraising.investors, icon: Target, color: '#8b5cf6' },
+      ] : [],
+      highlight: stats?.fundraising.needsFollowup ? { 
+        text: `${stats.fundraising.needsFollowup} need follow-up`, 
+        type: stats.fundraising.needsFollowup > 0 ? 'warning' : 'success' 
+      } : null,
+    },
+    {
+      title: 'Employees & Onboarding',
+      description: 'Manage team members and track onboarding progress.',
+      icon: Users,
+      href: '/nucleus/employees',
+      color: '#3b82f6',
+      gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      stats: stats?.employees ? [
+        { label: 'Total', value: stats.employees.total, icon: Users },
+        { label: 'Active', value: stats.employees.active, icon: CheckCircle, color: '#10b981' },
+        { label: 'Onboarding', value: stats.employees.onboarding, icon: Clock, color: '#f59e0b' },
+      ] : [],
+      highlight: stats?.employees.newThisWeek ? { 
+        text: `${stats.employees.newThisWeek} new this week`, 
+        type: 'success' 
       } : null,
     },
   ];

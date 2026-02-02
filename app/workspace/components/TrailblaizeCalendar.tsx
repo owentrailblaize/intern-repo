@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,9 +8,9 @@ import {
   Clock,
   MapPin,
   Users,
-  Video,
   ExternalLink,
   RefreshCw,
+  Video,
   Coffee
 } from 'lucide-react';
 
@@ -36,23 +36,9 @@ interface TrailblaizeCalendarProps {
   onRefresh: () => void;
 }
 
-// Trailblaize brand colors
-const eventColors: Record<string, { bg: string; border: string; text: string }> = {
-  '1': { bg: 'rgba(20, 184, 166, 0.2)', border: '#14b8a6', text: '#14b8a6' },
-  '2': { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e', text: '#22c55e' },
-  '3': { bg: 'rgba(168, 85, 247, 0.2)', border: '#a855f7', text: '#a855f7' },
-  '4': { bg: 'rgba(236, 72, 153, 0.2)', border: '#ec4899', text: '#ec4899' },
-  '5': { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b', text: '#f59e0b' },
-  '6': { bg: 'rgba(239, 68, 68, 0.2)', border: '#ef4444', text: '#ef4444' },
-  '7': { bg: 'rgba(59, 130, 246, 0.2)', border: '#3b82f6', text: '#3b82f6' },
-  default: { bg: 'rgba(20, 184, 166, 0.2)', border: '#14b8a6', text: '#14b8a6' },
-};
-
-// Working hours config
-const HOUR_HEIGHT = 48; // pixels per hour
-const START_HOUR = 6; // 6 AM
-const END_HOUR = 22; // 10 PM
-const VISIBLE_HOURS = END_HOUR - START_HOUR;
+const eventColors = [
+  '#14b8a6', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#f59e0b', '#ef4444'
+];
 
 export function TrailblaizeCalendar({
   events,
@@ -64,37 +50,18 @@ export function TrailblaizeCalendar({
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Update current time every minute
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-scroll to current time on mount
-  useEffect(() => {
-    if (scrollRef.current && viewMode !== 'month') {
-      const currentHour = new Date().getHours();
-      const scrollTo = Math.max(0, (currentHour - START_HOUR - 1) * HOUR_HEIGHT);
-      scrollRef.current.scrollTop = scrollTo;
-    }
-  }, [viewMode]);
 
   // Navigation
-  const goToToday = () => setCurrentDate(new Date());
-  
-  const navigate = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    const delta = direction === 'next' ? 1 : -1;
-    
-    if (viewMode === 'day') newDate.setDate(newDate.getDate() + delta);
-    else if (viewMode === 'week') newDate.setDate(newDate.getDate() + (delta * 7));
-    else newDate.setMonth(newDate.getMonth() + delta);
-    
-    setCurrentDate(newDate);
+  const navigate = (dir: 'prev' | 'next') => {
+    const d = new Date(currentDate);
+    const delta = dir === 'next' ? 1 : -1;
+    if (viewMode === 'day') d.setDate(d.getDate() + delta);
+    else if (viewMode === 'week') d.setDate(d.getDate() + delta * 7);
+    else d.setMonth(d.getMonth() + delta);
+    setCurrentDate(d);
   };
+
+  const goToday = () => setCurrentDate(new Date());
 
   // Date helpers
   const getWeekStart = (date: Date) => {
@@ -113,42 +80,66 @@ export function TrailblaizeCalendar({
     });
   };
 
-  const getMonthDays = () => {
+  const getMonthWeeks = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const days: Date[] = [];
     
-    // Previous month padding
+    // Pad start
     for (let i = firstDay.getDay() - 1; i >= 0; i--) {
       days.push(new Date(year, month, -i));
     }
     // Current month
+    const lastDay = new Date(year, month + 1, 0);
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push(new Date(year, month, i));
     }
-    // Next month padding (5 or 6 rows)
-    const rows = Math.ceil(days.length / 7);
-    const totalCells = rows * 7;
-    for (let i = 1; days.length < totalCells; i++) {
-      days.push(new Date(year, month + 1, i));
+    // Pad end to complete 5 or 6 weeks
+    while (days.length < 35) {
+      days.push(new Date(year, month + 1, days.length - lastDay.getDate() - firstDay.getDay() + 1));
     }
-    return days;
+    
+    // Split into weeks
+    const weeks: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
   };
 
   const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
   const isCurrentMonth = (date: Date) => date.getMonth() === currentDate.getMonth();
 
   const getEventsForDay = (date: Date) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.start.dateTime || event.start.date || '');
+    return events.filter(e => {
+      const eventDate = new Date(e.start.dateTime || e.start.date || '');
       return eventDate.toDateString() === date.toDateString();
+    }).sort((a, b) => {
+      const aTime = new Date(a.start.dateTime || a.start.date || '').getTime();
+      const bTime = new Date(b.start.dateTime || b.start.date || '').getTime();
+      return aTime - bTime;
+    });
+  };
+
+  const getEventsForWeek = () => {
+    const weekDays = getWeekDays();
+    const start = weekDays[0];
+    const end = weekDays[6];
+    end.setHours(23, 59, 59, 999);
+    
+    return events.filter(e => {
+      const eventDate = new Date(e.start.dateTime || e.start.date || '');
+      return eventDate >= start && eventDate <= end;
+    }).sort((a, b) => {
+      const aTime = new Date(a.start.dateTime || a.start.date || '').getTime();
+      const bTime = new Date(b.start.dateTime || b.start.date || '').getTime();
+      return aTime - bTime;
     });
   };
 
   const formatTime = (dateTime: string | undefined) => {
-    if (!dateTime) return '';
+    if (!dateTime) return 'All day';
     return new Date(dateTime).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
@@ -156,71 +147,52 @@ export function TrailblaizeCalendar({
     });
   };
 
-  const getEventColor = (event: CalendarEvent) => {
-    return eventColors[event.colorId || 'default'] || eventColors.default;
+  const formatDateShort = (date: Date) => {
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const getEventStyle = (event: CalendarEvent) => {
-    if (!event.start.dateTime || !event.end.dateTime) return { top: 0, height: 40 };
-    
-    const start = new Date(event.start.dateTime);
-    const end = new Date(event.end.dateTime);
-    
-    const startHour = start.getHours() + start.getMinutes() / 60;
-    const endHour = end.getHours() + end.getMinutes() / 60;
-    
-    const top = Math.max(0, (startHour - START_HOUR) * HOUR_HEIGHT);
-    const height = Math.max(24, (endHour - startHour) * HOUR_HEIGHT);
-    
-    return { top, height };
+  const getEventColor = (event: CalendarEvent, index: number) => {
+    if (event.colorId) {
+      const colorIndex = parseInt(event.colorId) % eventColors.length;
+      return eventColors[colorIndex];
+    }
+    return eventColors[index % eventColors.length];
   };
 
-  const currentTimeTop = useMemo(() => {
-    const hour = currentTime.getHours() + currentTime.getMinutes() / 60;
-    return (hour - START_HOUR) * HOUR_HEIGHT;
-  }, [currentTime]);
-
-  const isHappeningNow = (event: CalendarEvent) => {
-    if (!event.start.dateTime || !event.end.dateTime) return false;
-    const now = currentTime.getTime();
-    return now >= new Date(event.start.dateTime).getTime() && 
-           now <= new Date(event.end.dateTime).getTime();
-  };
-
-  // Date range label
+  // Date label
   const getDateLabel = () => {
     if (viewMode === 'day') {
       return currentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', month: 'long', day: 'numeric' 
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' 
       });
     }
     if (viewMode === 'week') {
       const start = getWeekStart(currentDate);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      
       if (start.getMonth() === end.getMonth()) {
-        return `${start.toLocaleDateString('en-US', { month: 'long' })} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
+        return `${start.toLocaleDateString('en-US', { month: 'long' })} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
       }
       return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     }
     return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const hours = Array.from({ length: VISIBLE_HOURS }, (_, i) => START_HOUR + i);
   const weekDays = getWeekDays();
-  const monthDays = getMonthDays();
+  const monthWeeks = getMonthWeeks();
+  const dayEvents = getEventsForDay(currentDate);
+  const weekEvents = getEventsForWeek();
 
   // Not connected
   if (!connected) {
     return (
       <div className="tb-cal">
         <div className="tb-cal-connect">
-          <Calendar size={40} strokeWidth={1.5} />
+          <Calendar size={36} />
           <h3>Connect Calendar</h3>
           <p>See your schedule at a glance</p>
           <button onClick={onConnect}>
-            <svg width="18" height="18" viewBox="0 0 24 24">
+            <svg width="16" height="16" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -238,157 +210,99 @@ export function TrailblaizeCalendar({
       {/* Header */}
       <div className="tb-cal-header">
         <div className="tb-cal-nav">
-          <button className="tb-cal-today" onClick={goToToday}>Today</button>
-          <button className="tb-cal-arrow" onClick={() => navigate('prev')}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className="tb-cal-arrow" onClick={() => navigate('next')}>
-            <ChevronRight size={18} />
-          </button>
+          <button className="tb-cal-today" onClick={goToday}>Today</button>
+          <button className="tb-cal-arrow" onClick={() => navigate('prev')}><ChevronLeft size={16} /></button>
+          <button className="tb-cal-arrow" onClick={() => navigate('next')}><ChevronRight size={16} /></button>
           <span className="tb-cal-title">{getDateLabel()}</span>
         </div>
-        
         <div className="tb-cal-actions">
           <div className="tb-cal-views">
             {(['day', 'week', 'month'] as ViewMode[]).map(v => (
-              <button
-                key={v}
-                className={viewMode === v ? 'active' : ''}
-                onClick={() => setViewMode(v)}
-              >
+              <button key={v} className={viewMode === v ? 'active' : ''} onClick={() => setViewMode(v)}>
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </button>
             ))}
           </div>
-          <button 
-            className="tb-cal-refresh" 
-            onClick={onRefresh}
-            disabled={loading}
-          >
-            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          <button className="tb-cal-refresh" onClick={onRefresh} disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="tb-cal-body">
-        {/* Day/Week View */}
-        {(viewMode === 'day' || viewMode === 'week') && (
-          <div className={`tb-cal-grid ${viewMode}`}>
-            {/* Day headers */}
-            <div className="tb-cal-day-headers">
-              <div className="tb-cal-gutter" />
-              {(viewMode === 'day' ? [currentDate] : weekDays).map((day, i) => (
-                <div key={i} className={`tb-cal-day-header ${isToday(day) ? 'today' : ''}`}>
-                  <span className="tb-cal-day-name">
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </span>
-                  <span className={`tb-cal-day-num ${isToday(day) ? 'today' : ''}`}>
-                    {day.getDate()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            {/* Scrollable time grid */}
-            <div className="tb-cal-scroll" ref={scrollRef}>
-              <div className="tb-cal-times">
-                {/* Time labels */}
-                <div className="tb-cal-time-col">
-                  {hours.map(hour => (
-                    <div key={hour} className="tb-cal-time-slot">
-                      <span>{hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}</span>
+      {/* Content */}
+      <div className="tb-cal-content">
+        {/* Day View - Agenda Style */}
+        {viewMode === 'day' && (
+          <div className="tb-cal-agenda">
+            {dayEvents.length === 0 ? (
+              <div className="tb-cal-empty-day">
+                <Coffee size={24} />
+                <span>No events today</span>
+              </div>
+            ) : (
+              <div className="tb-cal-events-list">
+                {dayEvents.map((event, i) => (
+                  <div
+                    key={event.id}
+                    className="tb-cal-event-item"
+                    onClick={() => setSelectedEvent(event)}
+                  >
+                    <div className="tb-cal-event-color" style={{ background: getEventColor(event, i) }} />
+                    <div className="tb-cal-event-info">
+                      <span className="tb-cal-event-title">{event.summary}</span>
+                      <span className="tb-cal-event-time">
+                        <Clock size={12} />
+                        {formatTime(event.start.dateTime)}
+                        {event.end.dateTime && ` – ${formatTime(event.end.dateTime)}`}
+                      </span>
+                      {event.location && (
+                        <span className="tb-cal-event-loc"><MapPin size={12} />{event.location}</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-                
-                {/* Day columns */}
-                {(viewMode === 'day' ? [currentDate] : weekDays).map((day, dayIdx) => (
-                  <div key={dayIdx} className="tb-cal-day-col">
-                    {/* Hour lines */}
-                    {hours.map(hour => (
-                      <div key={hour} className="tb-cal-hour-line" />
-                    ))}
-                    
-                    {/* Current time line */}
-                    {isToday(day) && currentTimeTop >= 0 && currentTimeTop <= VISIBLE_HOURS * HOUR_HEIGHT && (
-                      <div className="tb-cal-now-line" style={{ top: currentTimeTop }}>
-                        <div className="tb-cal-now-dot" />
-                      </div>
+                    {event.htmlLink && (
+                      <a href={event.htmlLink} target="_blank" rel="noopener noreferrer" className="tb-cal-event-link" onClick={e => e.stopPropagation()}>
+                        <Video size={14} />
+                      </a>
                     )}
-                    
-                    {/* Events */}
-                    {getEventsForDay(day).map(event => {
-                      const style = getEventStyle(event);
-                      const color = getEventColor(event);
-                      const now = isHappeningNow(event);
-                      
-                      return (
-                        <div
-                          key={event.id}
-                          className={`tb-cal-event ${now ? 'now' : ''}`}
-                          style={{
-                            top: style.top,
-                            height: style.height,
-                            backgroundColor: color.bg,
-                            borderLeftColor: color.border,
-                          }}
-                          onClick={() => setSelectedEvent(event)}
-                        >
-                          <span className="tb-cal-event-title" style={{ color: color.text }}>
-                            {event.summary}
-                          </span>
-                          {style.height > 30 && (
-                            <span className="tb-cal-event-time">{formatTime(event.start.dateTime)}</span>
-                          )}
-                        </div>
-                      );
-                    })}
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* Month View */}
-        {viewMode === 'month' && (
-          <div className="tb-cal-month">
-            <div className="tb-cal-month-header">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                <div key={d}>{d}</div>
+        {/* Week View - Compact Schedule */}
+        {viewMode === 'week' && (
+          <div className="tb-cal-week">
+            <div className="tb-cal-week-header">
+              {weekDays.map((day, i) => (
+                <div key={i} className={`tb-cal-week-day ${isToday(day) ? 'today' : ''}`}>
+                  <span className="tb-cal-week-dayname">{day.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                  <span className={`tb-cal-week-daynum ${isToday(day) ? 'today' : ''}`}>{day.getDate()}</span>
+                </div>
               ))}
             </div>
-            <div className="tb-cal-month-grid">
-              {monthDays.map((day, i) => {
-                const dayEvents = getEventsForDay(day);
+            <div className="tb-cal-week-body">
+              {weekDays.map((day, i) => {
+                const events = getEventsForDay(day);
                 return (
-                  <div
-                    key={i}
-                    className={`tb-cal-month-day ${isToday(day) ? 'today' : ''} ${!isCurrentMonth(day) ? 'other' : ''}`}
-                    onClick={() => { setCurrentDate(day); setViewMode('day'); }}
-                  >
-                    <span className={`tb-cal-month-num ${isToday(day) ? 'today' : ''}`}>
-                      {day.getDate()}
-                    </span>
-                    <div className="tb-cal-month-events">
-                      {dayEvents.slice(0, 2).map(event => (
-                        <div
-                          key={event.id}
-                          className="tb-cal-month-event"
-                          style={{ 
-                            backgroundColor: getEventColor(event).bg,
-                            color: getEventColor(event).text
-                          }}
-                          onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); }}
-                        >
-                          {event.summary}
-                        </div>
-                      ))}
-                      {dayEvents.length > 2 && (
-                        <span className="tb-cal-month-more">+{dayEvents.length - 2}</span>
-                      )}
-                    </div>
+                  <div key={i} className={`tb-cal-week-col ${isToday(day) ? 'today' : ''}`}>
+                    {events.slice(0, 3).map((event, j) => (
+                      <div
+                        key={event.id}
+                        className="tb-cal-week-event"
+                        style={{ borderLeftColor: getEventColor(event, j) }}
+                        onClick={() => setSelectedEvent(event)}
+                        title={`${event.summary} - ${formatTime(event.start.dateTime)}`}
+                      >
+                        <span className="tb-cal-week-event-time">{formatTime(event.start.dateTime)}</span>
+                        <span className="tb-cal-week-event-title">{event.summary}</span>
+                      </div>
+                    ))}
+                    {events.length > 3 && (
+                      <div className="tb-cal-week-more">+{events.length - 3} more</div>
+                    )}
+                    {events.length === 0 && <div className="tb-cal-week-empty" />}
                   </div>
                 );
               })}
@@ -396,18 +310,45 @@ export function TrailblaizeCalendar({
           </div>
         )}
 
-        {/* Empty state */}
-        {events.length === 0 && !loading && (
-          <div className="tb-cal-empty">
-            <Coffee size={32} />
-            <span>Schedule clear</span>
+        {/* Month View - Mini Calendar */}
+        {viewMode === 'month' && (
+          <div className="tb-cal-month">
+            <div className="tb-cal-month-header">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <div key={i}>{d}</div>
+              ))}
+            </div>
+            <div className="tb-cal-month-grid">
+              {monthWeeks.map((week, wi) => (
+                <div key={wi} className="tb-cal-month-week">
+                  {week.map((day, di) => {
+                    const events = getEventsForDay(day);
+                    return (
+                      <div
+                        key={di}
+                        className={`tb-cal-month-day ${isToday(day) ? 'today' : ''} ${!isCurrentMonth(day) ? 'other' : ''}`}
+                        onClick={() => { setCurrentDate(day); setViewMode('day'); }}
+                      >
+                        <span className={isToday(day) ? 'today' : ''}>{day.getDate()}</span>
+                        {events.length > 0 && (
+                          <div className="tb-cal-month-dots">
+                            {events.slice(0, 3).map((e, i) => (
+                              <div key={e.id} className="tb-cal-month-dot" style={{ background: getEventColor(e, i) }} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="tb-cal-loading">
-            <RefreshCw size={20} className="spin" />
+            <RefreshCw size={18} className="spin" />
           </div>
         )}
       </div>
