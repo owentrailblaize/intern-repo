@@ -18,7 +18,7 @@ import { TaskSection } from '../TaskSection';
 import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
 import { TeamView, TeamList } from '../TeamView';
-import { CalendarHero } from '../CalendarHero';
+import { TrailblaizeCalendar } from '../TrailblaizeCalendar';
 import { SmartSuggestions } from '../SmartSuggestions';
 import { GoogleGmailWidget } from '../GoogleGmailWidget';
 import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
@@ -120,8 +120,8 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
         />
       </div>
 
-      {/* Calendar Hero - The Focal Point */}
-      <CalendarHero
+      {/* Trailblaize Calendar - Google Calendar Style */}
+      <TrailblaizeCalendar
         events={google.calendarEvents}
         loading={google.calendarLoading}
         connected={google.status?.connected || false}

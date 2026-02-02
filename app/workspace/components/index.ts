@@ -9,6 +9,7 @@ export { TeamView, TeamList } from './TeamView';
 
 // Calendar-centric components
 export { CalendarHero } from './CalendarHero';
+export { TrailblaizeCalendar } from './TrailblaizeCalendar';
 export { SmartSuggestions } from './SmartSuggestions';
 
 // Google Integration

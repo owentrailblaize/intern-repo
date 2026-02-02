@@ -20,7 +20,7 @@ import { TaskSection } from '../TaskSection';
 import { LeadSection } from '../LeadSection';
 import { FocusTimer } from '../FocusTimer';
 import { TeamList } from '../TeamView';
-import { CalendarHero } from '../CalendarHero';
+import { TrailblaizeCalendar } from '../TrailblaizeCalendar';
 import { SmartSuggestions } from '../SmartSuggestions';
 import { GoogleGmailWidget } from '../GoogleGmailWidget';
 import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
@@ -118,8 +118,8 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
 
   return (
     <div className="ws-dashboard ws-dashboard-awareness">
-      {/* Calendar Hero - The Focal Point */}
-      <CalendarHero
+      {/* Trailblaize Calendar - Google Calendar Style */}
+      <TrailblaizeCalendar
         events={google.calendarEvents}
         loading={google.calendarLoading}
         connected={google.status?.connected || false}
