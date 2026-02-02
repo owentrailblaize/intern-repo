@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase, Employee, NetworkContact, Deal } from '@/lib/supabase';
+import { supabase, Employee, NetworkContact } from '@/lib/supabase';
 import { useUserRole } from '../hooks/useUserRole';
 import {
   Target,
@@ -12,8 +12,6 @@ import {
   Building2,
   Calendar,
   Linkedin,
-  ChevronDown,
-  ChevronRight,
   TrendingUp,
   Users,
   Crown,
@@ -23,9 +21,13 @@ import {
   HelpCircle,
   DollarSign,
   Clock,
-  ExternalLink,
-  Filter
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  ArrowLeft
 } from 'lucide-react';
+import ConfirmModal from '@/components/ConfirmModal';
 
 // Lead category configuration
 const LEAD_CATEGORIES = {
@@ -35,7 +37,6 @@ const LEAD_CATEGORIES = {
     color: '#8b5cf6',
     bgColor: '#8b5cf615',
     contactTypes: ['chapter_president'] as NetworkContact['contact_type'][],
-    description: 'Presidents of fraternity chapters'
   },
   chapter_advisors: {
     label: 'Chapter Advisors',
@@ -43,7 +44,6 @@ const LEAD_CATEGORIES = {
     color: '#06b6d4',
     bgColor: '#06b6d415',
     contactTypes: ['chapter_advisor'] as NetworkContact['contact_type'][],
-    description: 'Advisors to fraternity chapters'
   },
   ifc: {
     label: 'IFC',
@@ -51,7 +51,6 @@ const LEAD_CATEGORIES = {
     color: '#f59e0b',
     bgColor: '#f59e0b15',
     contactTypes: ['ifc_president', 'ifc_advisor'] as NetworkContact['contact_type'][],
-    description: 'Interfraternity Council contacts'
   },
   investors: {
     label: 'Investors',
@@ -59,7 +58,6 @@ const LEAD_CATEGORIES = {
     color: '#10b981',
     bgColor: '#10b98115',
     contactTypes: ['investor', 'angel', 'vc'] as NetworkContact['contact_type'][],
-    description: 'Angels, VCs, and other investors'
   },
   partnership: {
     label: 'Partnerships',
@@ -67,7 +65,6 @@ const LEAD_CATEGORIES = {
     color: '#3b82f6',
     bgColor: '#3b82f615',
     contactTypes: ['partnership'] as NetworkContact['contact_type'][],
-    description: 'Potential business partners'
   },
   competitors: {
     label: 'Competitors',
@@ -75,45 +72,48 @@ const LEAD_CATEGORIES = {
     color: '#ef4444',
     bgColor: '#ef444415',
     contactTypes: ['competitor'] as NetworkContact['contact_type'][],
-    description: 'Competitive landscape contacts'
   },
   helpers: {
-    label: 'People Who Can Help',
+    label: 'Helpers',
     icon: HelpCircle,
     color: '#64748b',
     bgColor: '#64748b15',
     contactTypes: ['connector', 'consultant', 'greek_life', 'other'] as NetworkContact['contact_type'][],
-    description: 'Connectors, consultants, and others'
   },
-  deals: {
-    label: 'Sales Pipeline',
-    icon: TrendingUp,
-    color: '#f97316',
-    bgColor: '#f9731615',
-    contactTypes: [] as NetworkContact['contact_type'][],
-    description: 'Active deals from sales pipeline'
-  }
 } as const;
 
 type CategoryKey = keyof typeof LEAD_CATEGORIES;
 
-// Unified lead type for display
-interface UnifiedLead {
-  id: string;
-  name: string;
-  title?: string;
-  organization?: string;
-  phone?: string;
-  email?: string;
-  linkedin?: string;
-  priority?: 'hot' | 'warm' | 'cold';
-  stage?: string;
-  nextFollowup?: string;
-  value?: number;
-  source: 'network' | 'deal';
-  contactType?: NetworkContact['contact_type'];
-  originalData: NetworkContact | Deal;
-}
+const typeLabels: Record<NetworkContact['contact_type'], string> = {
+  investor: 'Investor',
+  angel: 'Angel',
+  vc: 'VC',
+  partnership: 'Partnership',
+  competitor: 'Competitor',
+  connector: 'Connector',
+  ifc_president: 'IFC President',
+  ifc_advisor: 'IFC Advisor',
+  chapter_president: 'Chapter President',
+  chapter_advisor: 'Chapter Advisor',
+  greek_life: 'Greek Life',
+  consultant: 'Consultant',
+  other: 'Other',
+};
+
+const stageLabels: Record<NetworkContact['stage'], string> = {
+  identified: 'Identified',
+  researching: 'Researching',
+  outreach_pending: 'Outreach Pending',
+  first_contact: 'First Contact',
+  follow_up: 'Follow Up',
+  in_conversation: 'In Conversation',
+  meeting_scheduled: 'Meeting Scheduled',
+  met: 'Met',
+  nurturing: 'Nurturing',
+  committed: 'Committed',
+  passed: 'Passed',
+  dormant: 'Dormant',
+};
 
 const priorityColors: Record<string, { bg: string; text: string; label: string }> = {
   hot: { bg: '#fee2e2', text: '#dc2626', label: '🔥 Hot' },
@@ -121,40 +121,39 @@ const priorityColors: Record<string, { bg: string; text: string; label: string }
   cold: { bg: '#e0f2fe', text: '#0284c7', label: '❄️ Cold' }
 };
 
-const stageColors: Record<string, { bg: string; text: string }> = {
-  identified: { bg: '#f3f4f6', text: '#6b7280' },
-  researching: { bg: '#e0e7ff', text: '#4f46e5' },
-  outreach_pending: { bg: '#fef3c7', text: '#d97706' },
-  first_contact: { bg: '#dbeafe', text: '#2563eb' },
-  follow_up: { bg: '#fef3c7', text: '#d97706' },
-  in_conversation: { bg: '#dcfce7', text: '#16a34a' },
-  meeting_scheduled: { bg: '#e0e7ff', text: '#4f46e5' },
-  met: { bg: '#dcfce7', text: '#16a34a' },
-  nurturing: { bg: '#fce7f3', text: '#db2777' },
-  committed: { bg: '#dcfce7', text: '#16a34a' },
-  passed: { bg: '#fee2e2', text: '#dc2626' },
-  dormant: { bg: '#f3f4f6', text: '#6b7280' },
-  // Deal stages
-  discovery: { bg: '#e0e7ff', text: '#4f46e5' },
-  proposal: { bg: '#fef3c7', text: '#d97706' },
-  negotiation: { bg: '#fce7f3', text: '#db2777' },
-  closed_won: { bg: '#dcfce7', text: '#16a34a' },
-  closed_lost: { bg: '#fee2e2', text: '#dc2626' }
-};
-
 export default function LeadsPage() {
   const { user } = useAuth();
   const { isFounder } = useUserRole();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
-  const [networkContacts, setNetworkContacts] = useState<NetworkContact[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [contacts, setContacts] = useState<NetworkContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState<Set<CategoryKey>>(
-    new Set(Object.keys(LEAD_CATEGORIES) as CategoryKey[])
-  );
-  const [filterPriority, setFilterPriority] = useState<string>('all');
-  const [showDeals, setShowDeals] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryKey | null>(null);
+  
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<NetworkContact | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    title: '',
+    organization: '',
+    phone: '',
+    email: '',
+    linkedin: '',
+    contact_type: 'other' as NetworkContact['contact_type'],
+    priority: 'warm' as NetworkContact['priority'],
+    stage: 'identified' as NetworkContact['stage'],
+    first_contact_date: '',
+    last_contact_date: '',
+    next_followup_date: '',
+    potential_value: '',
+    how_they_can_help: '',
+    how_we_met: '',
+    referred_by: '',
+    notes: '',
+  });
 
   const fetchEmployee = useCallback(async () => {
     if (!supabase || !user) return;
@@ -184,635 +183,951 @@ export default function LeadsPage() {
 
   useEffect(() => {
     if (currentEmployee) {
-      fetchAllLeads();
+      fetchContacts();
     }
   }, [currentEmployee]);
 
-  async function fetchAllLeads() {
+  async function fetchContacts() {
     if (!supabase) return;
     setLoading(true);
 
-    // Fetch network contacts
-    const { data: contactsData } = await supabase
+    const { data } = await supabase
       .from('network_contacts')
       .select('*')
       .order('priority', { ascending: true })
       .order('next_followup_date', { ascending: true });
 
-    // Fetch deals
-    const { data: dealsData } = await supabase
-      .from('deals')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    setNetworkContacts(contactsData || []);
-    setDeals(dealsData || []);
+    setContacts(data || []);
     setLoading(false);
   }
 
-  // Convert network contacts to unified leads
-  const networkLeads: UnifiedLead[] = networkContacts.map(contact => ({
-    id: contact.id,
-    name: contact.name,
-    title: contact.title,
-    organization: contact.organization,
-    phone: contact.phone,
-    email: contact.email,
-    linkedin: contact.linkedin,
-    priority: contact.priority,
-    stage: contact.stage,
-    nextFollowup: contact.next_followup_date,
-    source: 'network',
-    contactType: contact.contact_type,
-    originalData: contact
-  }));
-
-  // Convert deals to unified leads
-  const dealLeads: UnifiedLead[] = deals.map(deal => ({
-    id: deal.id,
-    name: deal.name,
-    title: deal.contact_name,
-    organization: deal.organization,
-    value: deal.value,
-    stage: deal.stage,
-    nextFollowup: deal.expected_close,
-    source: 'deal',
-    originalData: deal
-  }));
-
-  // Group leads by category
-  const getLeadsByCategory = (categoryKey: CategoryKey): UnifiedLead[] => {
-    if (categoryKey === 'deals') {
-      return dealLeads;
-    }
+  // CRUD Operations
+  async function createContact() {
+    if (!supabase || !formData.name.trim()) return;
     
+    const cleanedData = {
+      ...formData,
+      name: formData.name.trim(),
+      first_contact_date: formData.first_contact_date || null,
+      last_contact_date: formData.last_contact_date || null,
+      next_followup_date: formData.next_followup_date || null,
+    };
+    
+    const { error } = await supabase
+      .from('network_contacts')
+      .insert([cleanedData]);
+
+    if (error) {
+      alert(`Failed to create contact: ${error.message}`);
+    } else {
+      resetForm();
+      fetchContacts();
+    }
+  }
+
+  async function updateContact() {
+    if (!supabase || !editingContact) return;
+
+    const cleanedData = {
+      ...formData,
+      name: formData.name.trim(),
+      first_contact_date: formData.first_contact_date || null,
+      last_contact_date: formData.last_contact_date || null,
+      next_followup_date: formData.next_followup_date || null,
+    };
+
+    const { error } = await supabase
+      .from('network_contacts')
+      .update(cleanedData)
+      .eq('id', editingContact.id);
+
+    if (error) {
+      alert(`Failed to update contact: ${error.message}`);
+    } else {
+      resetForm();
+      fetchContacts();
+    }
+  }
+
+  async function deleteContact(id: string) {
+    if (!supabase) return;
+
+    const { error } = await supabase
+      .from('network_contacts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      alert('Failed to delete contact');
+    } else {
+      fetchContacts();
+    }
+    setDeleteConfirm({ show: false, id: null });
+  }
+
+  async function logFollowup(contact: NetworkContact) {
+    if (!supabase) return;
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    await supabase
+      .from('network_contacts')
+      .update({
+        last_contact_date: today,
+        next_followup_date: nextWeek,
+        followup_count: (contact.followup_count || 0) + 1,
+        first_contact_date: contact.first_contact_date || today,
+      })
+      .eq('id', contact.id);
+
+    fetchContacts();
+  }
+
+  function resetForm() {
+    setFormData({
+      name: '',
+      title: '',
+      organization: '',
+      phone: '',
+      email: '',
+      linkedin: '',
+      contact_type: selectedCategory ? LEAD_CATEGORIES[selectedCategory].contactTypes[0] || 'other' : 'other',
+      priority: 'warm',
+      stage: 'identified',
+      first_contact_date: '',
+      last_contact_date: '',
+      next_followup_date: '',
+      potential_value: '',
+      how_they_can_help: '',
+      how_we_met: '',
+      referred_by: '',
+      notes: '',
+    });
+    setEditingContact(null);
+    setShowModal(false);
+  }
+
+  function openEditModal(contact: NetworkContact) {
+    setEditingContact(contact);
+    setFormData({
+      name: contact.name,
+      title: contact.title || '',
+      organization: contact.organization || '',
+      phone: contact.phone || '',
+      email: contact.email || '',
+      linkedin: contact.linkedin || '',
+      contact_type: contact.contact_type,
+      priority: contact.priority,
+      stage: contact.stage,
+      first_contact_date: contact.first_contact_date || '',
+      last_contact_date: contact.last_contact_date || '',
+      next_followup_date: contact.next_followup_date || '',
+      potential_value: contact.potential_value || '',
+      how_they_can_help: contact.how_they_can_help || '',
+      how_we_met: contact.how_we_met || '',
+      referred_by: contact.referred_by || '',
+      notes: contact.notes || '',
+    });
+    setShowModal(true);
+  }
+
+  function openAddModal() {
+    setEditingContact(null);
+    setFormData({
+      name: '',
+      title: '',
+      organization: '',
+      phone: '',
+      email: '',
+      linkedin: '',
+      contact_type: selectedCategory ? LEAD_CATEGORIES[selectedCategory].contactTypes[0] || 'other' : 'other',
+      priority: 'warm',
+      stage: 'identified',
+      first_contact_date: '',
+      last_contact_date: '',
+      next_followup_date: '',
+      potential_value: '',
+      how_they_can_help: '',
+      how_we_met: '',
+      referred_by: '',
+      notes: '',
+    });
+    setShowModal(true);
+  }
+
+  // Get contacts for a category
+  const getContactsByCategory = (categoryKey: CategoryKey): NetworkContact[] => {
     const category = LEAD_CATEGORIES[categoryKey];
-    return networkLeads.filter(lead => 
-      lead.contactType && category.contactTypes.includes(lead.contactType)
-    );
+    return contacts.filter(c => category.contactTypes.includes(c.contact_type));
   };
 
-  // Filter leads based on search and filters
-  const filterLeads = (leads: UnifiedLead[]): UnifiedLead[] => {
-    return leads.filter(lead => {
-      const matchesSearch = !searchQuery || 
-        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.organization?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.title?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesPriority = filterPriority === 'all' || lead.priority === filterPriority;
-      
-      return matchesSearch && matchesPriority;
-    });
-  };
-
-  const toggleCategory = (category: CategoryKey) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
-
-  const expandAll = () => setExpandedCategories(new Set(Object.keys(LEAD_CATEGORIES) as CategoryKey[]));
-  const collapseAll = () => setExpandedCategories(new Set());
-
-  // Calculate stats
-  const totalNetworkContacts = networkContacts.length;
-  const totalDeals = deals.length;
-  const hotLeads = networkContacts.filter(c => c.priority === 'hot').length;
-  const needsFollowup = networkContacts.filter(c => {
-    if (!c.next_followup_date) return false;
-    return new Date(c.next_followup_date) <= new Date();
-  }).length;
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', { 
-      style: 'currency', 
-      currency: 'USD', 
-      maximumFractionDigits: 0 
-    }).format(value);
-  };
+  // Filter contacts for display
+  const displayedContacts = selectedCategory 
+    ? getContactsByCategory(selectedCategory).filter(c => 
+        !searchQuery || 
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.organization?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
   const isOverdue = (date: string | null): boolean => {
     if (!date) return false;
     return new Date(date) < new Date();
   };
 
+  // Stats
+  const totalContacts = contacts.length;
+  const hotLeads = contacts.filter(c => c.priority === 'hot').length;
+  const needsFollowup = contacts.filter(c => c.next_followup_date && isOverdue(c.next_followup_date)).length;
+
   if (loading) {
     return (
-      <div className="ws-loading">
-        <div className="ws-loading-spinner" />
-        <p>Loading all leads...</p>
+      <div className="leads-loading">
+        <div className="leads-spinner" />
+        <p>Loading leads...</p>
       </div>
     );
   }
 
-  // Check if user is a founder/cofounder
   if (!isFounder) {
     return (
-      <div className="ws-no-access">
+      <div className="leads-no-access">
         <Target size={48} />
         <h2>Founder Access Only</h2>
-        <p>The consolidated leads view is available to founders and co-founders.</p>
+        <p>The leads view is available to founders and co-founders.</p>
       </div>
     );
   }
 
   return (
-    <div className="ws-subpage leads-consolidated">
+    <div className="leads-page">
       {/* Header */}
-      <header className="ws-subpage-header">
-        <div className="ws-subpage-header-left">
-          <h1>
+      <header className="leads-header">
+        {selectedCategory ? (
+          <button className="leads-back" onClick={() => setSelectedCategory(null)}>
+            <ArrowLeft size={20} />
+            Back to Categories
+          </button>
+        ) : (
+          <div className="leads-title">
             <Target size={24} />
-            All Leads
-          </h1>
-          <span className="ws-subpage-count">
-            {totalNetworkContacts + totalDeals} total
-          </span>
-        </div>
-        <div className="leads-header-actions">
-          <button 
-            className="ws-text-btn"
-            onClick={expandAll}
-          >
-            Expand All
-          </button>
-          <button 
-            className="ws-text-btn"
-            onClick={collapseAll}
-          >
-            Collapse All
-          </button>
-        </div>
+            <h1>Leads</h1>
+            <span className="leads-total">{totalContacts}</span>
+          </div>
+        )}
       </header>
 
-      {/* Stats */}
-      <div className="ws-subpage-stats">
-        <div className="ws-subpage-stat">
-          <Users size={18} />
-          <span className="ws-subpage-stat-value">{totalNetworkContacts}</span>
-          <span className="ws-subpage-stat-label">Network Contacts</span>
-        </div>
-        <div className="ws-subpage-stat">
-          <TrendingUp size={18} />
-          <span className="ws-subpage-stat-value">{totalDeals}</span>
-          <span className="ws-subpage-stat-label">Active Deals</span>
-        </div>
-        <div className="ws-subpage-stat hot">
-          <span className="ws-subpage-stat-value">{hotLeads}</span>
-          <span className="ws-subpage-stat-label">🔥 Hot Leads</span>
-        </div>
-        <div className={`ws-subpage-stat ${needsFollowup > 0 ? 'warning' : ''}`}>
-          <Clock size={18} />
-          <span className="ws-subpage-stat-value">{needsFollowup}</span>
-          <span className="ws-subpage-stat-label">Need Follow-up</span>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="ws-subpage-filters">
-        <div className="ws-search-bar">
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="Search all leads..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="leads-filters-right">
-          <select 
-            className="ws-select"
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-          >
-            <option value="all">All Priorities</option>
-            <option value="hot">🔥 Hot</option>
-            <option value="warm">☀️ Warm</option>
-            <option value="cold">❄️ Cold</option>
-          </select>
-          
-          <label className="leads-toggle">
-            <input 
-              type="checkbox" 
-              checked={showDeals}
-              onChange={(e) => setShowDeals(e.target.checked)}
-            />
-            <span>Show Deals</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Lead Categories */}
-      <div className="leads-categories">
-        {(Object.keys(LEAD_CATEGORIES) as CategoryKey[]).map(categoryKey => {
-          // Skip deals section if showDeals is false
-          if (categoryKey === 'deals' && !showDeals) return null;
-          
-          const category = LEAD_CATEGORIES[categoryKey];
-          const categoryLeads = filterLeads(getLeadsByCategory(categoryKey));
-          const isExpanded = expandedCategories.has(categoryKey);
-          const Icon = category.icon;
-
-          return (
-            <div key={categoryKey} className="leads-category">
-              <button 
-                className="leads-category-header"
-                onClick={() => toggleCategory(categoryKey)}
-              >
-                <div className="leads-category-left">
-                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                  <div 
-                    className="leads-category-icon"
-                    style={{ backgroundColor: category.bgColor, color: category.color }}
-                  >
-                    <Icon size={18} />
-                  </div>
-                  <div className="leads-category-info">
-                    <h3>{category.label}</h3>
-                    <span className="leads-category-desc">{category.description}</span>
-                  </div>
-                </div>
-                <span 
-                  className="leads-category-count"
-                  style={{ backgroundColor: category.bgColor, color: category.color }}
-                >
-                  {categoryLeads.length}
-                </span>
-              </button>
-
-              {isExpanded && (
-                <div className="leads-category-content">
-                  {categoryLeads.length === 0 ? (
-                    <div className="leads-category-empty">
-                      <p>No {category.label.toLowerCase()} found</p>
-                    </div>
-                  ) : (
-                    <div className="leads-list">
-                      {categoryLeads.map(lead => (
-                        <div 
-                          key={lead.id} 
-                          className={`lead-card ${lead.source} ${lead.nextFollowup && isOverdue(lead.nextFollowup) ? 'overdue' : ''}`}
-                        >
-                          <div className="lead-card-main">
-                            <div className="lead-card-info">
-                              <div className="lead-card-name-row">
-                                <h4>{lead.name}</h4>
-                                {lead.priority && (
-                                  <span 
-                                    className="lead-priority-badge"
-                                    style={{ 
-                                      backgroundColor: priorityColors[lead.priority]?.bg,
-                                      color: priorityColors[lead.priority]?.text
-                                    }}
-                                  >
-                                    {priorityColors[lead.priority]?.label}
-                                  </span>
-                                )}
-                                {lead.value !== undefined && lead.value > 0 && (
-                                  <span className="lead-value-badge">
-                                    {formatCurrency(lead.value)}
-                                  </span>
-                                )}
-                              </div>
-                              {(lead.title || lead.organization) && (
-                                <p className="lead-card-subtitle">
-                                  {lead.title}
-                                  {lead.title && lead.organization && ' @ '}
-                                  {lead.organization && (
-                                    <span className="lead-org">
-                                      <Building2 size={12} />
-                                      {lead.organization}
-                                    </span>
-                                  )}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="lead-card-meta">
-                              {lead.stage && (
-                                <span 
-                                  className="lead-stage-badge"
-                                  style={{ 
-                                    backgroundColor: stageColors[lead.stage]?.bg || '#f3f4f6',
-                                    color: stageColors[lead.stage]?.text || '#6b7280'
-                                  }}
-                                >
-                                  {lead.stage.replace(/_/g, ' ')}
-                                </span>
-                              )}
-                              {lead.nextFollowup && (
-                                <span className={`lead-followup ${isOverdue(lead.nextFollowup) ? 'overdue' : ''}`}>
-                                  <Calendar size={12} />
-                                  {isOverdue(lead.nextFollowup) ? 'Overdue: ' : ''}
-                                  {new Date(lead.nextFollowup).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="lead-card-actions">
-                            {lead.phone && (
-                              <a href={`tel:${lead.phone}`} className="lead-action-btn" title="Call">
-                                <Phone size={14} />
-                              </a>
-                            )}
-                            {lead.email && (
-                              <a href={`mailto:${lead.email}`} className="lead-action-btn" title="Email">
-                                <Mail size={14} />
-                              </a>
-                            )}
-                            {lead.linkedin && (
-                              <a 
-                                href={lead.linkedin} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="lead-action-btn"
-                                title="LinkedIn"
-                              >
-                                <Linkedin size={14} />
-                              </a>
-                            )}
-                            <a 
-                              href={lead.source === 'deal' ? '/nucleus/pipeline' : '/nucleus/fundraising'} 
-                              className="lead-action-btn view"
-                              title={`View in ${lead.source === 'deal' ? 'Pipeline' : 'Network'}`}
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+      {!selectedCategory ? (
+        /* Category Grid View */
+        <>
+          {/* Quick Stats */}
+          <div className="leads-stats">
+            <div className="leads-stat">
+              <span className="leads-stat-value">{totalContacts}</span>
+              <span className="leads-stat-label">Total</span>
             </div>
-          );
-        })}
-      </div>
+            <div className="leads-stat hot">
+              <span className="leads-stat-value">{hotLeads}</span>
+              <span className="leads-stat-label">🔥 Hot</span>
+            </div>
+            <div className="leads-stat warning">
+              <span className="leads-stat-value">{needsFollowup}</span>
+              <span className="leads-stat-label">Need Follow-up</span>
+            </div>
+          </div>
+
+          {/* Category Grid */}
+          <div className="leads-grid">
+            {(Object.keys(LEAD_CATEGORIES) as CategoryKey[]).map(categoryKey => {
+              const category = LEAD_CATEGORIES[categoryKey];
+              const count = getContactsByCategory(categoryKey).length;
+              const Icon = category.icon;
+              const hotCount = getContactsByCategory(categoryKey).filter(c => c.priority === 'hot').length;
+
+              return (
+                <button
+                  key={categoryKey}
+                  className="leads-card"
+                  onClick={() => setSelectedCategory(categoryKey)}
+                  style={{ '--card-color': category.color, '--card-bg': category.bgColor } as React.CSSProperties}
+                >
+                  <div className="leads-card-icon">
+                    <Icon size={28} />
+                  </div>
+                  <div className="leads-card-info">
+                    <h3>{category.label}</h3>
+                    <div className="leads-card-counts">
+                      <span className="leads-card-count">{count} contacts</span>
+                      {hotCount > 0 && <span className="leads-card-hot">🔥 {hotCount}</span>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        /* Category Detail View */
+        <>
+          {(() => {
+            const category = LEAD_CATEGORIES[selectedCategory];
+            const Icon = category.icon;
+            return (
+              <div className="leads-category-header" style={{ '--cat-color': category.color, '--cat-bg': category.bgColor } as React.CSSProperties}>
+                <div className="leads-category-icon">
+                  <Icon size={24} />
+                </div>
+                <h2>{category.label}</h2>
+                <span className="leads-category-count">{displayedContacts.length}</span>
+              </div>
+            );
+          })()}
+
+          {/* Actions Bar */}
+          <div className="leads-actions">
+            <div className="leads-search">
+              <Search size={18} />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="leads-add-btn" onClick={openAddModal}>
+              <Plus size={18} />
+              Add Lead
+            </button>
+          </div>
+
+          {/* Contacts List */}
+          <div className="leads-list">
+            {displayedContacts.length === 0 ? (
+              <div className="leads-empty">
+                <p>No leads in this category yet</p>
+                <button className="leads-add-btn" onClick={openAddModal}>
+                  <Plus size={18} />
+                  Add First Lead
+                </button>
+              </div>
+            ) : (
+              displayedContacts.map(contact => (
+                <div 
+                  key={contact.id} 
+                  className={`leads-item ${isOverdue(contact.next_followup_date) ? 'overdue' : ''}`}
+                >
+                  <div className="leads-item-main">
+                    <div className="leads-item-info">
+                      <div className="leads-item-name">
+                        <h4>{contact.name}</h4>
+                        {contact.priority && (
+                          <span 
+                            className="leads-priority"
+                            style={{ 
+                              backgroundColor: priorityColors[contact.priority]?.bg,
+                              color: priorityColors[contact.priority]?.text
+                            }}
+                          >
+                            {priorityColors[contact.priority]?.label}
+                          </span>
+                        )}
+                      </div>
+                      {(contact.title || contact.organization) && (
+                        <p className="leads-item-subtitle">
+                          {contact.title}
+                          {contact.title && contact.organization && ' @ '}
+                          {contact.organization}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="leads-item-meta">
+                      {contact.stage && (
+                        <span className="leads-stage">{stageLabels[contact.stage]}</span>
+                      )}
+                      {contact.next_followup_date && (
+                        <span className={`leads-followup ${isOverdue(contact.next_followup_date) ? 'overdue' : ''}`}>
+                          <Calendar size={12} />
+                          {new Date(contact.next_followup_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="leads-item-actions">
+                    {contact.phone && (
+                      <a href={`tel:${contact.phone}`} className="leads-action" title="Call">
+                        <Phone size={14} />
+                      </a>
+                    )}
+                    {contact.email && (
+                      <a href={`mailto:${contact.email}`} className="leads-action" title="Email">
+                        <Mail size={14} />
+                      </a>
+                    )}
+                    {contact.linkedin && (
+                      <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="leads-action" title="LinkedIn">
+                        <Linkedin size={14} />
+                      </a>
+                    )}
+                    <button className="leads-action" onClick={() => logFollowup(contact)} title="Log Follow-up">
+                      <Clock size={14} />
+                    </button>
+                    <button className="leads-action" onClick={() => openEditModal(contact)} title="Edit">
+                      <Edit2 size={14} />
+                    </button>
+                    <button className="leads-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })} title="Delete">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="leads-modal-overlay" onClick={() => resetForm()}>
+          <div className="leads-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="leads-modal-header">
+              <h2>{editingContact ? 'Edit Lead' : 'Add Lead'}</h2>
+              <button className="leads-modal-close" onClick={() => resetForm()}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="leads-modal-body">
+              <div className="leads-form-row">
+                <div className="leads-form-group">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Full name"
+                  />
+                </div>
+                <div className="leads-form-group">
+                  <label>Title</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. CEO, President"
+                  />
+                </div>
+              </div>
+              <div className="leads-form-row">
+                <div className="leads-form-group">
+                  <label>Organization</label>
+                  <input
+                    type="text"
+                    value={formData.organization}
+                    onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                    placeholder="Company or school"
+                  />
+                </div>
+                <div className="leads-form-group">
+                  <label>Phone</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              </div>
+              <div className="leads-form-row">
+                <div className="leads-form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div className="leads-form-group">
+                  <label>LinkedIn</label>
+                  <input
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </div>
+              </div>
+              <div className="leads-form-row thirds">
+                <div className="leads-form-group">
+                  <label>Type</label>
+                  <select
+                    value={formData.contact_type}
+                    onChange={(e) => setFormData({ ...formData, contact_type: e.target.value as NetworkContact['contact_type'] })}
+                  >
+                    {Object.entries(typeLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="leads-form-group">
+                  <label>Priority</label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as NetworkContact['priority'] })}
+                  >
+                    <option value="hot">🔥 Hot</option>
+                    <option value="warm">☀️ Warm</option>
+                    <option value="cold">❄️ Cold</option>
+                  </select>
+                </div>
+                <div className="leads-form-group">
+                  <label>Stage</label>
+                  <select
+                    value={formData.stage}
+                    onChange={(e) => setFormData({ ...formData, stage: e.target.value as NetworkContact['stage'] })}
+                  >
+                    {Object.entries(stageLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="leads-form-row thirds">
+                <div className="leads-form-group">
+                  <label>First Contact</label>
+                  <input
+                    type="date"
+                    value={formData.first_contact_date}
+                    onChange={(e) => setFormData({ ...formData, first_contact_date: e.target.value })}
+                  />
+                </div>
+                <div className="leads-form-group">
+                  <label>Last Contact</label>
+                  <input
+                    type="date"
+                    value={formData.last_contact_date}
+                    onChange={(e) => setFormData({ ...formData, last_contact_date: e.target.value })}
+                  />
+                </div>
+                <div className="leads-form-group">
+                  <label>Next Follow-up</label>
+                  <input
+                    type="date"
+                    value={formData.next_followup_date}
+                    onChange={(e) => setFormData({ ...formData, next_followup_date: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="leads-form-group">
+                <label>How They Can Help</label>
+                <textarea
+                  value={formData.how_they_can_help}
+                  onChange={(e) => setFormData({ ...formData, how_they_can_help: e.target.value })}
+                  placeholder="What value can they bring?"
+                  rows={2}
+                />
+              </div>
+              <div className="leads-form-group">
+                <label>Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional context..."
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="leads-modal-footer">
+              <button className="leads-cancel-btn" onClick={() => resetForm()}>Cancel</button>
+              <button
+                className="leads-save-btn"
+                onClick={editingContact ? updateContact : createContact}
+                disabled={!formData.name}
+              >
+                {editingContact ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="Delete Lead"
+        message="Are you sure you want to delete this lead? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => deleteConfirm.id && deleteContact(deleteConfirm.id)}
+        onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
 
       <style jsx>{`
-        .leads-consolidated {
-          max-width: 1200px;
+        .leads-page {
+          padding: 24px;
+          max-width: 1000px;
+          margin: 0 auto;
         }
 
-        .leads-header-actions {
+        .leads-loading, .leads-no-access {
           display: flex;
-          gap: 8px;
-        }
-
-        .ws-text-btn {
-          background: none;
-          border: none;
-          color: var(--ws-text-secondary);
-          font-size: 13px;
-          cursor: pointer;
-          padding: 6px 12px;
-          border-radius: 6px;
-          transition: all 0.15s ease;
-        }
-
-        .ws-text-btn:hover {
-          background: var(--ws-bg-secondary);
-          color: var(--ws-text-primary);
-        }
-
-        .leads-filters-right {
-          display: flex;
+          flex-direction: column;
           align-items: center;
+          justify-content: center;
+          padding: 80px 20px;
+          color: var(--ws-text-secondary);
           gap: 16px;
         }
 
-        .ws-select {
-          padding: 8px 12px;
-          border: 1px solid var(--ws-border);
-          border-radius: 8px;
-          background: white;
-          font-size: 13px;
-          cursor: pointer;
+        .leads-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid var(--ws-border);
+          border-top-color: var(--ws-primary);
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
         }
 
-        .leads-toggle {
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .leads-header {
+          margin-bottom: 24px;
+        }
+
+        .leads-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .leads-title h1 {
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--ws-text-primary);
+          margin: 0;
+        }
+
+        .leads-total {
+          background: var(--ws-bg-secondary);
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--ws-text-secondary);
+        }
+
+        .leads-back {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 13px;
+          background: none;
+          border: none;
           color: var(--ws-text-secondary);
+          font-size: 14px;
           cursor: pointer;
+          padding: 8px 0;
         }
 
-        .leads-toggle input {
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
+        .leads-back:hover {
+          color: var(--ws-primary);
         }
 
-        .leads-categories {
+        /* Stats */
+        .leads-stats {
           display: flex;
-          flex-direction: column;
-          gap: 12px;
+          gap: 16px;
+          margin-bottom: 24px;
         }
 
-        .leads-category {
+        .leads-stat {
           background: white;
           border: 1px solid var(--ws-border);
           border-radius: 12px;
-          overflow: hidden;
+          padding: 16px 24px;
+          text-align: center;
         }
 
-        .leads-category-header {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: none;
-          border: none;
+        .leads-stat-value {
+          display: block;
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--ws-text-primary);
+        }
+
+        .leads-stat-label {
+          font-size: 13px;
+          color: var(--ws-text-secondary);
+        }
+
+        .leads-stat.hot .leads-stat-value {
+          color: #ef4444;
+        }
+
+        .leads-stat.warning .leads-stat-value {
+          color: #f59e0b;
+        }
+
+        /* Category Grid */
+        .leads-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 16px;
+        }
+
+        .leads-card {
+          background: white;
+          border: 1px solid var(--ws-border);
+          border-radius: 16px;
+          padding: 24px;
           cursor: pointer;
-          transition: background 0.15s ease;
-        }
-
-        .leads-category-header:hover {
-          background: var(--ws-bg-secondary);
-        }
-
-        .leads-category-left {
+          text-align: left;
+          transition: all 0.2s ease;
           display: flex;
-          align-items: center;
-          gap: 12px;
+          flex-direction: column;
+          gap: 16px;
         }
 
-        .leads-category-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
+        .leads-card:hover {
+          border-color: var(--card-color);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          transform: translateY(-2px);
+        }
+
+        .leads-card-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 14px;
+          background: var(--card-bg);
+          color: var(--card-color);
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .leads-category-info {
-          text-align: left;
+        .leads-card-info h3 {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--ws-text-primary);
+          margin: 0 0 4px;
         }
 
-        .leads-category-info h3 {
-          font-size: 15px;
+        .leads-card-counts {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .leads-card-count {
+          font-size: 13px;
+          color: var(--ws-text-secondary);
+        }
+
+        .leads-card-hot {
+          font-size: 12px;
+          color: #ef4444;
+          font-weight: 600;
+        }
+
+        /* Category Detail View */
+        .leads-category-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--ws-border);
+        }
+
+        .leads-category-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: var(--cat-bg);
+          color: var(--cat-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .leads-category-header h2 {
+          font-size: 20px;
           font-weight: 600;
           color: var(--ws-text-primary);
           margin: 0;
-        }
-
-        .leads-category-desc {
-          font-size: 12px;
-          color: var(--ws-text-secondary);
+          flex: 1;
         }
 
         .leads-category-count {
-          padding: 4px 12px;
+          background: var(--cat-bg);
+          color: var(--cat-color);
+          padding: 4px 14px;
           border-radius: 20px;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
         }
 
-        .leads-category-content {
-          padding: 0 20px 20px;
-          border-top: 1px solid var(--ws-border);
+        /* Actions Bar */
+        .leads-actions {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 20px;
         }
 
-        .leads-category-empty {
-          padding: 40px 20px;
-          text-align: center;
-          color: var(--ws-text-secondary);
+        .leads-search {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: white;
+          border: 1px solid var(--ws-border);
+          border-radius: 10px;
+          padding: 0 14px;
         }
 
+        .leads-search input {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 12px 0;
+          font-size: 14px;
+        }
+
+        .leads-add-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--ws-primary);
+          color: white;
+          border: none;
+          border-radius: 10px;
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+
+        .leads-add-btn:hover {
+          background: var(--ws-primary-dark, #2563eb);
+        }
+
+        /* Leads List */
         .leads-list {
           display: flex;
           flex-direction: column;
           gap: 8px;
-          padding-top: 16px;
         }
 
-        .lead-card {
+        .leads-empty {
+          text-align: center;
+          padding: 60px 20px;
+          color: var(--ws-text-secondary);
+        }
+
+        .leads-empty p {
+          margin-bottom: 16px;
+        }
+
+        .leads-item {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 16px;
-          background: var(--ws-bg-secondary);
-          border-radius: 10px;
-          border: 1px solid transparent;
+          background: white;
+          border: 1px solid var(--ws-border);
+          border-radius: 12px;
+          padding: 16px 20px;
           transition: all 0.15s ease;
         }
 
-        .lead-card:hover {
-          border-color: var(--ws-border);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        .leads-item:hover {
+          border-color: var(--ws-primary);
         }
 
-        .lead-card.overdue {
+        .leads-item.overdue {
           border-left: 3px solid #ef4444;
         }
 
-        .lead-card-main {
+        .leads-item-main {
           display: flex;
           align-items: center;
           gap: 24px;
           flex: 1;
-        }
-
-        .lead-card-info {
           min-width: 0;
-          flex: 1;
         }
 
-        .lead-card-name-row {
+        .leads-item-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .leads-item-name {
           display: flex;
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
         }
 
-        .lead-card-name-row h4 {
-          font-size: 14px;
+        .leads-item-name h4 {
+          font-size: 15px;
           font-weight: 600;
           color: var(--ws-text-primary);
           margin: 0;
         }
 
-        .lead-priority-badge {
+        .leads-priority {
           padding: 2px 8px;
           border-radius: 12px;
           font-size: 11px;
           font-weight: 600;
         }
 
-        .lead-value-badge {
-          padding: 2px 8px;
-          border-radius: 12px;
-          font-size: 11px;
-          font-weight: 600;
-          background: #dcfce7;
-          color: #16a34a;
-        }
-
-        .lead-card-subtitle {
-          font-size: 12px;
+        .leads-item-subtitle {
+          font-size: 13px;
           color: var(--ws-text-secondary);
           margin: 4px 0 0;
-          display: flex;
-          align-items: center;
-          gap: 4px;
         }
 
-        .lead-org {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .lead-card-meta {
+        .leads-item-meta {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           flex-shrink: 0;
         }
 
-        .lead-stage-badge {
+        .leads-stage {
+          background: #f3f4f6;
+          color: #6b7280;
           padding: 4px 10px;
           border-radius: 6px;
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 500;
-          text-transform: capitalize;
         }
 
-        .lead-followup {
+        .leads-followup {
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 11px;
+          font-size: 12px;
           color: var(--ws-text-secondary);
         }
 
-        .lead-followup.overdue {
+        .leads-followup.overdue {
           color: #ef4444;
           font-weight: 600;
         }
 
-        .lead-card-actions {
+        .leads-item-actions {
           display: flex;
           align-items: center;
           gap: 4px;
           margin-left: 16px;
         }
 
-        .lead-action-btn {
+        .leads-action {
           width: 32px;
           height: 32px;
           border-radius: 8px;
@@ -820,45 +1135,182 @@ export default function LeadsPage() {
           align-items: center;
           justify-content: center;
           color: var(--ws-text-secondary);
-          background: white;
-          border: 1px solid var(--ws-border);
-          transition: all 0.15s ease;
+          background: var(--ws-bg-secondary);
+          border: none;
           cursor: pointer;
           text-decoration: none;
+          transition: all 0.15s ease;
         }
 
-        .lead-action-btn:hover {
+        .leads-action:hover {
           background: var(--ws-primary);
           color: white;
-          border-color: var(--ws-primary);
         }
 
-        .lead-action-btn.view {
+        .leads-action.delete:hover {
+          background: #ef4444;
+        }
+
+        /* Modal */
+        .leads-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .leads-modal {
+          background: white;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 600px;
+          max-height: 90vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .leads-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--ws-border);
+        }
+
+        .leads-modal-header h2 {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+        }
+
+        .leads-modal-close {
+          background: none;
+          border: none;
+          color: var(--ws-text-secondary);
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+        }
+
+        .leads-modal-close:hover {
           background: var(--ws-bg-secondary);
         }
 
-        .lead-action-btn.view:hover {
+        .leads-modal-body {
+          padding: 24px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .leads-form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+
+        .leads-form-row.thirds {
+          grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .leads-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .leads-form-group label {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--ws-text-secondary);
+        }
+
+        .leads-form-group input,
+        .leads-form-group select,
+        .leads-form-group textarea {
+          padding: 10px 12px;
+          border: 1px solid var(--ws-border);
+          border-radius: 8px;
+          font-size: 14px;
+          outline: none;
+          transition: border-color 0.15s ease;
+        }
+
+        .leads-form-group input:focus,
+        .leads-form-group select:focus,
+        .leads-form-group textarea:focus {
+          border-color: var(--ws-primary);
+        }
+
+        .leads-form-group textarea {
+          resize: vertical;
+        }
+
+        .leads-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 16px 24px;
+          border-top: 1px solid var(--ws-border);
+        }
+
+        .leads-cancel-btn {
+          padding: 10px 20px;
+          border: 1px solid var(--ws-border);
+          border-radius: 8px;
+          background: white;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        .leads-cancel-btn:hover {
+          background: var(--ws-bg-secondary);
+        }
+
+        .leads-save-btn {
+          padding: 10px 24px;
+          border: none;
+          border-radius: 8px;
           background: var(--ws-primary);
           color: white;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
         }
 
-        .ws-subpage-stat.hot .ws-subpage-stat-value {
-          color: #ef4444;
+        .leads-save-btn:hover:not(:disabled) {
+          background: var(--ws-primary-dark, #2563eb);
         }
 
-        @media (max-width: 768px) {
-          .lead-card-main {
+        .leads-save-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        @media (max-width: 640px) {
+          .leads-form-row,
+          .leads-form-row.thirds {
+            grid-template-columns: 1fr;
+          }
+
+          .leads-item-main {
             flex-direction: column;
             align-items: flex-start;
             gap: 12px;
           }
 
-          .lead-card-meta {
-            flex-wrap: wrap;
+          .leads-item-actions {
+            margin-left: 0;
           }
 
-          .leads-filters-right {
-            flex-wrap: wrap;
+          .leads-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
