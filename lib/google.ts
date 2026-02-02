@@ -11,6 +11,8 @@ export const GOOGLE_CONFIG = {
   scopes: [
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.compose',
     'https://www.googleapis.com/auth/gmail.labels',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
@@ -313,6 +315,98 @@ export async function getGoogleUserInfo(accessToken: string): Promise<GoogleUser
 
   if (!response.ok) {
     throw new Error('Failed to fetch user info');
+  }
+
+  return response.json();
+}
+
+// Encode string to base64url (for Gmail API)
+export function encodeBase64Url(str: string): string {
+  return Buffer.from(str)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// Create RFC 2822 formatted email
+export function createRawEmail(
+  to: string,
+  from: string,
+  subject: string,
+  body: string,
+  replyTo?: string,
+  cc?: string,
+  bcc?: string
+): string {
+  const headers: string[] = [
+    `To: ${to}`,
+    `From: ${from}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+  ];
+
+  if (replyTo) headers.push(`Reply-To: ${replyTo}`);
+  if (cc) headers.push(`Cc: ${cc}`);
+  if (bcc) headers.push(`Bcc: ${bcc}`);
+
+  return `${headers.join('\r\n')}\r\n\r\n${body}`;
+}
+
+// Send email via Gmail API
+export interface SendEmailParams {
+  to: string;
+  subject: string;
+  body: string;
+  cc?: string;
+  bcc?: string;
+  threadId?: string; // For replies
+}
+
+export interface SendEmailResponse {
+  id: string;
+  threadId: string;
+  labelIds: string[];
+}
+
+export async function sendGmailMessage(
+  accessToken: string,
+  fromEmail: string,
+  params: SendEmailParams
+): Promise<SendEmailResponse> {
+  const rawEmail = createRawEmail(
+    params.to,
+    fromEmail,
+    params.subject,
+    params.body,
+    undefined,
+    params.cc,
+    params.bcc
+  );
+
+  const encodedEmail = encodeBase64Url(rawEmail);
+
+  const requestBody: { raw: string; threadId?: string } = { raw: encodedEmail };
+  if (params.threadId) {
+    requestBody.threadId = params.threadId;
+  }
+
+  const response = await fetch(
+    'https://www.googleapis.com/gmail/v1/users/me/messages/send',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Failed to send email');
   }
 
   return response.json();

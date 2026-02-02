@@ -30,6 +30,15 @@ interface GmailMessage {
   isUnread: boolean;
 }
 
+interface SendEmailParams {
+  to: string;
+  subject: string;
+  body: string;
+  cc?: string;
+  bcc?: string;
+  threadId?: string;
+}
+
 interface UseGoogleIntegrationReturn {
   // Status
   status: GoogleStatus | null;
@@ -46,6 +55,8 @@ interface UseGoogleIntegrationReturn {
   unreadCount: number;
   gmailLoading: boolean;
   fetchEmails: () => Promise<void>;
+  sendEmail: (params: SendEmailParams) => Promise<{ success: boolean; error?: string }>;
+  sendingEmail: boolean;
   
   // Actions
   connect: () => void;
@@ -64,6 +75,7 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
   const [emails, setEmails] = useState<GmailMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [gmailLoading, setGmailLoading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Check connection status
   const refreshStatus = useCallback(async () => {
@@ -167,6 +179,40 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     }
   }, [employeeId]);
 
+  // Send email via Gmail
+  const sendEmail = useCallback(async (params: SendEmailParams): Promise<{ success: boolean; error?: string }> => {
+    if (!employeeId || !status?.connected) {
+      return { success: false, error: 'Not connected to Gmail' };
+    }
+    
+    setSendingEmail(true);
+    try {
+      const response = await fetch('/api/google/gmail/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId,
+          ...params,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Refresh emails to show the sent email
+        await fetchEmails();
+        return { success: true };
+      } else {
+        return { success: false, error: data.error || 'Failed to send email' };
+      }
+    } catch (err) {
+      console.error('Failed to send email:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' };
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [employeeId, status?.connected, fetchEmails]);
+
   // Initial status check
   useEffect(() => {
     refreshStatus();
@@ -203,6 +249,8 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     unreadCount,
     gmailLoading,
     fetchEmails,
+    sendEmail,
+    sendingEmail,
     connect,
     disconnect,
     refreshStatus,
