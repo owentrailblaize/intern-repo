@@ -14614,12 +14614,12 @@ input:focus {
 .linear-issue-input {
   width: 100%;
   padding: 0.75rem;
-  background: #0d0d0d;
-  border: 1px solid #262626;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #f5f5f5;
+  color: #0d0d0d;
   margin-bottom: 0.75rem;
 }
 
@@ -14629,17 +14629,17 @@ input:focus {
 }
 
 .linear-issue-input::placeholder {
-  color: #525252;
+  color: #9ca3af;
 }
 
 .linear-issue-textarea {
   width: 100%;
   padding: 0.75rem;
-  background: #0d0d0d;
-  border: 1px solid #262626;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   font-size: 0.8125rem;
-  color: #e5e5e5;
+  color: #0d0d0d;
   resize: none;
   margin-bottom: 1rem;
 }
@@ -14650,7 +14650,7 @@ input:focus {
 }
 
 .linear-issue-textarea::placeholder {
-  color: #525252;
+  color: #9ca3af;
 }
 
 .linear-issue-meta-row {
