@@ -20,3 +20,6 @@ export { GoogleIntegrationCard } from './GoogleIntegrationCard';
 export { FounderDashboard } from './dashboards/FounderDashboard';
 export { EngineerDashboard } from './dashboards/EngineerDashboard';
 export { InternDashboard } from './dashboards/InternDashboard';
+
+// Linear-style issue tracker (Engineers only)
+export { LinearIssueTracker } from './LinearIssueTracker';
