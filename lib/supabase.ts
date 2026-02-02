@@ -118,7 +118,7 @@ export interface NetworkContact {
   phone: string;
   email: string;
   linkedin: string;
-  contact_type: 'investor' | 'angel' | 'vc' | 'partnership' | 'competitor' | 'connector' | 'ifc_president' | 'ifc_advisor' | 'greek_life' | 'consultant' | 'other';
+  contact_type: 'investor' | 'angel' | 'vc' | 'partnership' | 'competitor' | 'connector' | 'ifc_president' | 'ifc_advisor' | 'chapter_president' | 'chapter_advisor' | 'greek_life' | 'consultant' | 'other';
   priority: 'hot' | 'warm' | 'cold';
   stage: 'identified' | 'researching' | 'outreach_pending' | 'first_contact' | 'follow_up' | 'in_conversation' | 'meeting_scheduled' | 'met' | 'nurturing' | 'committed' | 'passed' | 'dormant';
   first_contact_date: string;

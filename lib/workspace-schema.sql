@@ -1,7 +1,4 @@
--- ============================================
--- WORKSPACE SCHEMA
--- Tasks and Leads tables with RLS
--- ============================================
+-- WORKSPACE SCHEMA - Tasks and Leads tables with RLS
 
 -- Tasks table
 CREATE TABLE IF NOT EXISTS workspace_tasks (
@@ -11,7 +8,7 @@ CREATE TABLE IF NOT EXISTS workspace_tasks (
   description TEXT,
   status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-  category TEXT, -- 'engineering', 'bug', 'review', 'outreach', 'general', etc.
+  category TEXT,
   due_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -32,10 +29,7 @@ CREATE TABLE IF NOT EXISTS workspace_leads (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================
--- INDEXES FOR PERFORMANCE
--- ============================================
-
+-- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_employee_id ON workspace_tasks(employee_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_status ON workspace_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_due_date ON workspace_tasks(due_date);
@@ -44,10 +38,6 @@ CREATE INDEX IF NOT EXISTS idx_workspace_tasks_created_at ON workspace_tasks(cre
 CREATE INDEX IF NOT EXISTS idx_workspace_leads_employee_id ON workspace_leads(employee_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_leads_status ON workspace_leads(status);
 CREATE INDEX IF NOT EXISTS idx_workspace_leads_created_at ON workspace_leads(created_at DESC);
-
--- ============================================
--- UPDATED_AT TRIGGERS
--- ============================================
 
 -- Function to auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -72,115 +62,53 @@ CREATE TRIGGER update_workspace_leads_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================
--- ROW LEVEL SECURITY (RLS)
--- ============================================
-
 -- Enable RLS on both tables
 ALTER TABLE workspace_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspace_leads ENABLE ROW LEVEL SECURITY;
 
--- ============================================
--- RLS POLICIES FOR WORKSPACE_TASKS
--- ============================================
-
--- Policy: Users can view their own tasks
+-- RLS Policies for workspace_tasks
 DROP POLICY IF EXISTS "Users can view own tasks" ON workspace_tasks;
 CREATE POLICY "Users can view own tasks" ON workspace_tasks
   FOR SELECT
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can insert their own tasks
 DROP POLICY IF EXISTS "Users can insert own tasks" ON workspace_tasks;
 CREATE POLICY "Users can insert own tasks" ON workspace_tasks
   FOR INSERT
-  WITH CHECK (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  WITH CHECK (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can update their own tasks
 DROP POLICY IF EXISTS "Users can update own tasks" ON workspace_tasks;
 CREATE POLICY "Users can update own tasks" ON workspace_tasks
   FOR UPDATE
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can delete their own tasks
 DROP POLICY IF EXISTS "Users can delete own tasks" ON workspace_tasks;
 CREATE POLICY "Users can delete own tasks" ON workspace_tasks
   FOR DELETE
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- ============================================
--- RLS POLICIES FOR WORKSPACE_LEADS
--- ============================================
-
--- Policy: Users can view their own leads
+-- RLS Policies for workspace_leads
 DROP POLICY IF EXISTS "Users can view own leads" ON workspace_leads;
 CREATE POLICY "Users can view own leads" ON workspace_leads
   FOR SELECT
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can insert their own leads
 DROP POLICY IF EXISTS "Users can insert own leads" ON workspace_leads;
 CREATE POLICY "Users can insert own leads" ON workspace_leads
   FOR INSERT
-  WITH CHECK (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  WITH CHECK (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can update their own leads
 DROP POLICY IF EXISTS "Users can update own leads" ON workspace_leads;
 CREATE POLICY "Users can update own leads" ON workspace_leads
   FOR UPDATE
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- Policy: Users can delete their own leads
 DROP POLICY IF EXISTS "Users can delete own leads" ON workspace_leads;
 CREATE POLICY "Users can delete own leads" ON workspace_leads
   FOR DELETE
-  USING (
-    employee_id IN (
-      SELECT id FROM employees 
-      WHERE auth_user_id = auth.uid()
-    )
-  );
+  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 
--- ============================================
--- SERVICE ROLE BYPASS (for API routes)
--- ============================================
-
--- Allow service role to bypass RLS for API operations
+-- Service role bypass policies
 DROP POLICY IF EXISTS "Service role bypass tasks" ON workspace_tasks;
 CREATE POLICY "Service role bypass tasks" ON workspace_tasks
   FOR ALL
@@ -190,11 +118,3 @@ DROP POLICY IF EXISTS "Service role bypass leads" ON workspace_leads;
 CREATE POLICY "Service role bypass leads" ON workspace_leads
   FOR ALL
   USING (auth.role() = 'service_role');
-
--- ============================================
--- ENABLE REALTIME
--- ============================================
-
--- Enable realtime for both tables
-ALTER PUBLICATION supabase_realtime ADD TABLE workspace_tasks;
-ALTER PUBLICATION supabase_realtime ADD TABLE workspace_leads;

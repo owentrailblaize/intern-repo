@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS network_contacts (
     'investor', 'angel', 'vc', 
     'partnership', 'competitor',
     'connector', 'ifc_president', 'ifc_advisor', 
+    'chapter_president', 'chapter_advisor',
     'greek_life', 'consultant', 'other'
   )),
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('hot', 'warm', 'cold')),

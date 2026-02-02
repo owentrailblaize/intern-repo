@@ -267,6 +267,8 @@ export default function FundraisingModule() {
     connector: 'Connector',
     ifc_president: 'IFC President',
     ifc_advisor: 'IFC Advisor',
+    chapter_president: 'Chapter President',
+    chapter_advisor: 'Chapter Advisor',
     greek_life: 'Greek Life',
     consultant: 'Consultant',
     other: 'Other',
