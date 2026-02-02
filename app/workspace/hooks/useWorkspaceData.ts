@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
 
@@ -8,28 +8,27 @@ export interface EmployeeTask {
   id: string;
   employee_id: string;
   title: string;
-  description: string;
-  category: string;
+  description: string | null;
+  category: string | null;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'todo' | 'in_progress' | 'done';
-  due_date: string;
+  due_date: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface PersonalLead {
   id: string;
   employee_id: string;
   name: string;
-  email: string;
-  phone: string;
-  organization: string;
+  email: string | null;
+  phone: string | null;
+  organization: string | null;
   lead_type: 'alumni' | 'chapter' | 'sponsor' | 'other';
   status: 'new' | 'contacted' | 'responding' | 'meeting_set' | 'converted' | 'lost';
-  first_contact: string;
-  last_contact: string;
-  next_followup: string;
-  notes: string;
+  notes: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface PortalMessage {
@@ -57,21 +56,27 @@ export interface UseWorkspaceDataReturn {
   teamMembers: Employee[];
   stats: WorkspaceStats;
   loading: boolean;
+  tasksLoading: boolean;
+  leadsLoading: boolean;
   error: string | null;
   refreshTasks: () => Promise<void>;
   refreshLeads: () => Promise<void>;
   refreshMessages: () => Promise<void>;
-  createTask: (task: Partial<EmployeeTask>) => Promise<void>;
+  createTask: (task: Partial<EmployeeTask>) => Promise<EmployeeTask | null>;
+  updateTask: (taskId: string, updates: Partial<EmployeeTask>) => Promise<EmployeeTask | null>;
   toggleTask: (task: EmployeeTask) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
-  createLead: (lead: Partial<PersonalLead>) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<boolean>;
+  createLead: (lead: Partial<PersonalLead>) => Promise<PersonalLead | null>;
+  updateLead: (leadId: string, updates: Partial<PersonalLead>) => Promise<PersonalLead | null>;
   updateLeadStatus: (lead: PersonalLead, status: PersonalLead['status']) => Promise<void>;
+  deleteLead: (leadId: string) => Promise<boolean>;
   setViewAsEmployee: (employee: Employee | null) => void;
   viewAsEmployee: Employee | null;
 }
 
 /**
  * Hook to manage all workspace data fetching and mutations
+ * Uses API routes for CRUD operations with optimistic updates
  */
 export function useWorkspaceData(): UseWorkspaceDataReturn {
   const { user, profile } = useAuth();
@@ -82,7 +87,12 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
   const [messages, setMessages] = useState<PortalMessage[]>([]);
   const [teamMembers, setTeamMembers] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [leadsLoading, setLeadsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track if component is mounted for async operations
+  const isMounted = useRef(true);
 
   // The active employee (either current user or "view as" employee for founders)
   const activeEmployee = viewAsEmployee || currentEmployee;
@@ -113,19 +123,23 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
         data = fallback;
       }
 
-      if (data) {
+      if (data && isMounted.current) {
         setCurrentEmployee(data);
       }
     } catch (err) {
       console.error('Error fetching employee:', err);
-      setError('Failed to load employee data');
+      if (isMounted.current) {
+        setError('Failed to load employee data');
+      }
     }
-    setLoading(false);
+    if (isMounted.current) {
+      setLoading(false);
+    }
   }, [user]);
 
   // Fetch team members (for founders to switch views)
   const fetchTeamMembers = useCallback(async () => {
-    if (!supabase || profile?.role !== 'founder' && profile?.role !== 'cofounder') return;
+    if (!supabase || (profile?.role !== 'founder' && profile?.role !== 'cofounder')) return;
 
     const { data } = await supabase
       .from('employees')
@@ -133,117 +147,443 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
       .eq('status', 'active')
       .order('name');
     
-    setTeamMembers(data || []);
+    if (isMounted.current) {
+      setTeamMembers(data || []);
+    }
   }, [profile?.role]);
+
+  // ============================================
+  // TASKS CRUD OPERATIONS
+  // ============================================
 
   // Fetch tasks for active employee
   const fetchTasks = useCallback(async () => {
-    if (!supabase || !activeEmployee) return;
-
-    const { data } = await supabase
-      .from('employee_tasks')
-      .select('*')
-      .eq('employee_id', activeEmployee.id)
-      .order('due_date', { ascending: true });
+    if (!activeEmployee) return;
     
-    setTasks(data || []);
-  }, [activeEmployee]);
-
-  // Fetch leads for active employee
-  const fetchLeads = useCallback(async () => {
-    if (!supabase || !activeEmployee) return;
-
-    const { data } = await supabase
-      .from('personal_leads')
-      .select('*')
-      .eq('employee_id', activeEmployee.id)
-      .order('created_at', { ascending: false });
-    
-    setLeads(data || []);
-  }, [activeEmployee]);
-
-  // Fetch messages for active employee
-  const fetchMessages = useCallback(async () => {
-    if (!supabase || !activeEmployee) return;
-
-    const { data } = await supabase
-      .from('portal_messages')
-      .select('*, sender:sender_id(name)')
-      .eq('recipient_id', activeEmployee.id)
-      .eq('is_read', false)
-      .eq('is_draft', false)
-      .order('sent_at', { ascending: false })
-      .limit(10);
-    
-    setMessages(data?.map(m => ({
-      ...m,
-      sender_name: (m.sender as { name: string } | null)?.name || 'Unknown'
-    })) || []);
+    setTasksLoading(true);
+    try {
+      const response = await fetch(`/api/workspace/tasks?employee_id=${activeEmployee.id}`);
+      const result = await response.json();
+      
+      if (result.error) {
+        console.error('Error fetching tasks:', result.error);
+        setError(result.error.message);
+      } else if (isMounted.current) {
+        setTasks(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      if (isMounted.current) {
+        setError('Failed to load tasks');
+      }
+    } finally {
+      if (isMounted.current) {
+        setTasksLoading(false);
+      }
+    }
   }, [activeEmployee]);
 
   // Create a new task
-  const createTask = async (task: Partial<EmployeeTask>) => {
-    if (!supabase || !activeEmployee) return;
+  const createTask = async (task: Partial<EmployeeTask>): Promise<EmployeeTask | null> => {
+    if (!activeEmployee) return null;
 
-    await supabase.from('employee_tasks').insert([{
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTask: EmployeeTask = {
+      id: tempId,
       employee_id: activeEmployee.id,
-      title: task.title,
-      description: task.description || '',
+      title: task.title || '',
+      description: task.description || null,
       priority: task.priority || 'medium',
+      status: task.status || 'todo',
+      category: task.category || null,
       due_date: task.due_date || null,
-      category: task.category || 'general',
-      status: 'todo'
-    }]);
+      created_at: new Date().toISOString(),
+    };
+    
+    setTasks(prev => [optimisticTask, ...prev]);
 
-    await fetchTasks();
+    try {
+      const response = await fetch('/api/workspace/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: activeEmployee.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority || 'medium',
+          status: task.status || 'todo',
+          category: task.category,
+          due_date: task.due_date,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setTasks(prev => prev.filter(t => t.id !== tempId));
+        setError(result.error.message);
+        return null;
+      }
+
+      // Replace temp task with real one
+      if (isMounted.current) {
+        setTasks(prev => prev.map(t => t.id === tempId ? result.data : t));
+      }
+      return result.data;
+    } catch (err) {
+      console.error('Error creating task:', err);
+      setTasks(prev => prev.filter(t => t.id !== tempId));
+      setError('Failed to create task');
+      return null;
+    }
+  };
+
+  // Update a task
+  const updateTask = async (taskId: string, updates: Partial<EmployeeTask>): Promise<EmployeeTask | null> => {
+    // Store original for rollback
+    const originalTask = tasks.find(t => t.id === taskId);
+    if (!originalTask) return null;
+
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+
+    try {
+      const response = await fetch(`/api/workspace/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setTasks(prev => prev.map(t => t.id === taskId ? originalTask : t));
+        setError(result.error.message);
+        return null;
+      }
+
+      // Update with server response
+      if (isMounted.current) {
+        setTasks(prev => prev.map(t => t.id === taskId ? result.data : t));
+      }
+      return result.data;
+    } catch (err) {
+      console.error('Error updating task:', err);
+      setTasks(prev => prev.map(t => t.id === taskId ? originalTask : t));
+      setError('Failed to update task');
+      return null;
+    }
   };
 
   // Toggle task status
   const toggleTask = async (task: EmployeeTask) => {
-    if (!supabase) return;
     const newStatus = task.status === 'done' ? 'todo' : 'done';
-    await supabase.from('employee_tasks').update({ status: newStatus }).eq('id', task.id);
-    await fetchTasks();
+    await updateTask(task.id, { status: newStatus });
   };
 
   // Delete a task
-  const deleteTask = async (taskId: string) => {
-    if (!supabase) return;
-    await supabase.from('employee_tasks').delete().eq('id', taskId);
-    await fetchTasks();
+  const deleteTask = async (taskId: string): Promise<boolean> => {
+    // Store original for rollback
+    const originalTasks = [...tasks];
+
+    // Optimistic update
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+
+    try {
+      const response = await fetch(`/api/workspace/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setTasks(originalTasks);
+        setError(result.error.message);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setTasks(originalTasks);
+      setError('Failed to delete task');
+      return false;
+    }
   };
+
+  // ============================================
+  // LEADS CRUD OPERATIONS
+  // ============================================
+
+  // Fetch leads for active employee
+  const fetchLeads = useCallback(async () => {
+    if (!activeEmployee) return;
+    
+    setLeadsLoading(true);
+    try {
+      const response = await fetch(`/api/workspace/leads?employee_id=${activeEmployee.id}`);
+      const result = await response.json();
+      
+      if (result.error) {
+        console.error('Error fetching leads:', result.error);
+        setError(result.error.message);
+      } else if (isMounted.current) {
+        setLeads(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching leads:', err);
+      if (isMounted.current) {
+        setError('Failed to load leads');
+      }
+    } finally {
+      if (isMounted.current) {
+        setLeadsLoading(false);
+      }
+    }
+  }, [activeEmployee]);
 
   // Create a new lead
-  const createLead = async (lead: Partial<PersonalLead>) => {
+  const createLead = async (lead: Partial<PersonalLead>): Promise<PersonalLead | null> => {
+    if (!activeEmployee) return null;
+
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticLead: PersonalLead = {
+      id: tempId,
+      employee_id: activeEmployee.id,
+      name: lead.name || '',
+      email: lead.email || null,
+      phone: lead.phone || null,
+      organization: lead.organization || null,
+      lead_type: lead.lead_type || 'other',
+      status: lead.status || 'new',
+      notes: lead.notes || null,
+      created_at: new Date().toISOString(),
+    };
+    
+    setLeads(prev => [optimisticLead, ...prev]);
+
+    try {
+      const response = await fetch('/api/workspace/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: activeEmployee.id,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          organization: lead.organization,
+          lead_type: lead.lead_type || 'other',
+          status: lead.status || 'new',
+          notes: lead.notes,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setLeads(prev => prev.filter(l => l.id !== tempId));
+        setError(result.error.message);
+        return null;
+      }
+
+      // Replace temp lead with real one
+      if (isMounted.current) {
+        setLeads(prev => prev.map(l => l.id === tempId ? result.data : l));
+      }
+      return result.data;
+    } catch (err) {
+      console.error('Error creating lead:', err);
+      setLeads(prev => prev.filter(l => l.id !== tempId));
+      setError('Failed to create lead');
+      return null;
+    }
+  };
+
+  // Update a lead
+  const updateLead = async (leadId: string, updates: Partial<PersonalLead>): Promise<PersonalLead | null> => {
+    // Store original for rollback
+    const originalLead = leads.find(l => l.id === leadId);
+    if (!originalLead) return null;
+
+    // Optimistic update
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l));
+
+    try {
+      const response = await fetch(`/api/workspace/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setLeads(prev => prev.map(l => l.id === leadId ? originalLead : l));
+        setError(result.error.message);
+        return null;
+      }
+
+      // Update with server response
+      if (isMounted.current) {
+        setLeads(prev => prev.map(l => l.id === leadId ? result.data : l));
+      }
+      return result.data;
+    } catch (err) {
+      console.error('Error updating lead:', err);
+      setLeads(prev => prev.map(l => l.id === leadId ? originalLead : l));
+      setError('Failed to update lead');
+      return null;
+    }
+  };
+
+  // Update lead status (convenience method)
+  const updateLeadStatus = async (lead: PersonalLead, status: PersonalLead['status']) => {
+    await updateLead(lead.id, { status });
+  };
+
+  // Delete a lead
+  const deleteLead = async (leadId: string): Promise<boolean> => {
+    // Store original for rollback
+    const originalLeads = [...leads];
+
+    // Optimistic update
+    setLeads(prev => prev.filter(l => l.id !== leadId));
+
+    try {
+      const response = await fetch(`/api/workspace/leads/${leadId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        // Revert optimistic update
+        setLeads(originalLeads);
+        setError(result.error.message);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Error deleting lead:', err);
+      setLeads(originalLeads);
+      setError('Failed to delete lead');
+      return false;
+    }
+  };
+
+  // ============================================
+  // MESSAGES
+  // ============================================
+
+  // Fetch messages for active employee (using existing portal_messages table)
+  const fetchMessages = useCallback(async () => {
     if (!supabase || !activeEmployee) return;
 
-    await supabase.from('personal_leads').insert([{
-      employee_id: activeEmployee.id,
-      name: lead.name,
-      email: lead.email || '',
-      phone: lead.phone || '',
-      organization: lead.organization || '',
-      lead_type: lead.lead_type || 'alumni',
-      notes: lead.notes || '',
-      status: 'new'
-    }]);
-
-    await fetchLeads();
-  };
-
-  // Update lead status
-  const updateLeadStatus = async (lead: PersonalLead, status: PersonalLead['status']) => {
-    if (!supabase) return;
-
-    const updateData: Record<string, unknown> = { status };
-    if (status === 'contacted' && !lead.first_contact) {
-      updateData.first_contact = new Date().toISOString().split('T')[0];
+    try {
+      const { data } = await supabase
+        .from('portal_messages')
+        .select('*, sender:sender_id(name)')
+        .eq('recipient_id', activeEmployee.id)
+        .eq('is_read', false)
+        .eq('is_draft', false)
+        .order('sent_at', { ascending: false })
+        .limit(10);
+      
+      if (isMounted.current) {
+        setMessages(data?.map(m => ({
+          ...m,
+          sender_name: (m.sender as { name: string } | null)?.name || 'Unknown'
+        })) || []);
+      }
+    } catch (err) {
+      console.error('Error fetching messages:', err);
     }
-    updateData.last_contact = new Date().toISOString().split('T')[0];
+  }, [activeEmployee]);
 
-    await supabase.from('personal_leads').update(updateData).eq('id', lead.id);
-    await fetchLeads();
-  };
+  // ============================================
+  // REALTIME SUBSCRIPTIONS
+  // ============================================
+
+  useEffect(() => {
+    if (!supabase || !activeEmployee) return;
+
+    // Subscribe to task changes
+    const tasksChannel = supabase
+      .channel('workspace_tasks_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workspace_tasks',
+          filter: `employee_id=eq.${activeEmployee.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks(prev => {
+              // Avoid duplicates from optimistic updates
+              if (prev.some(t => t.id === (payload.new as EmployeeTask).id)) return prev;
+              return [payload.new as EmployeeTask, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(t => 
+              t.id === (payload.new as EmployeeTask).id ? payload.new as EmployeeTask : t
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== (payload.old as { id: string }).id));
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to lead changes
+    const leadsChannel = supabase
+      .channel('workspace_leads_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workspace_leads',
+          filter: `employee_id=eq.${activeEmployee.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setLeads(prev => {
+              // Avoid duplicates from optimistic updates
+              if (prev.some(l => l.id === (payload.new as PersonalLead).id)) return prev;
+              return [payload.new as PersonalLead, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setLeads(prev => prev.map(l => 
+              l.id === (payload.new as PersonalLead).id ? payload.new as PersonalLead : l
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setLeads(prev => prev.filter(l => l.id !== (payload.old as { id: string }).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(tasksChannel);
+        supabase.removeChannel(leadsChannel);
+      }
+    };
+  }, [activeEmployee]);
+
+  // ============================================
+  // LIFECYCLE
+  // ============================================
 
   // Initial data fetch
   useEffect(() => {
@@ -266,7 +606,18 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
     }
   }, [activeEmployee, fetchTasks, fetchLeads, fetchMessages]);
 
-  // Calculate stats
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // ============================================
+  // STATS
+  // ============================================
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -276,10 +627,7 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
     completedTasks: tasks.filter(t => t.status === 'done').length,
     activeLeads: leads.filter(l => !['converted', 'lost'].includes(l.status)).length,
     unreadMessages: messages.length,
-    needsFollowUp: leads.filter(l => {
-      if (!l.next_followup) return false;
-      return new Date(l.next_followup) <= today && !['converted', 'lost'].includes(l.status);
-    }).length,
+    needsFollowUp: leads.filter(l => l.status === 'contacted').length,
   };
 
   return {
@@ -290,15 +638,20 @@ export function useWorkspaceData(): UseWorkspaceDataReturn {
     teamMembers,
     stats,
     loading,
+    tasksLoading,
+    leadsLoading,
     error,
     refreshTasks: fetchTasks,
     refreshLeads: fetchLeads,
     refreshMessages: fetchMessages,
     createTask,
+    updateTask,
     toggleTask,
     deleteTask,
     createLead,
+    updateLead,
     updateLeadStatus,
+    deleteLead,
     setViewAsEmployee,
     viewAsEmployee,
   };

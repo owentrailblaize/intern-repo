@@ -42,10 +42,16 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
     tasks,
     leads,
     stats,
+    tasksLoading,
+    leadsLoading,
     createTask,
+    updateTask,
     toggleTask,
+    deleteTask,
     createLead,
-    updateLeadStatus
+    updateLead,
+    updateLeadStatus,
+    deleteLead,
   } = data;
 
   const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
@@ -173,9 +179,12 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
                 tasks={activeTasks}
                 onToggleTask={toggleTask}
                 onCreateTask={createTask}
+                onUpdateTask={updateTask}
+                onDeleteTask={deleteTask}
                 title="Priority Tasks"
                 limit={4}
                 compact
+                loading={tasksLoading}
               />
             </div>
 
@@ -197,9 +206,12 @@ export function InternDashboard({ data, teamMembers }: InternDashboardProps) {
                 leads={activeLeads}
                 onCreateLead={createLead}
                 onUpdateStatus={updateLeadStatus}
+                onUpdateLead={updateLead}
+                onDeleteLead={deleteLead}
                 title="Alumni Outreach"
                 limit={3}
                 compact
+                loading={leadsLoading}
               />
             </div>
 

@@ -43,10 +43,16 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
     tasks,
     leads,
     stats,
+    tasksLoading,
+    leadsLoading,
     createTask,
+    updateTask,
     toggleTask,
+    deleteTask,
     createLead,
+    updateLead,
     updateLeadStatus,
+    deleteLead,
   } = data;
 
   const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
@@ -175,9 +181,12 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
                 tasks={thisWeekTasks}
                 onToggleTask={toggleTask}
                 onCreateTask={createTask}
+                onUpdateTask={updateTask}
+                onDeleteTask={deleteTask}
                 title="Priority Tasks"
                 limit={4}
                 compact
+                loading={tasksLoading}
               />
             </div>
 
@@ -199,9 +208,12 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
                 leads={leads}
                 onCreateLead={createLead}
                 onUpdateStatus={updateLeadStatus}
+                onUpdateLead={updateLead}
+                onDeleteLead={deleteLead}
                 title="Active Leads"
                 limit={3}
                 compact
+                loading={leadsLoading}
               />
             </div>
 

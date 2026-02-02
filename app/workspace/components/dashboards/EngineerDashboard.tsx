@@ -41,8 +41,11 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
     currentEmployee,
     tasks,
     stats,
+    tasksLoading,
     createTask,
+    updateTask,
     toggleTask,
+    deleteTask,
   } = data;
 
   const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
@@ -153,9 +156,12 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
                 tasks={devTasks}
                 onToggleTask={toggleTask}
                 onCreateTask={createTask}
+                onUpdateTask={updateTask}
+                onDeleteTask={deleteTask}
                 title="Development Tasks"
                 limit={4}
                 compact
+                loading={tasksLoading}
               />
             </div>
 
