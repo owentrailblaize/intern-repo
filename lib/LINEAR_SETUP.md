@@ -42,6 +42,7 @@ Run the SQL schema in your Supabase SQL Editor:
 ```
 
 This creates:
+
 - `linear_oauth_tokens` - Stores OAuth tokens per employee
 - `linear_teams` - Synced Linear teams
 - `linear_projects` - Synced Linear projects
@@ -117,14 +118,14 @@ const response = await fetch('/api/linear/issues', {
 
 The webhook handler processes these events:
 
-| Event Type | Actions | Description |
-|------------|---------|-------------|
-| Issue | create, update, remove | Issue CRUD operations |
-| Comment | create, update, remove | Comment changes |
-| Project | create, update, remove | Project changes |
-| ProjectUpdate | create, update | Project status/progress updates |
-| IssueLabel | create, update, remove | Label management |
-| Attachment | create, update, remove | File attachments |
+| Event Type    | Actions                | Description                     |
+| ------------- | ---------------------- | ------------------------------- |
+| Issue         | create, update, remove | Issue CRUD operations           |
+| Comment       | create, update, remove | Comment changes                 |
+| Project       | create, update, remove | Project changes                 |
+| ProjectUpdate | create, update         | Project status/progress updates |
+| IssueLabel    | create, update, remove | Label management                |
+| Attachment    | create, update, remove | File attachments                |
 
 All webhook events are logged to `linear_webhook_events` for debugging.
 
