@@ -2448,6 +2448,7 @@ input:focus {
 }
 
 .chapter-contact,
+.chapter-alumni-channels,
 .chapter-next-action {
   font-size: 0.875rem;
   color: #374151;
@@ -2458,6 +2459,7 @@ input:focus {
 }
 
 .chapter-contact strong,
+.chapter-alumni-channels strong,
 .chapter-next-action strong {
   color: #1a2744;
 }

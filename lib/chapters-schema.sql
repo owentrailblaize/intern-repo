@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS chapters (
   last_activity DATE,
   next_action TEXT,
   notes TEXT,
+  alumni_channels TEXT,  -- Communication channels used with alumni (e.g., GroupMe, Slack, email)
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

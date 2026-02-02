@@ -27,6 +27,7 @@ export default function CustomerSuccessModule() {
     mrr: 0,
     next_action: '',
     notes: '',
+    alumni_channels: '',
   });
 
   useEffect(() => {
@@ -159,6 +160,7 @@ export default function CustomerSuccessModule() {
       mrr: 0,
       next_action: '',
       notes: '',
+      alumni_channels: '',
     });
     setEditingChapter(null);
     setShowModal(false);
@@ -178,6 +180,7 @@ export default function CustomerSuccessModule() {
       mrr: chapter.mrr || 0,
       next_action: chapter.next_action || '',
       notes: chapter.notes || '',
+      alumni_channels: chapter.alumni_channels || '',
     });
     setShowModal(true);
   }
@@ -387,6 +390,11 @@ export default function CustomerSuccessModule() {
                         {chapter.contact_phone && ` • ${chapter.contact_phone}`}
                       </div>
                     )}
+                    {chapter.alumni_channels && (
+                      <div className="chapter-alumni-channels">
+                        <strong>📱 Alumni Channels:</strong> {chapter.alumni_channels}
+                      </div>
+                    )}
                     {chapter.next_action && (
                       <div className="chapter-next-action">
                         <strong>Next Action:</strong> {chapter.next_action}
@@ -518,6 +526,15 @@ export default function CustomerSuccessModule() {
                   value={formData.next_action}
                   onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
                   placeholder="What's the next step for this chapter?"
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Alumni Communication Channels</label>
+                <input
+                  type="text"
+                  value={formData.alumni_channels}
+                  onChange={(e) => setFormData({ ...formData, alumni_channels: e.target.value })}
+                  placeholder="e.g., GroupMe, Slack, Email Newsletter, Text Chain"
                 />
               </div>
               <div className="module-form-group">

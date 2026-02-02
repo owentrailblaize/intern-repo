@@ -221,6 +221,7 @@ export interface Chapter {
   last_activity: string;
   next_action: string;
   notes: string;
+  alumni_channels: string;
   
   created_at: string;
   updated_at: string;
