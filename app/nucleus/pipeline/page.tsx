@@ -1,10 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Deal } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+
+interface ParsedDeal {
+  name: string;
+  organization: string;
+  contact_name: string;
+  value: number;
+  email: string;
+  phone: string;
+  notes: string;
+  selected?: boolean;
+}
 
 export default function PipelineModule() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -22,6 +33,16 @@ export default function PipelineModule() {
     probability: 10,
     expected_close: '',
   });
+
+  // Import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importMode, setImportMode] = useState<'choose' | 'image' | 'text' | 'preview'>('choose');
+  const [importText, setImportText] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch deals
   useEffect(() => {
@@ -108,6 +129,136 @@ export default function PipelineModule() {
     });
     setEditingDeal(null);
     setShowModal(false);
+  }
+
+  function resetImportModal() {
+    setShowImportModal(false);
+    setImportMode('choose');
+    setImportText('');
+    setImportLoading(false);
+    setImportError('');
+    setParsedDeals([]);
+    setImportSuccess(false);
+  }
+
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setImportError('Please upload an image file (PNG, JPG, etc.)');
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      await parseContent({ image: base64 });
+    };
+    reader.onerror = () => {
+      setImportError('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleTextParse() {
+    if (!importText.trim()) {
+      setImportError('Please paste some text content');
+      return;
+    }
+    await parseContent({ text: importText });
+  }
+
+  async function parseContent(payload: { image?: string; text?: string }) {
+    setImportLoading(true);
+    setImportError('');
+
+    try {
+      const response = await fetch('/api/parse-deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to parse content');
+      }
+
+      if (!data.deals || data.deals.length === 0) {
+        setImportError('No deals found in the content. Try a different image or text.');
+        setImportLoading(false);
+        return;
+      }
+
+      // Mark all deals as selected by default
+      setParsedDeals(data.deals.map((d: ParsedDeal) => ({ ...d, selected: true })));
+      setImportMode('preview');
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Failed to parse content');
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function toggleDealSelection(index: number) {
+    setParsedDeals(prev =>
+      prev.map((deal, i) =>
+        i === index ? { ...deal, selected: !deal.selected } : deal
+      )
+    );
+  }
+
+  function toggleAllDeals(selected: boolean) {
+    setParsedDeals(prev => prev.map(deal => ({ ...deal, selected })));
+  }
+
+  async function importSelectedDeals() {
+    if (!supabase) return;
+
+    const selectedDeals = parsedDeals.filter(d => d.selected);
+    if (selectedDeals.length === 0) {
+      setImportError('Please select at least one deal to import');
+      return;
+    }
+
+    setImportLoading(true);
+    setImportError('');
+
+    try {
+      // Transform parsed deals to match the deals table schema
+      const dealsToInsert = selectedDeals.map(d => ({
+        name: d.name,
+        organization: d.organization || null,
+        contact_name: d.contact_name || null,
+        value: d.value || 0,
+        stage: 'discovery' as const,
+        probability: 10,
+        expected_close: null,
+      }));
+
+      const { error } = await supabase.from('deals').insert(dealsToInsert);
+
+      if (error) {
+        throw error;
+      }
+
+      setImportSuccess(true);
+      fetchDeals();
+
+      // Close modal after brief success message
+      setTimeout(() => {
+        resetImportModal();
+      }, 1500);
+    } catch (error) {
+      console.error('Error importing deals:', error);
+      setImportError('Failed to import deals. Please try again.');
+    } finally {
+      setImportLoading(false);
+    }
   }
 
   function openEditModal(deal: Deal) {

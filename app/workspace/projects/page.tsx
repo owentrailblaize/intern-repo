@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
 import { useUserRole } from '../hooks/useUserRole';
 import { LinearIssueTracker } from '../components/LinearIssueTracker';
+import { GrowthProjectTracker } from '../components/GrowthProjectTracker';
+import { FounderProjectHub } from '../components/FounderProjectHub';
 import {
   FolderKanban,
   AlertCircle
@@ -13,7 +15,7 @@ import {
 
 export default function ProjectsPage() {
   const { user } = useAuth();
-  const { features, isEngineer, isFounder, loading: roleLoading } = useUserRole();
+  const { features, isEngineer, isFounder, isIntern, loading: roleLoading } = useUserRole();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [teamMembers, setTeamMembers] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,11 +39,10 @@ export default function ProjectsPage() {
         setCurrentEmployee(employee);
       }
 
-      // Get team members (engineers for assignment)
+      // Get all team members for founder view
       const { data: team } = await supabase
         .from('employees')
         .select('*')
-        .in('role', ['founder', 'software_engineer'])
         .eq('status', 'active');
 
       if (team) {
@@ -68,7 +69,7 @@ export default function ProjectsPage() {
     );
   }
 
-  // Access control - only engineers and founders can access this
+  // Access control
   if (!features.showProjects) {
     return (
       <div className="ws-no-access">
@@ -82,11 +83,11 @@ export default function ProjectsPage() {
     );
   }
 
-  // Engineers and Founders get the Linear-style issue tracker
-  if (isEngineer || isFounder) {
+  // Founders get the full Project Hub with both views + analytics
+  if (isFounder) {
     return (
-      <div className="linear-page-wrapper">
-        <LinearIssueTracker 
+      <div className="founder-page-wrapper">
+        <FounderProjectHub 
           currentEmployee={currentEmployee}
           teamMembers={teamMembers}
         />
@@ -94,12 +95,37 @@ export default function ProjectsPage() {
     );
   }
 
-  // Fallback for other roles (shouldn't normally reach here)
+  // Engineers get the Linear-style Product Development tracker
+  if (isEngineer) {
+    return (
+      <div className="linear-page-wrapper">
+        <LinearIssueTracker 
+          currentEmployee={currentEmployee}
+          teamMembers={teamMembers.filter(m => 
+            m.role?.includes('engineer') || m.role?.includes('founder')
+          )}
+        />
+      </div>
+    );
+  }
+
+  // Growth/Interns get the interactive project tracker
+  if (isIntern) {
+    return (
+      <div className="growth-page-wrapper">
+        <GrowthProjectTracker 
+          currentEmployee={currentEmployee}
+        />
+      </div>
+    );
+  }
+
+  // Fallback
   return (
     <div className="ws-no-access">
       <AlertCircle size={48} />
       <h2>No Access</h2>
-      <p>This feature is only available to engineers.</p>
+      <p>Unable to determine your role. Please contact support.</p>
       <Link href="/workspace" className="ws-back-link">
         Back to Dashboard
       </Link>

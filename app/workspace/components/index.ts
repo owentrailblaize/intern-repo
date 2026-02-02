@@ -21,5 +21,7 @@ export { FounderDashboard } from './dashboards/FounderDashboard';
 export { EngineerDashboard } from './dashboards/EngineerDashboard';
 export { InternDashboard } from './dashboards/InternDashboard';
 
-// Linear-style issue tracker (Engineers only)
+// Project trackers
 export { LinearIssueTracker } from './LinearIssueTracker';
+export { GrowthProjectTracker } from './GrowthProjectTracker';
+export { FounderProjectHub } from './FounderProjectHub';

@@ -461,7 +461,7 @@ export function LinearIssueTracker({ currentEmployee, teamMembers }: LinearIssue
       {/* Header */}
       <header className="linear-header">
         <div className="linear-header-left">
-          <h1 className="linear-title">Issues</h1>
+          <h1 className="linear-title">Product Development</h1>
           <div className="linear-view-tabs">
             <button 
               className={`linear-view-tab ${viewMode === 'active' ? 'active' : ''}`}
