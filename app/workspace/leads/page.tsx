@@ -18,7 +18,7 @@ import {
   Users,
   Crown,
   GraduationCap,
-  Handshake,
+  Link2,
   Swords,
   HelpCircle,
   DollarSign,
@@ -63,7 +63,7 @@ const LEAD_CATEGORIES = {
   },
   partnership: {
     label: 'Partnerships',
-    icon: Handshake,
+    icon: Link2,
     color: '#3b82f6',
     bgColor: '#3b82f615',
     contactTypes: ['partnership'] as NetworkContact['contact_type'][],
