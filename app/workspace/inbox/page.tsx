@@ -23,7 +23,8 @@ import {
   Check,
   ExternalLink,
   RefreshCw,
-  Link2
+  Link2,
+  AlertCircle
 } from 'lucide-react';
 
 interface Message {
