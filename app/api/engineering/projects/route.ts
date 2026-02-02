@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabaseAdmin() {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null;
+  }
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 export interface EngineeringProject {
   id: string;
@@ -24,6 +29,11 @@ export interface EngineeringProject {
 // GET - Fetch all projects
 export async function GET() {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
     const { data: projects, error } = await supabase
       .from('engineering_projects')
       .select('*')
@@ -59,6 +69,11 @@ export async function GET() {
 // POST - Create new project
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
     const body = await request.json();
     const { name, identifier, description, color, lead_id } = body;
 

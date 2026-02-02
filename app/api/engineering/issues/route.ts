@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabaseAdmin() {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null;
+  }
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 export interface EngineeringIssue {
   id: string;
@@ -34,6 +39,11 @@ export interface EngineeringIssue {
 // GET - Fetch issues with filters
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const projectId = searchParams.get('project_id');
@@ -93,6 +103,11 @@ export async function GET(request: NextRequest) {
 // POST - Create new issue
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
     const body = await request.json();
     const { title, description, project_id, assignee_id, creator_id, priority, labels, issue_type, due_date, status } = body;
 

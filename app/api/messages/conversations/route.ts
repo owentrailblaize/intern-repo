@@ -58,13 +58,23 @@ export async function GET(request: NextRequest) {
     // For each conversation, get the other participants and last message
     const conversationsWithDetails = await Promise.all(
       (conversations || []).map(async (cp) => {
-        const conv = cp.conversations as {
+        // Handle conversations relation - can be array or single object depending on Supabase config
+        const convData = cp.conversations as unknown as {
           id: string;
           name: string;
           is_group: boolean;
           created_at: string;
           updated_at: string;
-        };
+        } | {
+          id: string;
+          name: string;
+          is_group: boolean;
+          created_at: string;
+          updated_at: string;
+        }[] | null;
+        const conv = Array.isArray(convData) ? convData[0] : convData;
+        
+        if (!conv) return null;
 
         // Get other participants
         const { data: participants } = await supabase
@@ -98,13 +108,21 @@ export async function GET(request: NextRequest) {
           .neq('sender_id', employeeId)
           .gt('created_at', cp.last_read_at || '1970-01-01');
 
-        const participant = participants?.[0]?.employees as {
+        // Handle employees relation - can be array or single object depending on Supabase config
+        const employeeData = participants?.[0]?.employees as unknown as {
           id: string;
           name: string;
           role: string;
           avatar_url: string;
           status: string;
-        } | undefined;
+        } | {
+          id: string;
+          name: string;
+          role: string;
+          avatar_url: string;
+          status: string;
+        }[] | null;
+        const participant = Array.isArray(employeeData) ? employeeData[0] : employeeData;
 
         return {
           id: conv.id,
@@ -125,14 +143,15 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Sort by last message time
-    conversationsWithDetails.sort((a, b) => {
-      if (!a.lastMessageTime) return 1;
-      if (!b.lastMessageTime) return -1;
-      return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+    // Filter out null values and sort by last message time
+    const validConversations = conversationsWithDetails.filter(c => c !== null);
+    validConversations.sort((a, b) => {
+      if (!a!.lastMessageTime) return 1;
+      if (!b!.lastMessageTime) return -1;
+      return new Date(b!.lastMessageTime).getTime() - new Date(a!.lastMessageTime).getTime();
     });
 
-    return NextResponse.json({ data: conversationsWithDetails, error: null });
+    return NextResponse.json({ data: validConversations, error: null });
   } catch (err) {
     console.error('Error in conversations GET:', err);
     return NextResponse.json({ 

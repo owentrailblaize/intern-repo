@@ -114,11 +114,17 @@ export async function GET(
       const receipts = readReceiptMap[msg.id] || [];
       const isReadByOthers = receipts.some(r => r.employee_id !== employeeId);
       
+      // Handle employees relation - can be array or single object depending on Supabase config
+      const employeeData = msg.employees as unknown as { name: string } | { name: string }[] | null;
+      const senderName = Array.isArray(employeeData) 
+        ? employeeData[0]?.name 
+        : employeeData?.name;
+      
       return {
         id: msg.id,
         content: msg.content,
         senderId: msg.sender_id,
-        senderName: (msg.employees as { name: string } | null)?.name || 'Unknown',
+        senderName: senderName || 'Unknown',
         messageType: msg.message_type,
         metadata: msg.metadata,
         isEdited: msg.is_edited,
