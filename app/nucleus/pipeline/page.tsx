@@ -363,6 +363,10 @@ export default function PipelineModule() {
               <Filter size={16} />
               Filter
             </button>
+            <button className="module-secondary-btn" onClick={() => setShowImportModal(true)}>
+              <Upload size={16} />
+              Import
+            </button>
             <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Create Deal
@@ -513,6 +517,218 @@ export default function PipelineModule() {
                 {editingDeal ? 'Update' : 'Create'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="module-modal-overlay" onClick={() => resetImportModal()}>
+          <div className="module-modal import-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>
+                {importMode === 'choose' && 'Import Deals'}
+                {importMode === 'image' && 'Upload Image'}
+                {importMode === 'text' && 'Paste Spreadsheet Data'}
+                {importMode === 'preview' && 'Review Imported Deals'}
+              </h2>
+              <button className="module-modal-close" onClick={() => resetImportModal()}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="module-modal-body">
+              {/* Success State */}
+              {importSuccess && (
+                <div className="import-success">
+                  <div className="import-success-icon">
+                    <Check size={32} />
+                  </div>
+                  <h3>Deals imported successfully!</h3>
+                  <p>{parsedDeals.filter(d => d.selected).length} deals added to pipeline</p>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {importError && !importSuccess && (
+                <div className="import-error">
+                  <AlertCircle size={18} />
+                  <span>{importError}</span>
+                </div>
+              )}
+
+              {/* Choose Import Method */}
+              {importMode === 'choose' && !importSuccess && (
+                <div className="import-options">
+                  <p className="import-description">
+                    Import leads from an image (screenshot, business card, photo) or paste data from a spreadsheet.
+                  </p>
+                  <div className="import-option-cards">
+                    <button 
+                      className="import-option-card"
+                      onClick={() => setImportMode('image')}
+                    >
+                      <div className="import-option-icon">
+                        <Image size={28} />
+                      </div>
+                      <h4>Upload Image</h4>
+                      <p>Screenshot, business card, or photo of a contact list</p>
+                    </button>
+                    <button 
+                      className="import-option-card"
+                      onClick={() => setImportMode('text')}
+                    >
+                      <div className="import-option-icon">
+                        <FileSpreadsheet size={28} />
+                      </div>
+                      <h4>Paste from Spreadsheet</h4>
+                      <p>Copy & paste from Google Sheets, Excel, or CSV</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Upload Mode */}
+              {importMode === 'image' && !importSuccess && (
+                <div className="import-upload">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <div 
+                    className="import-dropzone"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {importLoading ? (
+                      <>
+                        <Loader2 size={40} className="spin" />
+                        <p>Analyzing image with AI...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Image size={40} />
+                        <p>Click to upload or drag & drop</p>
+                        <span>PNG, JPG, WEBP up to 10MB</span>
+                      </>
+                    )}
+                  </div>
+                  <button 
+                    className="import-back-btn"
+                    onClick={() => { setImportMode('choose'); setImportError(''); }}
+                    disabled={importLoading}
+                  >
+                    ← Back to options
+                  </button>
+                </div>
+              )}
+
+              {/* Text/Spreadsheet Mode */}
+              {importMode === 'text' && !importSuccess && (
+                <div className="import-text">
+                  <p className="import-text-hint">
+                    Paste rows from your spreadsheet. Include headers if available (Name, Company, Email, Phone, etc.)
+                  </p>
+                  <textarea
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                    placeholder={`Name\tCompany\tEmail\tPhone\nJohn Smith\tAcme Corp\tjohn@acme.com\t555-1234\nJane Doe\tTech Inc\tjane@tech.io\t555-5678`}
+                    rows={8}
+                    disabled={importLoading}
+                  />
+                  <div className="import-text-actions">
+                    <button 
+                      className="import-back-btn"
+                      onClick={() => { setImportMode('choose'); setImportError(''); setImportText(''); }}
+                      disabled={importLoading}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      className="module-primary-btn"
+                      onClick={handleTextParse}
+                      disabled={importLoading || !importText.trim()}
+                    >
+                      {importLoading ? (
+                        <>
+                          <Loader2 size={16} className="spin" />
+                          Parsing...
+                        </>
+                      ) : (
+                        'Parse Data'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Mode */}
+              {importMode === 'preview' && !importSuccess && (
+                <div className="import-preview">
+                  <div className="import-preview-header">
+                    <p>{parsedDeals.length} deals found</p>
+                    <div className="import-preview-actions">
+                      <button onClick={() => toggleAllDeals(true)}>Select All</button>
+                      <button onClick={() => toggleAllDeals(false)}>Deselect All</button>
+                    </div>
+                  </div>
+                  <div className="import-preview-list">
+                    {parsedDeals.map((deal, index) => (
+                      <div 
+                        key={index}
+                        className={`import-preview-item ${deal.selected ? 'selected' : ''}`}
+                        onClick={() => toggleDealSelection(index)}
+                      >
+                        <div className="import-preview-checkbox">
+                          {deal.selected && <Check size={14} />}
+                        </div>
+                        <div className="import-preview-content">
+                          <div className="import-preview-name">{deal.name}</div>
+                          <div className="import-preview-details">
+                            {deal.organization && <span>{deal.organization}</span>}
+                            {deal.contact_name && <span>Contact: {deal.contact_name}</span>}
+                            {deal.email && <span>{deal.email}</span>}
+                            {deal.value > 0 && <span>${deal.value.toLocaleString()}</span>}
+                          </div>
+                          {deal.notes && (
+                            <div className="import-preview-notes">{deal.notes}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer for preview mode */}
+            {importMode === 'preview' && !importSuccess && (
+              <div className="module-modal-footer">
+                <button 
+                  className="module-cancel-btn" 
+                  onClick={() => { setImportMode('choose'); setParsedDeals([]); }}
+                  disabled={importLoading}
+                >
+                  Start Over
+                </button>
+                <button
+                  className="module-primary-btn"
+                  onClick={importSelectedDeals}
+                  disabled={importLoading || parsedDeals.filter(d => d.selected).length === 0}
+                >
+                  {importLoading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    `Import ${parsedDeals.filter(d => d.selected).length} Deals`
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

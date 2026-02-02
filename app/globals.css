@@ -3951,6 +3951,366 @@ input:focus {
   flex-shrink: 0;
 }
 
+/* ===== IMPORT DEALS MODAL ===== */
+.import-modal {
+  max-width: 600px;
+  width: 95%;
+}
+
+.import-modal.module-modal {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.import-modal .module-modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.import-description {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.import-option-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.import-option-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.import-option-card:hover {
+  border-color: #1a2744;
+  background: #f5f7fa;
+  transform: translateY(-2px);
+}
+
+.import-option-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a2744 0%, #2d3a52 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.import-option-card h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a2744;
+  margin: 0;
+}
+
+.import-option-card p {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.import-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  min-height: 200px;
+}
+
+.import-dropzone:hover {
+  border-color: #1a2744;
+  background: #f3f4f6;
+}
+
+.import-dropzone svg {
+  color: #9ca3af;
+  margin-bottom: 1rem;
+}
+
+.import-dropzone svg.spin {
+  color: #1a2744;
+  animation: spin 1s linear infinite;
+}
+
+.import-dropzone p {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 0.25rem;
+}
+
+.import-dropzone span {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.import-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  margin-top: 1rem;
+  transition: color 0.2s;
+}
+
+.import-back-btn:hover {
+  color: #1a2744;
+}
+
+.import-back-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.import-text-hint {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.import-text textarea {
+  width: 100%;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 180px;
+  background: #f9fafb;
+  transition: border-color 0.2s;
+}
+
+.import-text textarea:focus {
+  outline: none;
+  border-color: #1a2744;
+  background: white;
+}
+
+.import-text textarea::placeholder {
+  color: #9ca3af;
+}
+
+.import-text-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.import-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.import-preview-header p {
+  margin: 0;
+  font-weight: 600;
+  color: #374151;
+}
+
+.import-preview-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.import-preview-actions button {
+  background: none;
+  border: none;
+  color: #1a2744;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.import-preview-actions button:hover {
+  color: #0f172a;
+}
+
+.import-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.import-preview-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: white;
+}
+
+.import-preview-item:hover {
+  background: #f9fafb;
+}
+
+.import-preview-item.selected {
+  border-color: #1a2744;
+  background: #f8fafc;
+}
+
+.import-preview-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.15s;
+}
+
+.import-preview-item.selected .import-preview-checkbox {
+  background: #1a2744;
+  border-color: #1a2744;
+  color: white;
+}
+
+.import-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.import-preview-name {
+  font-weight: 600;
+  color: #1a2744;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.import-preview-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.import-preview-details span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.import-preview-notes {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.import-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.import-success-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.import-success h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a2744;
+  margin: 0 0 0.5rem;
+}
+
+.import-success p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.import-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.import-error svg {
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@media (max-width: 500px) {
+  .import-option-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ============================================
    EMPLOYEE PORTAL - Main Layout & Components
    ============================================ */
