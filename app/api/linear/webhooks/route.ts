@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
   verifyLinearWebhookSignature, 
   LINEAR_CONFIG,
   LinearWebhookPayload,
-  LinearWebhookEventType,
   LinearWebhookAction
 } from '@/lib/linear';
 
@@ -125,7 +124,7 @@ export async function POST(request: NextRequest) {
 
 // Handle Issue events
 async function handleIssueEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
@@ -239,7 +238,7 @@ async function handleIssueEvent(
 
 // Handle Comment events
 async function handleCommentEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
@@ -275,7 +274,7 @@ async function handleCommentEvent(
 
 // Handle Project events
 async function handleProjectEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
@@ -315,7 +314,7 @@ async function handleProjectEvent(
 
 // Handle Project Update events (progress updates, milestones)
 async function handleProjectUpdateEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
@@ -341,7 +340,7 @@ async function handleProjectUpdateEvent(
 
 // Handle Issue Label events
 async function handleIssueLabelEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
@@ -373,7 +372,7 @@ async function handleIssueLabelEvent(
 
 // Handle Attachment events
 async function handleAttachmentEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   action: LinearWebhookAction,
   data: Record<string, unknown>
 ) {
