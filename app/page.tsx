@@ -124,33 +124,54 @@ export default function HomePage() {
     setErrorDetails('');
 
     try {
-      // Try to upload files if provided (optional - won't block submission)
+      // Upload files if provided
       let videoUrl = '';
       let scenario1Url = '';
       let scenario2Url = '';
       let scenario3Url = '';
+      let uploadFailed = false;
 
-      // Upload files silently - don't block submission if storage isn't configured
-      try {
-        if (formData.video) {
-          setUploadProgress('Uploading video...');
+      // Upload each file
+      if (formData.video) {
+        setUploadProgress('Uploading video...');
+        try {
           videoUrl = await uploadFile(formData.video, 'videos') || '';
+        } catch (err) {
+          console.error('Video upload failed:', err);
+          uploadFailed = true;
         }
-        if (formData.scenario1) {
-          setUploadProgress('Uploading scenario 1...');
+      }
+      if (formData.scenario1) {
+        setUploadProgress('Uploading scenario 1...');
+        try {
           scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
+        } catch (err) {
+          console.error('Scenario 1 upload failed:', err);
+          uploadFailed = true;
         }
-        if (formData.scenario2) {
-          setUploadProgress('Uploading scenario 2...');
+      }
+      if (formData.scenario2) {
+        setUploadProgress('Uploading scenario 2...');
+        try {
           scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
+        } catch (err) {
+          console.error('Scenario 2 upload failed:', err);
+          uploadFailed = true;
         }
-        if (formData.scenario3) {
-          setUploadProgress('Uploading scenario 3...');
+      }
+      if (formData.scenario3) {
+        setUploadProgress('Uploading scenario 3...');
+        try {
           scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
+        } catch (err) {
+          console.error('Scenario 3 upload failed:', err);
+          uploadFailed = true;
         }
-      } catch (uploadErr) {
-        // File upload failed - continue without files
-        console.log('File upload skipped:', uploadErr);
+      }
+
+      // If uploads failed and user selected files, show error
+      if (uploadFailed && (formData.video || formData.scenario1 || formData.scenario2 || formData.scenario3)) {
+        throw new Error('File upload failed. Please check that storage is configured and try again.');
       }
 
       setUploadProgress('Submitting application...');
