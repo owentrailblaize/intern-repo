@@ -308,7 +308,7 @@ export default function HomePage() {
                 Record a 25-second video describing yourself. Tell us <span className="landing-emphasis">WHO you are</span>. 
                 What traits make you uniquely identifiable?
               </p>
-              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video" accept="video/*" icon={Camera} />
+              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} />
             </div>
 
             {/* Section 3 */}
@@ -336,7 +336,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get Adam to commit to a $10 donation</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might support the cause</p>
                 </div>
-                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (screenshot/recording)" accept="image/*,video/*" icon={Upload} />
+                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
 
               {/* Scenario 2 */}
@@ -348,7 +348,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Book a meeting with Ford to discuss your software</p>
                   <p><strong>Backup:</strong> Get a referral to someone who handles software decisions</p>
                 </div>
-                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (screenshot/recording)" accept="image/*,video/*" icon={Upload} />
+                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
 
               {/* Scenario 3 */}
@@ -360,7 +360,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get them to commit to purchasing the product</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might need it</p>
                 </div>
-                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (screenshot/recording)" accept="image/*,video/*" icon={Upload} />
+                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
             </div>
 
