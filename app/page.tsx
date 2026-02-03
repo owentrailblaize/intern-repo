@@ -88,7 +88,7 @@ export default function HomePage() {
     setValidationError('');
     setSubmitStatus(null);
 
-    // Validate required fields
+    // Validate required fields (files are optional)
     const showError = (msg: string) => {
       setValidationError(msg);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -106,22 +106,6 @@ export default function HomePage() {
       showError('Please enter your phone number');
       return;
     }
-    if (!formData.video) {
-      showError('Please upload your 25-second video');
-      return;
-    }
-    if (!formData.scenario1) {
-      showError('Please upload proof for Scenario 1');
-      return;
-    }
-    if (!formData.scenario2) {
-      showError('Please upload proof for Scenario 2');
-      return;
-    }
-    if (!formData.scenario3) {
-      showError('Please upload proof for Scenario 3');
-      return;
-    }
     if (!formData.linkedin.trim()) {
       showError('Please enter your LinkedIn URL');
       return;
@@ -136,102 +120,68 @@ export default function HomePage() {
     }
 
     setSubmitting(true);
-    setUploadProgress('Starting submission...');
+    setUploadProgress('Submitting...');
     setErrorDetails('');
 
     try {
-      console.log('=== SUBMISSION STARTED ===');
-      
-      // Upload files first
+      // Try to upload files if provided (optional - won't block submission)
       let videoUrl = '';
       let scenario1Url = '';
       let scenario2Url = '';
       let scenario3Url = '';
 
-      if (formData.video) {
-        console.log('Uploading video...');
-        setUploadProgress('Uploading video...');
-        try {
+      // Upload files silently - don't block submission if storage isn't configured
+      try {
+        if (formData.video) {
+          setUploadProgress('Uploading video...');
           videoUrl = await uploadFile(formData.video, 'videos') || '';
-          console.log('Video uploaded:', videoUrl);
-        } catch (uploadErr) {
-          console.error('Video upload failed:', uploadErr);
-          throw new Error(`Video upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
         }
-      }
-
-      if (formData.scenario1) {
-        console.log('Uploading scenario 1...');
-        setUploadProgress('Uploading scenario 1...');
-        try {
+        if (formData.scenario1) {
+          setUploadProgress('Uploading scenario 1...');
           scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
-          console.log('Scenario 1 uploaded:', scenario1Url);
-        } catch (uploadErr) {
-          console.error('Scenario 1 upload failed:', uploadErr);
-          throw new Error(`Scenario 1 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
         }
-      }
-
-      if (formData.scenario2) {
-        console.log('Uploading scenario 2...');
-        setUploadProgress('Uploading scenario 2...');
-        try {
+        if (formData.scenario2) {
+          setUploadProgress('Uploading scenario 2...');
           scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
-          console.log('Scenario 2 uploaded:', scenario2Url);
-        } catch (uploadErr) {
-          console.error('Scenario 2 upload failed:', uploadErr);
-          throw new Error(`Scenario 2 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
         }
-      }
-
-      if (formData.scenario3) {
-        console.log('Uploading scenario 3...');
-        setUploadProgress('Uploading scenario 3...');
-        try {
+        if (formData.scenario3) {
+          setUploadProgress('Uploading scenario 3...');
           scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
-          console.log('Scenario 3 uploaded:', scenario3Url);
-        } catch (uploadErr) {
-          console.error('Scenario 3 upload failed:', uploadErr);
-          throw new Error(`Scenario 3 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
         }
+      } catch (uploadErr) {
+        // File upload failed - continue without files
+        console.log('File upload skipped:', uploadErr);
       }
 
-      console.log('All files uploaded, submitting application...');
       setUploadProgress('Submitting application...');
 
-      // Build cover letter with all challenge proof URLs
+      // Build cover letter with file URLs if any were uploaded
       const challengeProof = [
-        videoUrl ? `Video Challenge: ${videoUrl}` : '',
-        scenario1Url ? `Scenario 1 Proof: ${scenario1Url}` : '',
-        scenario2Url ? `Scenario 2 Proof: ${scenario2Url}` : '',
-        scenario3Url ? `Scenario 3 Proof: ${scenario3Url}` : '',
-      ].filter(Boolean).join('\n\n');
-
-      const applicationData = {
-        name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        position: 'growth_intern',
-        linkedin_url: formData.linkedin,
-        portfolio_url: videoUrl,
-        experience: `Instagram: ${formData.instagram}`,
-        cover_letter: challengeProof,
-        why_trailblaize: 'Applied via careers page - completed all sales challenges',
-        source: 'website',
-      };
-      
-      console.log('Sending application data:', applicationData);
+        videoUrl ? `Video: ${videoUrl}` : '',
+        scenario1Url ? `Scenario 1: ${scenario1Url}` : '',
+        scenario2Url ? `Scenario 2: ${scenario2Url}` : '',
+        scenario3Url ? `Scenario 3: ${scenario3Url}` : '',
+      ].filter(Boolean).join('\n');
 
       // Submit application to CRM
       const response = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(applicationData),
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          position: 'growth_intern',
+          linkedin_url: formData.linkedin,
+          portfolio_url: videoUrl || null,
+          experience: `Instagram: ${formData.instagram}`,
+          cover_letter: challengeProof || null,
+          why_trailblaize: 'Applied via careers page',
+          source: 'website',
+        }),
       });
 
-      console.log('Response status:', response.status);
       const result = await response.json();
-      console.log('Response body:', result);
 
       if (response.ok && !result.error) {
         console.log('=== SUBMISSION SUCCESS ===');
@@ -411,7 +361,7 @@ export default function HomePage() {
                 Record a 25-second video describing yourself. Tell us <span className="landing-emphasis">WHO you are</span>. 
                 What traits make you uniquely identifiable?
               </p>
-              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} required />
+              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video (optional)" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} />
             </div>
 
             {/* Section 3 */}
@@ -439,7 +389,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get Adam to commit to a $10 donation</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might support the cause</p>
                 </div>
-                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
+                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
 
               {/* Scenario 2 */}
@@ -451,7 +401,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Book a meeting with Ford to discuss your software</p>
                   <p><strong>Backup:</strong> Get a referral to someone who handles software decisions</p>
                 </div>
-                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
+                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
 
               {/* Scenario 3 */}
@@ -463,7 +413,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get them to commit to purchasing the product</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might need it</p>
                 </div>
-                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
+                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
               </div>
             </div>
 
