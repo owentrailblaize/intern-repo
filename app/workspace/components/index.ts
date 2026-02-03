@@ -16,6 +16,7 @@ export { SmartSuggestions } from './SmartSuggestions';
 export { GoogleCalendarWidget } from './GoogleCalendarWidget';
 export { GoogleGmailWidget } from './GoogleGmailWidget';
 export { GoogleIntegrationCard } from './GoogleIntegrationCard';
+export { LeadEmailHistory } from './LeadEmailHistory';
 
 // Dashboard variants
 export { FounderDashboard } from './dashboards/FounderDashboard';

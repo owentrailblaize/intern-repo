@@ -39,6 +39,11 @@ interface SendEmailParams {
   threadId?: string;
 }
 
+interface ContactEmail extends GmailMessage {
+  to: string;
+  body: string;
+}
+
 interface UseGoogleIntegrationReturn {
   // Status
   status: GoogleStatus | null;
@@ -57,6 +62,9 @@ interface UseGoogleIntegrationReturn {
   fetchEmails: () => Promise<void>;
   sendEmail: (params: SendEmailParams) => Promise<{ success: boolean; error?: string }>;
   sendingEmail: boolean;
+  
+  // Contact Emails
+  fetchEmailsForContact: (contactEmail: string) => Promise<ContactEmail[]>;
   
   // Actions
   connect: () => void;
@@ -213,6 +221,30 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     }
   }, [employeeId, status?.connected, fetchEmails]);
 
+  // Fetch emails for a specific contact
+  const fetchEmailsForContact = useCallback(async (contactEmail: string): Promise<ContactEmail[]> => {
+    if (!employeeId || !status?.connected || !contactEmail) {
+      return [];
+    }
+    
+    try {
+      // Gmail query to find emails from or to this contact
+      const query = encodeURIComponent(`from:${contactEmail} OR to:${contactEmail}`);
+      const response = await fetch(`/api/google/gmail?employee_id=${employeeId}&max=20&q=${query}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        return data.emails || [];
+      } else if (data.code === 'NOT_CONNECTED') {
+        setStatus(prev => prev ? { ...prev, connected: false } : null);
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to fetch contact emails:', err);
+      return [];
+    }
+  }, [employeeId, status?.connected]);
+
   // Initial status check
   useEffect(() => {
     refreshStatus();
@@ -251,6 +283,7 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     fetchEmails,
     sendEmail,
     sendingEmail,
+    fetchEmailsForContact,
     connect,
     disconnect,
     refreshStatus,

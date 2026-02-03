@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Network, Plus, Search, Filter, X, Trash2, Edit2, Phone, Mail, Linkedin, Calendar, Clock, Upload, FileText, Image, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, Network, Plus, Search, Filter, X, Trash2, Edit2, Phone, Mail, Linkedin, Calendar, Clock, Upload, FileText, Image, CheckCircle, AlertCircle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, NetworkContact } from '@/lib/supabase';
+import { supabase, NetworkContact, Employee } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 import ConfirmModal from '@/components/ConfirmModal';
 
 // Parsed contact type for bulk upload preview
@@ -19,7 +20,32 @@ interface ParsedContact {
   error?: string;
 }
 
+// Email type for contact email history
+interface ContactEmailMessage {
+  id: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  fromEmail: string;
+  to?: string;
+  date: string;
+  snippet: string;
+  body?: string;
+  isUnread: boolean;
+}
+
+// Google status type
+interface GoogleStatus {
+  connected: boolean;
+  isExpired: boolean;
+  scopes: string[];
+  hasCalendar: boolean;
+  hasGmail: boolean;
+}
+
 export default function FundraisingModule() {
+  const { user } = useAuth();
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [contacts, setContacts] = useState<NetworkContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +54,12 @@ export default function FundraisingModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingContact, setEditingContact] = useState<NetworkContact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  
+  // Google integration state
+  const [googleStatus, setGoogleStatus] = useState<GoogleStatus | null>(null);
+  const [expandedEmailRow, setExpandedEmailRow] = useState<string | null>(null);
+  const [contactEmails, setContactEmails] = useState<Record<string, ContactEmailMessage[]>>({});
+  const [loadingEmails, setLoadingEmails] = useState<string | null>(null);
   
   // Bulk upload state
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -65,6 +97,82 @@ export default function FundraisingModule() {
     referred_by: '',
     notes: '',
   });
+
+  // Fetch current employee
+  const fetchEmployee = useCallback(async () => {
+    if (!supabase || !user) return;
+
+    const { data } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('email', user.email)
+      .single();
+
+    if (data) {
+      setCurrentEmployee(data);
+    }
+  }, [user]);
+
+  // Check Google connection status
+  const checkGoogleStatus = useCallback(async () => {
+    if (!currentEmployee?.id) return;
+    
+    try {
+      const response = await fetch(`/api/google/status?employee_id=${currentEmployee.id}`);
+      const data = await response.json();
+      if (response.ok) {
+        setGoogleStatus(data);
+      }
+    } catch (err) {
+      console.error('Failed to check Google status:', err);
+    }
+  }, [currentEmployee?.id]);
+
+  // Fetch emails for a specific contact
+  const fetchEmailsForContact = useCallback(async (contactId: string, contactEmail: string) => {
+    if (!currentEmployee?.id || !googleStatus?.connected || !googleStatus?.hasGmail || !contactEmail) {
+      return;
+    }
+    
+    setLoadingEmails(contactId);
+    try {
+      const query = encodeURIComponent(`from:${contactEmail} OR to:${contactEmail}`);
+      const response = await fetch(`/api/google/gmail?employee_id=${currentEmployee.id}&max=10&q=${query}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setContactEmails(prev => ({ ...prev, [contactId]: data.emails || [] }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch contact emails:', err);
+    } finally {
+      setLoadingEmails(null);
+    }
+  }, [currentEmployee?.id, googleStatus?.connected, googleStatus?.hasGmail]);
+
+  // Toggle email history row
+  const toggleEmailRow = (contactId: string, contactEmail: string) => {
+    if (expandedEmailRow === contactId) {
+      setExpandedEmailRow(null);
+    } else {
+      setExpandedEmailRow(contactId);
+      if (!contactEmails[contactId] && contactEmail) {
+        fetchEmailsForContact(contactId, contactEmail);
+      }
+    }
+  };
+
+  // Fetch employee on mount
+  useEffect(() => {
+    fetchEmployee();
+  }, [fetchEmployee]);
+
+  // Check Google status when employee is loaded
+  useEffect(() => {
+    if (currentEmployee?.id) {
+      checkGoogleStatus();
+    }
+  }, [currentEmployee?.id, checkGoogleStatus]);
 
   // Fetch contacts
   useEffect(() => {
@@ -668,66 +776,124 @@ export default function FundraisingModule() {
               </thead>
               <tbody>
                 {filteredContacts.map((contact) => (
-                  <tr key={contact.id} className={isOverdue(contact.next_followup_date) ? 'overdue-row' : ''}>
-                    <td>
-                      <div className="contact-cell">
-                        <span className="module-table-name">{contact.name}</span>
-                        <span className="contact-subtitle">
-                          {contact.title}{contact.title && contact.organization ? ' @ ' : ''}{contact.organization}
-                        </span>
-                        <div className="contact-links">
-                          {contact.phone && (
-                            <a href={`tel:${contact.phone}`} className="contact-link" title={contact.phone}>
-                              <Phone size={12} />
-                            </a>
-                          )}
-                          {contact.email && (
-                            <a href={`mailto:${contact.email}`} className="contact-link" title={contact.email}>
-                              <Mail size={12} />
-                            </a>
-                          )}
-                          {contact.linkedin && (
-                            <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="contact-link">
-                              <Linkedin size={12} />
-                            </a>
-                          )}
+                  <React.Fragment key={contact.id}>
+                    <tr className={isOverdue(contact.next_followup_date) ? 'overdue-row' : ''}>
+                      <td>
+                        <div className="contact-cell">
+                          <span className="module-table-name">{contact.name}</span>
+                          <span className="contact-subtitle">
+                            {contact.title}{contact.title && contact.organization ? ' @ ' : ''}{contact.organization}
+                          </span>
+                          <div className="contact-links">
+                            {contact.phone && (
+                              <a href={`tel:${contact.phone}`} className="contact-link" title={contact.phone}>
+                                <Phone size={12} />
+                              </a>
+                            )}
+                            {contact.email && (
+                              <a href={`mailto:${contact.email}`} className="contact-link" title={contact.email}>
+                                <Mail size={12} />
+                              </a>
+                            )}
+                            {contact.linkedin && (
+                              <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="contact-link">
+                                <Linkedin size={12} />
+                              </a>
+                            )}
+                            {/* Email History Toggle - only show if Google is connected with Gmail access */}
+                            {contact.email && googleStatus?.connected && googleStatus?.hasGmail && (
+                              <button
+                                className={`contact-link email-history-toggle ${expandedEmailRow === contact.id ? 'active' : ''}`}
+                                onClick={() => toggleEmailRow(contact.id, contact.email)}
+                                title="View email history"
+                              >
+                                {expandedEmailRow === contact.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`module-type ${contact.contact_type}`}>{typeLabels[contact.contact_type]}</span>
-                    </td>
-                    <td>
-                      <span className={`module-status ${contact.stage}`}>{stageLabels[contact.stage]}</span>
-                    </td>
-                    <td>
-                      <span className={`module-priority ${contact.priority}`}>{priorityLabels[contact.priority]}</span>
-                    </td>
-                    <td>
-                      {contact.next_followup_date ? (
-                        <span className={isOverdue(contact.next_followup_date) ? 'overdue-date' : ''}>
-                          {contact.next_followup_date}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      <div className="module-table-actions">
-                        <button 
-                          className="module-table-action followup" 
-                          onClick={() => logFollowup(contact)}
-                          title="Log follow-up"
-                        >
-                          <Clock size={14} />
-                        </button>
-                        <button className="module-table-action" onClick={() => openEditModal(contact)}>
-                          <Edit2 size={14} />
-                        </button>
-                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td>
+                        <span className={`module-type ${contact.contact_type}`}>{typeLabels[contact.contact_type]}</span>
+                      </td>
+                      <td>
+                        <span className={`module-status ${contact.stage}`}>{stageLabels[contact.stage]}</span>
+                      </td>
+                      <td>
+                        <span className={`module-priority ${contact.priority}`}>{priorityLabels[contact.priority]}</span>
+                      </td>
+                      <td>
+                        {contact.next_followup_date ? (
+                          <span className={isOverdue(contact.next_followup_date) ? 'overdue-date' : ''}>
+                            {contact.next_followup_date}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td>
+                        <div className="module-table-actions">
+                          <button 
+                            className="module-table-action followup" 
+                            onClick={() => logFollowup(contact)}
+                            title="Log follow-up"
+                          >
+                            <Clock size={14} />
+                          </button>
+                          <button className="module-table-action" onClick={() => openEditModal(contact)}>
+                            <Edit2 size={14} />
+                          </button>
+                          <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Email History Row */}
+                    {expandedEmailRow === contact.id && (
+                      <tr className="email-history-row">
+                        <td colSpan={6}>
+                          <div className="email-history-content">
+                            {loadingEmails === contact.id ? (
+                              <div className="email-history-loading">
+                                <Loader2 size={16} className="spin" />
+                                <span>Loading email history...</span>
+                              </div>
+                            ) : contactEmails[contact.id]?.length > 0 ? (
+                              <div className="email-history-list">
+                                <div className="email-history-header">
+                                  <Mail size={14} />
+                                  <span>Email History ({contactEmails[contact.id].length} emails)</span>
+                                </div>
+                                {contactEmails[contact.id].slice(0, 5).map((email) => (
+                                  <div key={email.id} className={`email-history-item ${email.isUnread ? 'unread' : ''}`}>
+                                    <div className="email-history-meta">
+                                      <span className="email-subject">{email.subject || '(No subject)'}</span>
+                                      <span className="email-date">
+                                        {new Date(email.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
+                                    <div className="email-from">
+                                      {email.fromEmail === contact.email ? `From: ${email.from}` : `To: ${contact.email}`}
+                                    </div>
+                                    <div className="email-snippet">{email.snippet}</div>
+                                  </div>
+                                ))}
+                                {contactEmails[contact.id].length > 5 && (
+                                  <div className="email-history-more">
+                                    +{contactEmails[contact.id].length - 5} more emails
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="email-history-empty">
+                                <Mail size={20} />
+                                <span>No email history found with this contact</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

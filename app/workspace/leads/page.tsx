@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee, NetworkContact } from '@/lib/supabase';
 import { useUserRole } from '../hooks/useUserRole';
+import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
+import LeadEmailHistory from '../components/LeadEmailHistory';
 import {
   Target,
   Search,
@@ -129,6 +131,12 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey | null>(null);
+  
+  // Google integration for email history
+  const { 
+    status: googleStatus, 
+    fetchEmailsForContact 
+  } = useGoogleIntegration(currentEmployee?.id);
   
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -516,69 +524,81 @@ export default function LeadsPage() {
                   key={contact.id} 
                   className={`leads-item ${isOverdue(contact.next_followup_date) ? 'overdue' : ''}`}
                 >
-                  <div className="leads-item-main">
-                    <div className="leads-item-info">
-                      <div className="leads-item-name">
-                        <h4>{contact.name}</h4>
-                        {contact.priority && (
-                          <span 
-                            className="leads-priority"
-                            style={{ 
-                              backgroundColor: priorityColors[contact.priority]?.bg,
-                              color: priorityColors[contact.priority]?.text
-                            }}
-                          >
-                            {priorityColors[contact.priority]?.label}
+                  <div className="leads-item-content">
+                    <div className="leads-item-row">
+                      <div className="leads-item-info">
+                        <div className="leads-item-name">
+                          <h4>{contact.name}</h4>
+                          {contact.priority && (
+                            <span 
+                              className="leads-priority"
+                              style={{ 
+                                backgroundColor: priorityColors[contact.priority]?.bg,
+                                color: priorityColors[contact.priority]?.text
+                              }}
+                            >
+                              {priorityColors[contact.priority]?.label}
+                            </span>
+                          )}
+                        </div>
+                        {(contact.title || contact.organization) && (
+                          <p className="leads-item-subtitle">
+                            {contact.title}
+                            {contact.title && contact.organization && ' @ '}
+                            {contact.organization}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="leads-item-meta">
+                        {contact.stage && (
+                          <span className="leads-stage">{stageLabels[contact.stage]}</span>
+                        )}
+                        {contact.next_followup_date && (
+                          <span className={`leads-followup ${isOverdue(contact.next_followup_date) ? 'overdue' : ''}`}>
+                            <Calendar size={12} />
+                            {new Date(contact.next_followup_date).toLocaleDateString()}
                           </span>
                         )}
                       </div>
-                      {(contact.title || contact.organization) && (
-                        <p className="leads-item-subtitle">
-                          {contact.title}
-                          {contact.title && contact.organization && ' @ '}
-                          {contact.organization}
-                        </p>
-                      )}
+
+                      <div className="leads-item-actions">
+                        {contact.phone && (
+                          <a href={`tel:${contact.phone}`} className="leads-action" title="Call">
+                            <Phone size={14} />
+                          </a>
+                        )}
+                        {contact.email && (
+                          <a href={`mailto:${contact.email}`} className="leads-action" title="Email">
+                            <Mail size={14} />
+                          </a>
+                        )}
+                        {contact.linkedin && (
+                          <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="leads-action" title="LinkedIn">
+                            <Linkedin size={14} />
+                          </a>
+                        )}
+                        <button className="leads-action" onClick={() => logFollowup(contact)} title="Log Follow-up">
+                          <Clock size={14} />
+                        </button>
+                        <button className="leads-action" onClick={() => openEditModal(contact)} title="Edit">
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="leads-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })} title="Delete">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="leads-item-meta">
-                      {contact.stage && (
-                        <span className="leads-stage">{stageLabels[contact.stage]}</span>
-                      )}
-                      {contact.next_followup_date && (
-                        <span className={`leads-followup ${isOverdue(contact.next_followup_date) ? 'overdue' : ''}`}>
-                          <Calendar size={12} />
-                          {new Date(contact.next_followup_date).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="leads-item-actions">
-                    {contact.phone && (
-                      <a href={`tel:${contact.phone}`} className="leads-action" title="Call">
-                        <Phone size={14} />
-                      </a>
+                    {/* Email History Section */}
+                    {contact.email && googleStatus?.connected && googleStatus?.hasGmail && (
+                      <LeadEmailHistory
+                        contactEmail={contact.email}
+                        fetchEmailsForContact={fetchEmailsForContact}
+                        isGoogleConnected={googleStatus.connected}
+                        hasGmail={googleStatus.hasGmail}
+                      />
                     )}
-                    {contact.email && (
-                      <a href={`mailto:${contact.email}`} className="leads-action" title="Email">
-                        <Mail size={14} />
-                      </a>
-                    )}
-                    {contact.linkedin && (
-                      <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="leads-action" title="LinkedIn">
-                        <Linkedin size={14} />
-                      </a>
-                    )}
-                    <button className="leads-action" onClick={() => logFollowup(contact)} title="Log Follow-up">
-                      <Clock size={14} />
-                    </button>
-                    <button className="leads-action" onClick={() => openEditModal(contact)} title="Edit">
-                      <Edit2 size={14} />
-                    </button>
-                    <button className="leads-action delete" onClick={() => setDeleteConfirm({ show: true, id: contact.id })} title="Delete">
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               ))
@@ -1033,9 +1053,6 @@ export default function LeadsPage() {
         }
 
         .leads-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
           background: white;
           border: 1px solid var(--ws-border);
           border-radius: 12px;
@@ -1051,12 +1068,16 @@ export default function LeadsPage() {
           border-left: 3px solid #ef4444;
         }
 
-        .leads-item-main {
+        .leads-item-content {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .leads-item-row {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 24px;
-          flex: 1;
-          min-width: 0;
         }
 
         .leads-item-info {
@@ -1299,7 +1320,7 @@ export default function LeadsPage() {
             grid-template-columns: 1fr;
           }
 
-          .leads-item-main {
+          .leads-item-row {
             flex-direction: column;
             align-items: flex-start;
             gap: 12px;

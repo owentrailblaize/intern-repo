@@ -1969,6 +1969,150 @@ input:focus {
   border-color: #fecaca;
 }
 
+.module-table-action.followup:hover {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+/* Contact Email History Toggle */
+.contact-link.email-history-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.contact-link.email-history-toggle:hover,
+.contact-link.email-history-toggle.active {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* Email History Row */
+.email-history-row {
+  background: #f9fafb;
+}
+
+.email-history-row td {
+  padding: 0 !important;
+}
+
+.email-history-content {
+  padding: 16px 24px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.email-history-loading,
+.email-history-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #9ca3af;
+  font-size: 13px;
+  padding: 20px;
+}
+
+.email-history-loading .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.email-history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.email-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.email-history-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.email-history-item:hover {
+  border-color: #3b82f6;
+}
+
+.email-history-item.unread {
+  border-left: 3px solid #3b82f6;
+}
+
+.email-history-item.unread .email-subject {
+  font-weight: 600;
+}
+
+.email-history-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.email-subject {
+  font-size: 13px;
+  color: #111827;
+  line-height: 1.3;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-date {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.email-from {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.email-snippet {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-history-more {
+  text-align: center;
+  padding: 8px;
+  font-size: 12px;
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+.email-history-more:hover {
+  text-decoration: underline;
+}
+
 /* Loading State */
 .module-loading {
   text-align: center;
