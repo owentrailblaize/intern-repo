@@ -694,9 +694,9 @@ export default function EmployeesModule() {
                           </div>
 
                           {/* Uploaded Media Section */}
-                          {(application.portfolio_url || application.cover_letter) && (
-                            <div className="application-media-section">
-                              <h4>Submitted Files</h4>
+                          <div className="application-media-section">
+                            <h4>Submitted Files</h4>
+                            {(application.portfolio_url || application.cover_letter) ? (
                               <div className="application-media-grid">
                                 {/* Video from portfolio_url */}
                                 {application.portfolio_url && (
@@ -743,8 +743,13 @@ export default function EmployeesModule() {
                                   );
                                 })}
                               </div>
-                            </div>
-                          )}
+                            ) : (
+                              <div className="no-files-message">
+                                <FileText size={20} />
+                                <span>No files were uploaded with this application</span>
+                              </div>
+                            )}
+                          </div>
 
                           {application.why_trailblaize && (
                             <div className="application-section">
