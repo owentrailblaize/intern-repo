@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Camera, Upload, CheckCircle2, AlertCircle, Loader2, ArrowRight, Sparkles, Users, Zap, Globe } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client for direct uploads (bypasses API size limits)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export default function HomePage() {
   const [showApplication, setShowApplication] = useState(false);
@@ -65,22 +71,37 @@ export default function HomePage() {
     }
   };
 
-  // Upload a single file and return the URL
+  // Upload a single file directly to Supabase Storage (no size limit)
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    uploadData.append('folder', folder);
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: uploadData,
-    });
-
-    const result = await response.json();
-    if (result.error) {
-      throw new Error(result.error.message);
+    if (!supabase) {
+      throw new Error('Storage not configured');
     }
-    return result.data?.url || null;
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const extension = file.name.split('.').pop() || 'bin';
+    const fileName = `${folder}/${timestamp}-${randomStr}.${extension}`;
+
+    // Upload directly to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw new Error(error.message);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(fileName);
+
+    return urlData?.publicUrl || null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
