@@ -35,6 +35,7 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState('');
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
   const [validationError, setValidationError] = useState('');
+  const [errorDetails, setErrorDetails] = useState('');
 
   // Mouse tracking for ambient effect
   useEffect(() => {
@@ -209,6 +210,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Application submission error:', error);
       setSubmitStatus('error');
+      setErrorDetails(error instanceof Error ? error.message : 'Unknown error occurred');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
@@ -294,7 +296,7 @@ export default function HomePage() {
               <AlertCircle className="landing-status-icon" />
               <div>
                 <strong>Submission Error</strong>
-                <p>There was an error. Please try again or email directly to owen@trailblaize.net</p>
+                <p>{errorDetails || 'There was an error. Please try again or email directly to owen@trailblaize.net'}</p>
               </div>
             </div>
           )}
