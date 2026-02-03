@@ -9,7 +9,7 @@ interface ParsedDeal {
   contact_name?: string;
   fraternity?: string;
   value?: number;
-  stage?: 'discovery' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
+  stage?: 'lead' | 'demo_booked' | 'first_demo' | 'second_call' | 'contract_sent' | 'closed_won' | 'closed_lost';
   email?: string;
   phone?: string;
   notes?: string;
@@ -25,7 +25,7 @@ Return a JSON object with a "deals" array. Each deal should have these fields:
 - contact_name: Primary contact person's name
 - fraternity: Greek organization name (e.g., "Sigma Chi", "Pike", "Kappa Alpha", "SAE", "Phi Delt", "Beta", "Sigma Nu", "KA", "ATO", "Fiji", "Theta Chi", "Delt", "Phi Psi"). Look for Greek letters, chapter names, or fraternity abbreviations.
 - value: Deal value in USD (number only, no currency symbol). Parse values like "$5,000" as 5000. Leave as 0 if unknown.
-- stage: Deal stage - one of "discovery", "proposal", "negotiation", "closed_won", "closed_lost". Default to "discovery" if not specified.
+- stage: Deal stage - one of "lead", "demo_booked", "first_demo", "second_call", "contract_sent", "closed_won", "closed_lost". Default to "lead" if not specified.
 - email: Email address if available
 - phone: Phone number if available
 - notes: Any other relevant information (title, position like "President", "Rush Chair", "IFC", LinkedIn, etc)
@@ -38,13 +38,13 @@ Rules:
 - Pay special attention to Greek letters, fraternity names, chapter designations
 - Look for university/school names and associate them with the organization field
 - Parse monetary values - remove $ and commas to get the number
-- Map stage synonyms: "discovery"/"new"/"lead", "proposal"/"quoted", "negotiation"/"pending", "closed won"/"won"/"signed", "closed lost"/"lost"
+- Map stage synonyms: "lead"/"new"/"discovery", "demo_booked"/"demo scheduled", "first_demo"/"demoed", "second_call"/"follow up", "contract_sent"/"proposal"/"quoted", "closed_won"/"won"/"signed", "closed_lost"/"lost"
 - Map temperature synonyms: "hot"/"🔥", "warm"/"☀️", "cold"/"❄️"/"new"
 - Be generous in interpretation - any contact could be a lead
 - Return {"deals": []} if no deals can be extracted
 
 Example response:
-{"deals": [{"name": "John Smith - Opportunity", "organization": "Ole Miss", "contact_name": "John Smith", "fraternity": "Sigma Chi", "value": 5000, "stage": "proposal", "email": "john@olemiss.edu", "notes": "Chapter President", "temperature": "warm"}]}`;
+{"deals": [{"name": "John Smith - Opportunity", "organization": "Ole Miss", "contact_name": "John Smith", "fraternity": "Sigma Chi", "value": 299, "stage": "demo_booked", "email": "john@olemiss.edu", "phone": "555-123-4567", "notes": "Chapter President", "temperature": "warm"}]}`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       const parsed = JSON.parse(jsonMatch[0]) as { deals: ParsedDeal[] };
       
       // Valid stages for deals
-      const validStages = ['discovery', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+      const validStages = ['lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost'];
       
       // Validate and clean the parsed deals
       const cleanedDeals = (parsed.deals || []).map((deal: ParsedDeal) => ({
@@ -148,8 +148,8 @@ export async function POST(request: NextRequest) {
         organization: deal.organization || '',
         contact_name: deal.contact_name || '',
         fraternity: deal.fraternity || '',
-        value: typeof deal.value === 'number' ? deal.value : (typeof deal.value === 'string' ? parseFloat(String(deal.value).replace(/[$,]/g, '')) || 0 : 0),
-        stage: (validStages.includes(deal.stage || '') ? deal.stage : 'discovery') as ParsedDeal['stage'],
+        value: typeof deal.value === 'number' ? deal.value : (typeof deal.value === 'string' ? parseFloat(String(deal.value).replace(/[$,]/g, '')) || 299 : 299),
+        stage: (validStages.includes(deal.stage || '') ? deal.stage : 'lead') as ParsedDeal['stage'],
         email: deal.email || '',
         phone: deal.phone || '',
         notes: deal.notes || '',

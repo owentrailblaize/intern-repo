@@ -73,25 +73,52 @@ CREATE TABLE IF NOT EXISTS contact_followups (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Deals (Sales Pipeline) Table
+-- Deals (Sales Pipeline) Table - Gamified Lead Tracking
 CREATE TABLE IF NOT EXISTS deals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   organization TEXT,
   contact_name TEXT,
   fraternity TEXT,
-  value DECIMAL(10,2) DEFAULT 0,
-  stage TEXT DEFAULT 'discovery' CHECK (stage IN ('discovery', 'proposal', 'negotiation', 'closed_won', 'closed_lost')),
+  phone TEXT,
+  email TEXT,
+  value DECIMAL(10,2) DEFAULT 299,
+  stage TEXT DEFAULT 'lead' CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost')),
   temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold')),
   expected_close DATE,
+  last_contact DATE,
+  next_followup DATE,
+  followup_count INTEGER DEFAULT 0,
+  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Migration: Add fraternity and temperature columns if they don't exist
--- ALTER TABLE deals ADD COLUMN IF NOT EXISTS fraternity TEXT;
--- ALTER TABLE deals ADD COLUMN IF NOT EXISTS temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold'));
--- UPDATE deals SET temperature = CASE WHEN probability >= 70 THEN 'hot' WHEN probability >= 30 THEN 'warm' ELSE 'cold' END WHERE temperature IS NULL;
--- ALTER TABLE deals DROP COLUMN IF EXISTS probability;
+-- Sales Stats Table (for gamification)
+CREATE TABLE IF NOT EXISTS sales_stats (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT DEFAULT 'default',
+  total_points INTEGER DEFAULT 0,
+  current_streak INTEGER DEFAULT 0,
+  best_streak INTEGER DEFAULT 0,
+  deals_closed INTEGER DEFAULT 0,
+  demos_booked INTEGER DEFAULT 0,
+  last_activity DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migration for existing deals table:
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS phone TEXT;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS email TEXT;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS last_contact DATE;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS next_followup DATE;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS followup_count INTEGER DEFAULT 0;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS notes TEXT;
+-- ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
+-- ALTER TABLE deals ADD CONSTRAINT deals_stage_check CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost'));
+-- UPDATE deals SET stage = 'lead' WHERE stage = 'discovery';
+-- UPDATE deals SET stage = 'contract_sent' WHERE stage = 'proposal';
+-- UPDATE deals SET stage = 'second_call' WHERE stage = 'negotiation';
 
 -- Tasks Table
 CREATE TABLE IF NOT EXISTS tasks (

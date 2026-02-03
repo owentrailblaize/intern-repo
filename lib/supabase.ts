@@ -149,18 +149,50 @@ export interface ContactFollowup {
 // Legacy alias for backwards compatibility
 export type FundraisingContact = NetworkContact;
 
+export type DealStage = 'lead' | 'demo_booked' | 'first_demo' | 'second_call' | 'contract_sent' | 'closed_won' | 'closed_lost';
+
 export interface Deal {
   id: string;
   name: string;
   organization: string;
   contact_name: string;
   fraternity: string;
+  phone: string;
+  email: string;
   value: number;
-  stage: 'discovery' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
+  stage: DealStage;
   temperature: 'hot' | 'warm' | 'cold';
   expected_close: string;
+  last_contact: string;
+  next_followup: string;
+  followup_count: number;
+  notes: string;
   created_at: string;
 }
+
+// Gamification types
+export interface SalesStats {
+  total_points: number;
+  level: number;
+  current_streak: number;
+  best_streak: number;
+  deals_closed: number;
+  demos_booked: number;
+  followups_today: number;
+}
+
+export const STAGE_CONFIG: Record<DealStage, { label: string; points: number; emoji: string; color: string }> = {
+  lead: { label: 'New Lead', points: 10, emoji: '🎯', color: '#6b7280' },
+  demo_booked: { label: 'Demo Booked', points: 25, emoji: '📅', color: '#3b82f6' },
+  first_demo: { label: 'First Demo', points: 50, emoji: '🎬', color: '#8b5cf6' },
+  second_call: { label: 'Second Call', points: 75, emoji: '🤝', color: '#f59e0b' },
+  contract_sent: { label: 'Contract Sent', points: 100, emoji: '📝', color: '#ec4899' },
+  closed_won: { label: 'Closed Won', points: 500, emoji: '🏆', color: '#10b981' },
+  closed_lost: { label: 'Closed Lost', points: 0, emoji: '❌', color: '#ef4444' },
+};
+
+export const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2500, 4000, 6000, 10000];
+export const LEVEL_TITLES = ['Rookie', 'Starter', 'Hustler', 'Closer', 'Dealmaker', 'Rainmaker', 'Sales Star', 'Legend', 'Champion', 'GOAT'];
 
 export interface Task {
   id: string;
