@@ -12,10 +12,12 @@ interface ParsedDeal {
   contact_name: string;
   fraternity: string;
   value: number;
+  stage: 'discovery' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
   email: string;
   phone: string;
   notes: string;
   temperature: 'hot' | 'warm' | 'cold';
+  expected_close: string;
   selected?: boolean;
 }
 
@@ -202,7 +204,9 @@ export default function PipelineModule() {
       setParsedDeals(data.deals.map((d: ParsedDeal) => ({ 
         ...d, 
         fraternity: d.fraternity || '',
+        stage: d.stage || 'discovery',
         temperature: d.temperature || 'cold',
+        expected_close: d.expected_close || '',
         selected: true 
       })));
       setImportMode('preview');
@@ -245,9 +249,9 @@ export default function PipelineModule() {
         contact_name: d.contact_name || null,
         fraternity: d.fraternity || null,
         value: d.value || 0,
-        stage: 'discovery' as const,
+        stage: d.stage || 'discovery',
         temperature: d.temperature || 'cold',
-        expected_close: null,
+        expected_close: d.expected_close || null,
       }));
 
       const { error } = await supabase.from('deals').insert(dealsToInsert);
@@ -656,13 +660,13 @@ export default function PipelineModule() {
               {importMode === 'text' && !importSuccess && (
                 <div className="import-text">
                   <p className="import-text-hint">
-                    Paste rows from your spreadsheet. Include headers if available (Name, Company, Email, Phone, etc.)
+                    Paste rows from your spreadsheet. Include headers if available (Name, School, Fraternity, Email, Phone, Value, Stage, Temperature, etc.)
                   </p>
                   <textarea
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
-                    placeholder={`Name\tCompany\tEmail\tPhone\nJohn Smith\tAcme Corp\tjohn@acme.com\t555-1234\nJane Doe\tTech Inc\tjane@tech.io\t555-5678`}
-                    rows={8}
+                    placeholder={`Name\tSchool\tFraternity\tEmail\tPhone\tValue\tStage\tTemperature\nJohn Smith\tOle Miss\tSigma Chi\tjohn@olemiss.edu\t555-1234\t5000\tDiscovery\tWarm\nJane Doe\tAlabama\tKappa Alpha\tjane@ua.edu\t555-5678\t3000\tProposal\tHot`}
+                    rows={10}
                     disabled={importLoading}
                   />
                   <div className="import-text-actions">
@@ -718,7 +722,11 @@ export default function PipelineModule() {
                             {deal.fraternity && <span className="import-fraternity">{deal.fraternity}</span>}
                             {deal.contact_name && <span>Contact: {deal.contact_name}</span>}
                             {deal.email && <span>{deal.email}</span>}
-                            {deal.value > 0 && <span>${deal.value.toLocaleString()}</span>}
+                            {deal.phone && <span>{deal.phone}</span>}
+                            {deal.value > 0 && <span className="import-value">${deal.value.toLocaleString()}</span>}
+                            {deal.stage && deal.stage !== 'discovery' && (
+                              <span className={`module-status ${deal.stage}`}>{stageLabels[deal.stage]}</span>
+                            )}
                             <span className={`import-temp ${deal.temperature || 'cold'}`}>
                               {deal.temperature === 'hot' ? '🔥 Hot' : deal.temperature === 'warm' ? '☀️ Warm' : '❄️ Cold'}
                             </span>

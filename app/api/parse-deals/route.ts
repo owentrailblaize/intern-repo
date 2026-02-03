@@ -9,10 +9,12 @@ interface ParsedDeal {
   contact_name?: string;
   fraternity?: string;
   value?: number;
+  stage?: 'discovery' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
   email?: string;
   phone?: string;
   notes?: string;
   temperature?: 'hot' | 'warm' | 'cold';
+  expected_close?: string;
 }
 
 const DEAL_EXTRACTION_PROMPT = `You are a sales lead extraction assistant for a Greek life/fraternity software company. Extract potential deal/lead information from the provided content.
@@ -21,24 +23,28 @@ Return a JSON object with a "deals" array. Each deal should have these fields:
 - name (required): Deal name or contact name - if only a person's name is available, use "[Person Name] - Opportunity"
 - organization: School/University name (e.g., "Ole Miss", "University of Alabama", "Texas A&M")
 - contact_name: Primary contact person's name
-- fraternity: Greek organization name (e.g., "Sigma Chi", "Pike", "Kappa Alpha", "SAE", "Phi Delt", "Beta", "Sigma Nu", "KA", "ATO", "Fiji"). Look for Greek letters, chapter names, or fraternity abbreviations.
-- value: Estimated deal value in USD (number only, no currency symbol). Leave empty if unknown.
+- fraternity: Greek organization name (e.g., "Sigma Chi", "Pike", "Kappa Alpha", "SAE", "Phi Delt", "Beta", "Sigma Nu", "KA", "ATO", "Fiji", "Theta Chi", "Delt", "Phi Psi"). Look for Greek letters, chapter names, or fraternity abbreviations.
+- value: Deal value in USD (number only, no currency symbol). Parse values like "$5,000" as 5000. Leave as 0 if unknown.
+- stage: Deal stage - one of "discovery", "proposal", "negotiation", "closed_won", "closed_lost". Default to "discovery" if not specified.
 - email: Email address if available
 - phone: Phone number if available
 - notes: Any other relevant information (title, position like "President", "Rush Chair", "IFC", LinkedIn, etc)
-- temperature: Lead temperature based on context - "hot" (highly interested, responded, meeting scheduled), "warm" (some engagement, potential), or "cold" (new lead, no prior contact). Default to "cold" if unsure.
+- temperature: Lead temperature - "hot" (highly interested, responded, meeting scheduled), "warm" (some engagement, potential), or "cold" (new lead, no prior contact). Default to "cold" if unsure.
+- expected_close: Expected close date in YYYY-MM-DD format if available
 
 Rules:
 - Extract ALL potential leads/deals from the content
 - If the content is a list of people, treat each person as a potential deal
 - Pay special attention to Greek letters, fraternity names, chapter designations
 - Look for university/school names and associate them with the organization field
+- Parse monetary values - remove $ and commas to get the number
+- Map stage synonyms: "discovery"/"new"/"lead", "proposal"/"quoted", "negotiation"/"pending", "closed won"/"won"/"signed", "closed lost"/"lost"
+- Map temperature synonyms: "hot"/"🔥", "warm"/"☀️", "cold"/"❄️"/"new"
 - Be generous in interpretation - any contact could be a lead
-- Only include fields that are clearly present
 - Return {"deals": []} if no deals can be extracted
 
 Example response:
-{"deals": [{"name": "John Smith - Opportunity", "organization": "Ole Miss", "contact_name": "John Smith", "fraternity": "Sigma Chi", "value": 0, "email": "john@olemiss.edu", "notes": "Chapter President", "temperature": "warm"}]}`;
+{"deals": [{"name": "John Smith - Opportunity", "organization": "Ole Miss", "contact_name": "John Smith", "fraternity": "Sigma Chi", "value": 5000, "stage": "proposal", "email": "john@olemiss.edu", "notes": "Chapter President", "temperature": "warm"}]}`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -133,17 +139,22 @@ export async function POST(request: NextRequest) {
 
       const parsed = JSON.parse(jsonMatch[0]) as { deals: ParsedDeal[] };
       
+      // Valid stages for deals
+      const validStages = ['discovery', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+      
       // Validate and clean the parsed deals
       const cleanedDeals = (parsed.deals || []).map((deal: ParsedDeal) => ({
         name: deal.name || 'Unknown Deal',
         organization: deal.organization || '',
         contact_name: deal.contact_name || '',
         fraternity: deal.fraternity || '',
-        value: typeof deal.value === 'number' ? deal.value : 0,
+        value: typeof deal.value === 'number' ? deal.value : (typeof deal.value === 'string' ? parseFloat(String(deal.value).replace(/[$,]/g, '')) || 0 : 0),
+        stage: (validStages.includes(deal.stage || '') ? deal.stage : 'discovery') as ParsedDeal['stage'],
         email: deal.email || '',
         phone: deal.phone || '',
         notes: deal.notes || '',
         temperature: (['hot', 'warm', 'cold'].includes(deal.temperature || '') ? deal.temperature : 'cold') as 'hot' | 'warm' | 'cold',
+        expected_close: deal.expected_close || '',
       }));
 
       return NextResponse.json({ deals: cleanedDeals });

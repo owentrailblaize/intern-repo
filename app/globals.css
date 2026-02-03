@@ -1778,6 +1778,11 @@ input:focus {
   color: #7c3aed;
 }
 
+.import-value {
+  font-weight: 600;
+  color: #059669;
+}
+
 /* Empty State */
 .module-empty-state {
   display: flex;
