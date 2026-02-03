@@ -10,6 +10,7 @@ export default function HomePage() {
   // Form state
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     phone: '',
     linkedin: '',
     instagram: '',
@@ -66,34 +67,39 @@ export default function HomePage() {
     setSubmitting(true);
     setSubmitStatus(null);
 
-    const emailData = new FormData();
-    Object.keys(formData).forEach(key => {
-      const value = formData[key as keyof typeof formData];
-      if (value !== null) {
-        emailData.append(key, value as string | Blob);
-      }
-    });
-
     try {
-      const response = await fetch('https://formspree.io/f/YOUR_FORMSPREE_ID', {
+      // Submit application to CRM
+      const response = await fetch('/api/applications', {
         method: 'POST',
-        body: emailData,
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          position: 'growth_intern',
+          linkedin_url: formData.linkedin,
+          experience: `Instagram: ${formData.instagram}`,
+          why_trailblaize: 'Applied via careers page - completed all sales challenges',
+          source: 'website',
+        }),
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && !result.error) {
         setSubmitStatus('success');
         setFormData({
-          fullName: '', phone: '', linkedin: '', instagram: '',
+          fullName: '', email: '', phone: '', linkedin: '', instagram: '',
           video: null, scenario1: null, scenario2: null, scenario3: null,
           confirm1: false, confirm2: false, confirm3: false, confirm4: false,
         });
         setFileNames({ video: '', scenario1: '', scenario2: '', scenario3: '' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        throw new Error('Submission failed');
+        throw new Error(result.error?.message || 'Submission failed');
       }
-    } catch {
+    } catch (error) {
+      console.error('Application submission error:', error);
       setSubmitStatus('error');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -213,6 +219,10 @@ export default function HomePage() {
               <div className="landing-form-group">
                 <label htmlFor="fullName">Full Name *</label>
                 <input type="text" id="fullName" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
+              </div>
+              <div className="landing-form-group">
+                <label htmlFor="email">Email Address *</label>
+                <input type="email" id="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="your@email.com" required />
               </div>
               <div className="landing-form-group">
                 <label htmlFor="phone">Phone Number *</label>
