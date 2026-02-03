@@ -1726,6 +1726,58 @@ input:focus {
   color: #991b1b;
 }
 
+/* Temperature Badges */
+.module-temp {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.module-temp.hot {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.module-temp.warm {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.module-temp.cold {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.import-temp {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.import-temp.hot {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.import-temp.warm {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.import-temp.cold {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.import-fraternity {
+  font-weight: 600;
+  color: #7c3aed;
+}
+
 /* Empty State */
 .module-empty-state {
   display: flex;

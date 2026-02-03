@@ -10,10 +10,12 @@ interface ParsedDeal {
   name: string;
   organization: string;
   contact_name: string;
+  fraternity: string;
   value: number;
   email: string;
   phone: string;
   notes: string;
+  temperature: 'hot' | 'warm' | 'cold';
   selected?: boolean;
 }
 
@@ -28,9 +30,10 @@ export default function PipelineModule() {
     name: '',
     organization: '',
     contact_name: '',
+    fraternity: '',
     value: 0,
     stage: 'discovery' as Deal['stage'],
-    probability: 10,
+    temperature: 'cold' as Deal['temperature'],
     expected_close: '',
   });
 
@@ -122,9 +125,10 @@ export default function PipelineModule() {
       name: '',
       organization: '',
       contact_name: '',
+      fraternity: '',
       value: 0,
       stage: 'discovery',
-      probability: 10,
+      temperature: 'cold',
       expected_close: '',
     });
     setEditingDeal(null);
@@ -194,8 +198,13 @@ export default function PipelineModule() {
         return;
       }
 
-      // Mark all deals as selected by default
-      setParsedDeals(data.deals.map((d: ParsedDeal) => ({ ...d, selected: true })));
+      // Mark all deals as selected by default and ensure defaults
+      setParsedDeals(data.deals.map((d: ParsedDeal) => ({ 
+        ...d, 
+        fraternity: d.fraternity || '',
+        temperature: d.temperature || 'cold',
+        selected: true 
+      })));
       setImportMode('preview');
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'Failed to parse content');
@@ -234,9 +243,10 @@ export default function PipelineModule() {
         name: d.name,
         organization: d.organization || null,
         contact_name: d.contact_name || null,
+        fraternity: d.fraternity || null,
         value: d.value || 0,
         stage: 'discovery' as const,
-        probability: 10,
+        temperature: d.temperature || 'cold',
         expected_close: null,
       }));
 
@@ -267,9 +277,10 @@ export default function PipelineModule() {
       name: deal.name,
       organization: deal.organization || '',
       contact_name: deal.contact_name || '',
+      fraternity: deal.fraternity || '',
       value: deal.value,
       stage: deal.stage,
-      probability: deal.probability,
+      temperature: deal.temperature || 'cold',
       expected_close: deal.expected_close || '',
     });
     setShowModal(true);
@@ -384,9 +395,10 @@ export default function PipelineModule() {
                 <tr>
                   <th>Deal</th>
                   <th>Organization</th>
+                  <th>Fraternity</th>
                   <th>Value</th>
                   <th>Stage</th>
-                  <th>Probability</th>
+                  <th>Temperature</th>
                   <th>Expected Close</th>
                   <th>Actions</th>
                 </tr>
@@ -396,11 +408,16 @@ export default function PipelineModule() {
                   <tr key={deal.id}>
                     <td className="module-table-name">{deal.name}</td>
                     <td>{deal.organization}</td>
+                    <td>{deal.fraternity || '—'}</td>
                     <td>{formatCurrency(deal.value)}</td>
                     <td>
                       <span className={`module-status ${deal.stage}`}>{stageLabels[deal.stage]}</span>
                     </td>
-                    <td>{deal.probability}%</td>
+                    <td>
+                      <span className={`module-temp ${deal.temperature || 'cold'}`}>
+                        {deal.temperature === 'hot' ? '🔥 Hot' : deal.temperature === 'warm' ? '☀️ Warm' : '❄️ Cold'}
+                      </span>
+                    </td>
                     <td>{deal.expected_close || '—'}</td>
                     <td>
                       <div className="module-table-actions">
@@ -465,6 +482,15 @@ export default function PipelineModule() {
                 />
               </div>
               <div className="module-form-group">
+                <label>Fraternity</label>
+                <input
+                  type="text"
+                  value={formData.fraternity}
+                  onChange={(e) => setFormData({ ...formData, fraternity: e.target.value })}
+                  placeholder="e.g. Sigma Chi, Pike, KA"
+                />
+              </div>
+              <div className="module-form-group">
                 <label>Value ($)</label>
                 <input
                   type="number"
@@ -487,14 +513,15 @@ export default function PipelineModule() {
                 </select>
               </div>
               <div className="module-form-group">
-                <label>Probability (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.probability}
-                  onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) || 0 })}
-                />
+                <label>Temperature</label>
+                <select
+                  value={formData.temperature}
+                  onChange={(e) => setFormData({ ...formData, temperature: e.target.value as Deal['temperature'] })}
+                >
+                  <option value="cold">❄️ Cold</option>
+                  <option value="warm">☀️ Warm</option>
+                  <option value="hot">🔥 Hot</option>
+                </select>
               </div>
               <div className="module-form-group">
                 <label>Expected Close</label>
@@ -688,9 +715,13 @@ export default function PipelineModule() {
                           <div className="import-preview-name">{deal.name}</div>
                           <div className="import-preview-details">
                             {deal.organization && <span>{deal.organization}</span>}
+                            {deal.fraternity && <span className="import-fraternity">{deal.fraternity}</span>}
                             {deal.contact_name && <span>Contact: {deal.contact_name}</span>}
                             {deal.email && <span>{deal.email}</span>}
                             {deal.value > 0 && <span>${deal.value.toLocaleString()}</span>}
+                            <span className={`import-temp ${deal.temperature || 'cold'}`}>
+                              {deal.temperature === 'hot' ? '🔥 Hot' : deal.temperature === 'warm' ? '☀️ Warm' : '❄️ Cold'}
+                            </span>
                           </div>
                           {deal.notes && (
                             <div className="import-preview-notes">{deal.notes}</div>

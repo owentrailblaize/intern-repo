@@ -79,12 +79,19 @@ CREATE TABLE IF NOT EXISTS deals (
   name TEXT NOT NULL,
   organization TEXT,
   contact_name TEXT,
+  fraternity TEXT,
   value DECIMAL(10,2) DEFAULT 0,
   stage TEXT DEFAULT 'discovery' CHECK (stage IN ('discovery', 'proposal', 'negotiation', 'closed_won', 'closed_lost')),
-  probability INTEGER DEFAULT 0,
+  temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold')),
   expected_close DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration: Add fraternity and temperature columns if they don't exist
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS fraternity TEXT;
+-- ALTER TABLE deals ADD COLUMN IF NOT EXISTS temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold'));
+-- UPDATE deals SET temperature = CASE WHEN probability >= 70 THEN 'hot' WHEN probability >= 30 THEN 'warm' ELSE 'cold' END WHERE temperature IS NULL;
+-- ALTER TABLE deals DROP COLUMN IF EXISTS probability;
 
 -- Tasks Table
 CREATE TABLE IF NOT EXISTS tasks (

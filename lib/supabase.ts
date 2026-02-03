@@ -154,9 +154,10 @@ export interface Deal {
   name: string;
   organization: string;
   contact_name: string;
+  fraternity: string;
   value: number;
   stage: 'discovery' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
-  probability: number;
+  temperature: 'hot' | 'warm' | 'cold';
   expected_close: string;
   created_at: string;
 }

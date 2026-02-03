@@ -7,32 +7,38 @@ interface ParsedDeal {
   name: string;
   organization?: string;
   contact_name?: string;
+  fraternity?: string;
   value?: number;
   email?: string;
   phone?: string;
   notes?: string;
+  temperature?: 'hot' | 'warm' | 'cold';
 }
 
-const DEAL_EXTRACTION_PROMPT = `You are a sales lead extraction assistant. Extract potential deal/lead information from the provided content.
+const DEAL_EXTRACTION_PROMPT = `You are a sales lead extraction assistant for a Greek life/fraternity software company. Extract potential deal/lead information from the provided content.
 
 Return a JSON object with a "deals" array. Each deal should have these fields:
-- name (required): Deal name or company name - if only a person's name is available, use "[Person Name] - Opportunity"
-- organization: Company or organization name
+- name (required): Deal name or contact name - if only a person's name is available, use "[Person Name] - Opportunity"
+- organization: School/University name (e.g., "Ole Miss", "University of Alabama", "Texas A&M")
 - contact_name: Primary contact person's name
+- fraternity: Greek organization name (e.g., "Sigma Chi", "Pike", "Kappa Alpha", "SAE", "Phi Delt", "Beta", "Sigma Nu", "KA", "ATO", "Fiji"). Look for Greek letters, chapter names, or fraternity abbreviations.
 - value: Estimated deal value in USD (number only, no currency symbol). Leave empty if unknown.
 - email: Email address if available
 - phone: Phone number if available
-- notes: Any other relevant information (title, LinkedIn, how you met, etc)
+- notes: Any other relevant information (title, position like "President", "Rush Chair", "IFC", LinkedIn, etc)
+- temperature: Lead temperature based on context - "hot" (highly interested, responded, meeting scheduled), "warm" (some engagement, potential), or "cold" (new lead, no prior contact). Default to "cold" if unsure.
 
 Rules:
 - Extract ALL potential leads/deals from the content
 - If the content is a list of people, treat each person as a potential deal
-- Be generous in interpretation - any business contact could be a lead
+- Pay special attention to Greek letters, fraternity names, chapter designations
+- Look for university/school names and associate them with the organization field
+- Be generous in interpretation - any contact could be a lead
 - Only include fields that are clearly present
 - Return {"deals": []} if no deals can be extracted
 
 Example response:
-{"deals": [{"name": "Acme Corp Partnership", "organization": "Acme Corp", "contact_name": "John Smith", "value": 50000, "email": "john@acme.com", "notes": "CEO, met at conference"}]}`;
+{"deals": [{"name": "John Smith - Opportunity", "organization": "Ole Miss", "contact_name": "John Smith", "fraternity": "Sigma Chi", "value": 0, "email": "john@olemiss.edu", "notes": "Chapter President", "temperature": "warm"}]}`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,10 +138,12 @@ export async function POST(request: NextRequest) {
         name: deal.name || 'Unknown Deal',
         organization: deal.organization || '',
         contact_name: deal.contact_name || '',
+        fraternity: deal.fraternity || '',
         value: typeof deal.value === 'number' ? deal.value : 0,
         email: deal.email || '',
         phone: deal.phone || '',
         notes: deal.notes || '',
+        temperature: (['hot', 'warm', 'cold'].includes(deal.temperature || '') ? deal.temperature : 'cold') as 'hot' | 'warm' | 'cold',
       }));
 
       return NextResponse.json({ deals: cleanedDeals });
