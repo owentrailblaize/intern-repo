@@ -1,10 +1,53 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff, FileText, UserPlus, Clock, CheckCircle, XCircle, Star, ChevronDown, ChevronUp, Mail, Phone, Linkedin, Globe } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+
+// Job Application type
+interface JobApplication {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  position: string;
+  resume_url?: string;
+  cover_letter?: string;
+  linkedin_url?: string;
+  portfolio_url?: string;
+  why_trailblaize?: string;
+  experience?: string;
+  availability?: string;
+  hours_per_week?: number;
+  status: 'pending' | 'reviewing' | 'interview' | 'offered' | 'accepted' | 'rejected' | 'withdrawn';
+  reviewer_id?: string;
+  reviewer_notes?: string;
+  rating?: number;
+  source: string;
+  referral_source?: string;
+  applied_at: string;
+  reviewed_at?: string;
+}
+
+const POSITION_LABELS: Record<string, string> = {
+  growth_intern: 'Growth Intern',
+  sales_intern: 'Sales Intern',
+  marketing_intern: 'Marketing Intern',
+  engineer: 'Software Engineer',
+  operations: 'Operations',
+};
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pending Review', color: '#f59e0b' },
+  reviewing: { label: 'Under Review', color: '#3b82f6' },
+  interview: { label: 'Interview', color: '#8b5cf6' },
+  offered: { label: 'Offer Sent', color: '#06b6d4' },
+  accepted: { label: 'Accepted', color: '#10b981' },
+  rejected: { label: 'Rejected', color: '#ef4444' },
+  withdrawn: { label: 'Withdrawn', color: '#6b7280' },
+};
 
 // Generate a random password
 function generatePassword(length = 12): string {
@@ -17,6 +60,10 @@ function generatePassword(length = 12): string {
 }
 
 export default function EmployeesModule() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'employees' | 'applications'>('employees');
+
+  // Employees state
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,10 +84,26 @@ export default function EmployeesModule() {
     start_date: new Date().toISOString().split('T')[0],
   });
 
+  // Applications state
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [applicationSearch, setApplicationSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
+  const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set());
+
   // Fetch employees
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  // Fetch applications when tab changes
+  useEffect(() => {
+    if (activeTab === 'applications') {
+      fetchApplications();
+    }
+  }, [activeTab, statusFilter, positionFilter]);
 
   async function fetchEmployees() {
     if (!supabase) { setLoading(false); return; }
@@ -56,6 +119,87 @@ export default function EmployeesModule() {
       setEmployees(data || []);
     }
     setLoading(false);
+  }
+
+  async function fetchApplications() {
+    setApplicationsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (positionFilter !== 'all') params.set('position', positionFilter);
+
+      const response = await fetch(`/api/applications?${params.toString()}`);
+      const result = await response.json();
+
+      if (result.error) {
+        console.error('Error fetching applications:', result.error);
+      } else {
+        setApplications(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+    setApplicationsLoading(false);
+  }
+
+  async function updateApplicationStatus(id: string, status: string) {
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        console.error('Error updating application:', result.error);
+        alert('Failed to update application status');
+      } else {
+        fetchApplications();
+        if (selectedApplication?.id === id) {
+          setSelectedApplication(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating application:', error);
+    }
+  }
+
+  async function updateApplicationRating(id: string, rating: number) {
+    try {
+      const response = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating }),
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        console.error('Error updating rating:', result.error);
+      } else {
+        fetchApplications();
+        if (selectedApplication?.id === id) {
+          setSelectedApplication(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating rating:', error);
+    }
+  }
+
+  // Convert accepted application to employee
+  async function convertToEmployee(application: JobApplication) {
+    setFormData({
+      name: application.name,
+      email: application.email,
+      role: application.position as EmployeeRole,
+      seniority: 1,
+      department: '',
+      status: 'onboarding',
+      start_date: new Date().toISOString().split('T')[0],
+    });
+    setShowModal(true);
+    setSelectedApplication(null);
   }
 
   // Create employee with auth account via server API (bypasses email rate limits)
@@ -197,13 +341,37 @@ export default function EmployeesModule() {
     setShowModal(true);
   }
 
+  function toggleApplicationExpanded(id: string) {
+    const newExpanded = new Set(expandedApplications);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedApplications(newExpanded);
+  }
+
+  function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+
   // Filter employees
   const filteredEmployees = employees.filter(emp =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate stats
+  // Filter applications
+  const filteredApplications = applications.filter(app =>
+    app.name.toLowerCase().includes(applicationSearch.toLowerCase()) ||
+    app.email.toLowerCase().includes(applicationSearch.toLowerCase())
+  );
+
+  // Calculate employee stats
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(e => e.status === 'active').length;
   const onboardingEmployees = employees.filter(e => e.status === 'onboarding').length;
@@ -213,6 +381,11 @@ export default function EmployeesModule() {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     return startDate >= weekAgo;
   }).length;
+
+  // Calculate application stats
+  const pendingApplications = applications.filter(a => a.status === 'pending').length;
+  const interviewApplications = applications.filter(a => a.status === 'interview').length;
+  const totalApplications = applications.length;
 
   return (
     <div className="module-page">
@@ -229,7 +402,7 @@ export default function EmployeesModule() {
             </div>
             <div>
               <h1>Employees & Onboarding</h1>
-              <p>Manage team members, track onboarding progress, and streamline new hire workflows.</p>
+              <p>Manage team members, review applications, and streamline hiring workflows.</p>
             </div>
           </div>
         </div>
@@ -237,104 +410,390 @@ export default function EmployeesModule() {
 
       {/* Main Content */}
       <main className="module-main">
-        {/* Stats Row */}
-        <div className="module-stats-row">
-          <div className="module-stat">
-            <span className="module-stat-value">{totalEmployees}</span>
-            <span className="module-stat-label">Total Employees</span>
-          </div>
-          <div className="module-stat">
-            <span className="module-stat-value">{activeEmployees}</span>
-            <span className="module-stat-label">Active</span>
-          </div>
-          <div className="module-stat">
-            <span className="module-stat-value">{onboardingEmployees}</span>
-            <span className="module-stat-label">In Onboarding</span>
-          </div>
-          <div className="module-stat">
-            <span className="module-stat-value">{thisWeek}</span>
-            <span className="module-stat-label">This Week</span>
-          </div>
+        {/* Tab Navigation */}
+        <div className="applications-tabs">
+          <button
+            className={`applications-tab ${activeTab === 'employees' ? 'active' : ''}`}
+            onClick={() => setActiveTab('employees')}
+          >
+            <Users size={18} />
+            Team Members
+            <span className="tab-count">{totalEmployees}</span>
+          </button>
+          <button
+            className={`applications-tab ${activeTab === 'applications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('applications')}
+          >
+            <FileText size={18} />
+            Applications Review
+            {pendingApplications > 0 && (
+              <span className="tab-count pending">{pendingApplications}</span>
+            )}
+          </button>
         </div>
 
-        {/* Actions Bar */}
-        <div className="module-actions-bar">
-          <div className="module-search">
-            <Search size={18} />
-            <input
-              type="text"
-              placeholder="Search employees..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="module-actions">
-            <button className="module-filter-btn">
-              <Filter size={16} />
-              Filter
-            </button>
-            <button className="module-primary-btn" onClick={() => setShowModal(true)}>
-              <Plus size={18} />
-              Add Employee
-            </button>
-          </div>
-        </div>
+        {activeTab === 'employees' ? (
+          <>
+            {/* Stats Row */}
+            <div className="module-stats-row">
+              <div className="module-stat">
+                <span className="module-stat-value">{totalEmployees}</span>
+                <span className="module-stat-label">Total Employees</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value">{activeEmployees}</span>
+                <span className="module-stat-label">Active</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value">{onboardingEmployees}</span>
+                <span className="module-stat-label">In Onboarding</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value">{thisWeek}</span>
+                <span className="module-stat-label">This Week</span>
+              </div>
+            </div>
 
-        {/* Table */}
-        <div className="module-table-container">
-          {loading ? (
-            <div className="module-loading">Loading...</div>
-          ) : filteredEmployees.length > 0 ? (
-            <table className="module-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Start Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEmployees.map((employee) => (
-                  <tr key={employee.id}>
-                    <td className="module-table-name">{employee.name}</td>
-                    <td>{employee.email}</td>
-                    <td>
-                      <span className={`employee-role ${employee.role}`}>
-                        {ROLE_LABELS[employee.role] || employee.role}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`module-status ${employee.status}`}>{employee.status}</span>
-                    </td>
-                    <td>{employee.start_date}</td>
-                    <td>
-                      <div className="module-table-actions">
-                        <Link href="/workspace" className="module-table-action" title="View Workspace">
-                          <ExternalLink size={14} />
-                        </Link>
-                        <button className="module-table-action" onClick={() => openEditModal(employee)}>
-                          <Edit2 size={14} />
-                        </button>
-                        <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: employee.id })}>
-                          <Trash2 size={14} />
+            {/* Actions Bar */}
+            <div className="module-actions-bar">
+              <div className="module-search">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="module-actions">
+                <button className="module-filter-btn">
+                  <Filter size={16} />
+                  Filter
+                </button>
+                <button className="module-primary-btn" onClick={() => setShowModal(true)}>
+                  <Plus size={18} />
+                  Add Employee
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="module-table-container">
+              {loading ? (
+                <div className="module-loading">Loading...</div>
+              ) : filteredEmployees.length > 0 ? (
+                <table className="module-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Start Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEmployees.map((employee) => (
+                      <tr key={employee.id}>
+                        <td className="module-table-name">{employee.name}</td>
+                        <td>{employee.email}</td>
+                        <td>
+                          <span className={`employee-role ${employee.role}`}>
+                            {ROLE_LABELS[employee.role] || employee.role}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`module-status ${employee.status}`}>{employee.status}</span>
+                        </td>
+                        <td>{employee.start_date}</td>
+                        <td>
+                          <div className="module-table-actions">
+                            <Link href="/workspace" className="module-table-action" title="View Workspace">
+                              <ExternalLink size={14} />
+                            </Link>
+                            <button className="module-table-action" onClick={() => openEditModal(employee)}>
+                              <Edit2 size={14} />
+                            </button>
+                            <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: employee.id })}>
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="module-empty-state">
+                  <Users size={48} />
+                  <h3>No employees yet</h3>
+                  <p>Add your first team member to get started</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Applications Stats */}
+            <div className="module-stats-row">
+              <div className="module-stat">
+                <span className="module-stat-value">{totalApplications}</span>
+                <span className="module-stat-label">Total Applications</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value" style={{ color: '#f59e0b' }}>{pendingApplications}</span>
+                <span className="module-stat-label">Pending Review</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value" style={{ color: '#8b5cf6' }}>{interviewApplications}</span>
+                <span className="module-stat-label">In Interview</span>
+              </div>
+              <div className="module-stat">
+                <span className="module-stat-value" style={{ color: '#10b981' }}>
+                  {applications.filter(a => a.status === 'accepted').length}
+                </span>
+                <span className="module-stat-label">Accepted</span>
+              </div>
+            </div>
+
+            {/* Applications Actions Bar */}
+            <div className="module-actions-bar">
+              <div className="module-search">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Search applications..."
+                  value={applicationSearch}
+                  onChange={(e) => setApplicationSearch(e.target.value)}
+                />
+              </div>
+              <div className="module-actions">
+                <select
+                  className="applications-filter-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="reviewing">Reviewing</option>
+                  <option value="interview">Interview</option>
+                  <option value="offered">Offered</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <select
+                  className="applications-filter-select"
+                  value={positionFilter}
+                  onChange={(e) => setPositionFilter(e.target.value)}
+                >
+                  <option value="all">All Positions</option>
+                  <option value="growth_intern">Growth Intern</option>
+                  <option value="sales_intern">Sales Intern</option>
+                  <option value="marketing_intern">Marketing Intern</option>
+                  <option value="engineer">Engineer</option>
+                </select>
+                <button className="module-filter-btn" onClick={fetchApplications}>
+                  <RefreshCw size={16} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* Applications List */}
+            <div className="applications-list">
+              {applicationsLoading ? (
+                <div className="module-loading">Loading applications...</div>
+              ) : filteredApplications.length > 0 ? (
+                filteredApplications.map((application) => (
+                  <div key={application.id} className="application-card">
+                    <div
+                      className="application-card-header"
+                      onClick={() => toggleApplicationExpanded(application.id)}
+                    >
+                      <div className="application-card-main">
+                        <div className="application-avatar">
+                          {application.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="application-info">
+                          <h3>{application.name}</h3>
+                          <p className="application-position">
+                            {POSITION_LABELS[application.position] || application.position}
+                          </p>
+                          <div className="application-meta">
+                            <span className="application-date">
+                              <Clock size={12} />
+                              Applied {formatDate(application.applied_at)}
+                            </span>
+                            {application.source !== 'website' && (
+                              <span className="application-source">via {application.source}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="application-card-right">
+                        <div className="application-rating">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              className={`rating-star ${application.rating && star <= application.rating ? 'filled' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateApplicationRating(application.id, star);
+                              }}
+                            >
+                              <Star size={14} />
+                            </button>
+                          ))}
+                        </div>
+                        <span
+                          className="application-status-badge"
+                          style={{ backgroundColor: STATUS_LABELS[application.status]?.color || '#6b7280' }}
+                        >
+                          {STATUS_LABELS[application.status]?.label || application.status}
+                        </span>
+                        <button className="application-expand-btn">
+                          {expandedApplications.has(application.id) ? (
+                            <ChevronUp size={18} />
+                          ) : (
+                            <ChevronDown size={18} />
+                          )}
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="module-empty-state">
-              <Users size={48} />
-              <h3>No employees yet</h3>
-              <p>Add your first team member to get started</p>
+                    </div>
+
+                    {expandedApplications.has(application.id) && (
+                      <div className="application-card-expanded">
+                        <div className="application-details">
+                          <div className="application-contact">
+                            <h4>Contact Information</h4>
+                            <div className="contact-items">
+                              <a href={`mailto:${application.email}`} className="contact-item">
+                                <Mail size={14} />
+                                {application.email}
+                              </a>
+                              {application.phone && (
+                                <a href={`tel:${application.phone}`} className="contact-item">
+                                  <Phone size={14} />
+                                  {application.phone}
+                                </a>
+                              )}
+                              {application.linkedin_url && (
+                                <a href={application.linkedin_url} target="_blank" rel="noopener noreferrer" className="contact-item">
+                                  <Linkedin size={14} />
+                                  LinkedIn Profile
+                                </a>
+                              )}
+                              {application.portfolio_url && (
+                                <a href={application.portfolio_url} target="_blank" rel="noopener noreferrer" className="contact-item">
+                                  <Globe size={14} />
+                                  Portfolio
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          {application.why_trailblaize && (
+                            <div className="application-section">
+                              <h4>Why Trailblaize?</h4>
+                              <p>{application.why_trailblaize}</p>
+                            </div>
+                          )}
+
+                          {application.experience && (
+                            <div className="application-section">
+                              <h4>Experience</h4>
+                              <p>{application.experience}</p>
+                            </div>
+                          )}
+
+                          {application.cover_letter && (
+                            <div className="application-section">
+                              <h4>Cover Letter</h4>
+                              <p>{application.cover_letter}</p>
+                            </div>
+                          )}
+
+                          <div className="application-extra-info">
+                            {application.availability && (
+                              <div className="extra-info-item">
+                                <span className="extra-info-label">Availability:</span>
+                                <span>{application.availability}</span>
+                              </div>
+                            )}
+                            {application.hours_per_week && (
+                              <div className="extra-info-item">
+                                <span className="extra-info-label">Hours/Week:</span>
+                                <span>{application.hours_per_week} hours</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="application-actions">
+                          <h4>Update Status</h4>
+                          <div className="status-buttons">
+                            <button
+                              className={`status-btn reviewing ${application.status === 'reviewing' ? 'active' : ''}`}
+                              onClick={() => updateApplicationStatus(application.id, 'reviewing')}
+                            >
+                              <Eye size={14} />
+                              Reviewing
+                            </button>
+                            <button
+                              className={`status-btn interview ${application.status === 'interview' ? 'active' : ''}`}
+                              onClick={() => updateApplicationStatus(application.id, 'interview')}
+                            >
+                              <Clock size={14} />
+                              Interview
+                            </button>
+                            <button
+                              className={`status-btn offered ${application.status === 'offered' ? 'active' : ''}`}
+                              onClick={() => updateApplicationStatus(application.id, 'offered')}
+                            >
+                              <Mail size={14} />
+                              Send Offer
+                            </button>
+                            <button
+                              className={`status-btn accepted ${application.status === 'accepted' ? 'active' : ''}`}
+                              onClick={() => updateApplicationStatus(application.id, 'accepted')}
+                            >
+                              <CheckCircle size={14} />
+                              Accept
+                            </button>
+                            <button
+                              className={`status-btn rejected ${application.status === 'rejected' ? 'active' : ''}`}
+                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                            >
+                              <XCircle size={14} />
+                              Reject
+                            </button>
+                          </div>
+
+                          {application.status === 'accepted' && (
+                            <button
+                              className="convert-to-employee-btn"
+                              onClick={() => convertToEmployee(application)}
+                            >
+                              <UserPlus size={16} />
+                              Convert to Employee
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="module-empty-state">
+                  <FileText size={48} />
+                  <h3>No applications yet</h3>
+                  <p>Applications from the careers page will appear here</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </main>
 
       {/* Modal */}
@@ -500,7 +959,7 @@ export default function EmployeesModule() {
             </div>
             <div className="module-modal-body">
               <p className="credentials-note">
-                Save these credentials - the password won't be shown again!
+                Save these credentials - the password won&apos;t be shown again!
               </p>
               <div className="credentials-box">
                 <div className="credential-row">
