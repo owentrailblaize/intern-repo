@@ -136,9 +136,12 @@ export default function HomePage() {
     }
 
     setSubmitting(true);
-    setUploadProgress('');
+    setUploadProgress('Starting submission...');
+    setErrorDetails('');
 
     try {
+      console.log('=== SUBMISSION STARTED ===');
+      
       // Upload files first
       let videoUrl = '';
       let scenario1Url = '';
@@ -146,25 +149,54 @@ export default function HomePage() {
       let scenario3Url = '';
 
       if (formData.video) {
+        console.log('Uploading video...');
         setUploadProgress('Uploading video...');
-        videoUrl = await uploadFile(formData.video, 'videos') || '';
+        try {
+          videoUrl = await uploadFile(formData.video, 'videos') || '';
+          console.log('Video uploaded:', videoUrl);
+        } catch (uploadErr) {
+          console.error('Video upload failed:', uploadErr);
+          throw new Error(`Video upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+        }
       }
 
       if (formData.scenario1) {
+        console.log('Uploading scenario 1...');
         setUploadProgress('Uploading scenario 1...');
-        scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
+        try {
+          scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
+          console.log('Scenario 1 uploaded:', scenario1Url);
+        } catch (uploadErr) {
+          console.error('Scenario 1 upload failed:', uploadErr);
+          throw new Error(`Scenario 1 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+        }
       }
 
       if (formData.scenario2) {
+        console.log('Uploading scenario 2...');
         setUploadProgress('Uploading scenario 2...');
-        scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
+        try {
+          scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
+          console.log('Scenario 2 uploaded:', scenario2Url);
+        } catch (uploadErr) {
+          console.error('Scenario 2 upload failed:', uploadErr);
+          throw new Error(`Scenario 2 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+        }
       }
 
       if (formData.scenario3) {
+        console.log('Uploading scenario 3...');
         setUploadProgress('Uploading scenario 3...');
-        scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
+        try {
+          scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
+          console.log('Scenario 3 uploaded:', scenario3Url);
+        } catch (uploadErr) {
+          console.error('Scenario 3 upload failed:', uploadErr);
+          throw new Error(`Scenario 3 upload failed: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+        }
       }
 
+      console.log('All files uploaded, submitting application...');
       setUploadProgress('Submitting application...');
 
       // Build cover letter with all challenge proof URLs
@@ -175,27 +207,34 @@ export default function HomePage() {
         scenario3Url ? `Scenario 3 Proof: ${scenario3Url}` : '',
       ].filter(Boolean).join('\n\n');
 
+      const applicationData = {
+        name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        position: 'growth_intern',
+        linkedin_url: formData.linkedin,
+        portfolio_url: videoUrl,
+        experience: `Instagram: ${formData.instagram}`,
+        cover_letter: challengeProof,
+        why_trailblaize: 'Applied via careers page - completed all sales challenges',
+        source: 'website',
+      };
+      
+      console.log('Sending application data:', applicationData);
+
       // Submit application to CRM
       const response = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          position: 'growth_intern',
-          linkedin_url: formData.linkedin,
-          portfolio_url: videoUrl, // Store video URL in portfolio field
-          experience: `Instagram: ${formData.instagram}`,
-          cover_letter: challengeProof,
-          why_trailblaize: 'Applied via careers page - completed all sales challenges',
-          source: 'website',
-        }),
+        body: JSON.stringify(applicationData),
       });
 
+      console.log('Response status:', response.status);
       const result = await response.json();
+      console.log('Response body:', result);
 
       if (response.ok && !result.error) {
+        console.log('=== SUBMISSION SUCCESS ===');
         setSubmitStatus('success');
         setFormData({
           fullName: '', email: '', phone: '', linkedin: '', instagram: '',
@@ -205,10 +244,11 @@ export default function HomePage() {
         setFileNames({ video: '', scenario1: '', scenario2: '', scenario3: '' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        throw new Error(result.error?.message || 'Submission failed');
+        console.error('=== SUBMISSION FAILED ===', result.error);
+        throw new Error(result.error?.message || 'Submission failed - check database table exists');
       }
     } catch (error) {
-      console.error('Application submission error:', error);
+      console.error('=== SUBMISSION ERROR ===', error);
       setSubmitStatus('error');
       setErrorDetails(error instanceof Error ? error.message : 'Unknown error occurred');
       window.scrollTo({ top: 0, behavior: 'smooth' });
