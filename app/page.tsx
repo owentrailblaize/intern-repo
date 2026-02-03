@@ -34,6 +34,7 @@ export default function HomePage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
+  const [validationError, setValidationError] = useState('');
 
   // Mouse tracking for ambient effect
   useEffect(() => {
@@ -83,8 +84,57 @@ export default function HomePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setValidationError('');
     setSubmitStatus(null);
+
+    // Validate required fields
+    const showError = (msg: string) => {
+      setValidationError(msg);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    if (!formData.fullName.trim()) {
+      showError('Please enter your full name');
+      return;
+    }
+    if (!formData.email.trim()) {
+      showError('Please enter your email address');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      showError('Please enter your phone number');
+      return;
+    }
+    if (!formData.video) {
+      showError('Please upload your 25-second video');
+      return;
+    }
+    if (!formData.scenario1) {
+      showError('Please upload proof for Scenario 1');
+      return;
+    }
+    if (!formData.scenario2) {
+      showError('Please upload proof for Scenario 2');
+      return;
+    }
+    if (!formData.scenario3) {
+      showError('Please upload proof for Scenario 3');
+      return;
+    }
+    if (!formData.linkedin.trim()) {
+      showError('Please enter your LinkedIn URL');
+      return;
+    }
+    if (!formData.instagram.trim()) {
+      showError('Please enter your Instagram handle');
+      return;
+    }
+    if (!formData.confirm1 || !formData.confirm2 || !formData.confirm3 || !formData.confirm4) {
+      showError('Please check all confirmation boxes');
+      return;
+    }
+
+    setSubmitting(true);
     setUploadProgress('');
 
     try {
@@ -166,12 +216,13 @@ export default function HomePage() {
     }
   };
 
-  const FileUploadBox = ({ id, fieldName, label, accept, icon: Icon }: {
+  const FileUploadBox = ({ id, fieldName, label, accept, icon: Icon, required = false }: {
     id: string;
     fieldName: keyof typeof fileNames;
     label: string;
     accept: string;
     icon: React.ComponentType<{ className?: string }>;
+    required?: boolean;
   }) => (
     <div className="landing-upload-box">
       <input
@@ -180,7 +231,7 @@ export default function HomePage() {
         accept={accept}
         onChange={(e) => handleFileChange(e, fieldName)}
         className="landing-file-input"
-        required
+        required={required}
       />
       <label htmlFor={id} className="landing-upload-label">
         <Icon className="landing-upload-icon" />
@@ -248,6 +299,16 @@ export default function HomePage() {
             </div>
           )}
 
+          {validationError && (
+            <div className="landing-status-message error">
+              <AlertCircle className="landing-status-icon" />
+              <div>
+                <strong>Missing Information</strong>
+                <p>{validationError}</p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             {/* About */}
             <div className="landing-form-section intro">
@@ -308,7 +369,7 @@ export default function HomePage() {
                 Record a 25-second video describing yourself. Tell us <span className="landing-emphasis">WHO you are</span>. 
                 What traits make you uniquely identifiable?
               </p>
-              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} />
+              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} required />
             </div>
 
             {/* Section 3 */}
@@ -336,7 +397,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get Adam to commit to a $10 donation</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might support the cause</p>
                 </div>
-                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
               </div>
 
               {/* Scenario 2 */}
@@ -348,7 +409,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Book a meeting with Ford to discuss your software</p>
                   <p><strong>Backup:</strong> Get a referral to someone who handles software decisions</p>
                 </div>
-                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
               </div>
 
               {/* Scenario 3 */}
@@ -360,7 +421,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get them to commit to purchasing the product</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might need it</p>
                 </div>
-                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (screenshot/recording)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} required />
               </div>
             </div>
 
