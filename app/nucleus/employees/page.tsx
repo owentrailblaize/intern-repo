@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff, FileText, UserPlus, Clock, CheckCircle, XCircle, Star, ChevronDown, ChevronUp, Mail, Phone, Linkedin, Globe } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff, FileText, UserPlus, Clock, CheckCircle, XCircle, Star, ChevronDown, ChevronUp, Mail, Phone, Linkedin, Globe, Play, Image } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -693,6 +693,59 @@ export default function EmployeesModule() {
                             </div>
                           </div>
 
+                          {/* Uploaded Media Section */}
+                          {(application.portfolio_url || application.cover_letter) && (
+                            <div className="application-media-section">
+                              <h4>Submitted Files</h4>
+                              <div className="application-media-grid">
+                                {/* Video from portfolio_url */}
+                                {application.portfolio_url && (
+                                  <div className="media-item video-item">
+                                    <div className="media-label">
+                                      <Play size={14} />
+                                      Video Challenge
+                                    </div>
+                                    <video 
+                                      controls 
+                                      className="media-video"
+                                      preload="metadata"
+                                    >
+                                      <source src={application.portfolio_url} />
+                                      Your browser does not support video playback.
+                                    </video>
+                                  </div>
+                                )}
+                                
+                                {/* Scenario proofs from cover_letter URLs */}
+                                {application.cover_letter && application.cover_letter.split('\n').map((line, idx) => {
+                                  const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
+                                  if (!urlMatch) return null;
+                                  const url = urlMatch[1];
+                                  const isVideo = /\.(mp4|mov|webm|avi)$/i.test(url);
+                                  const label = line.split(':')[0] || `File ${idx + 1}`;
+                                  
+                                  return (
+                                    <div key={idx} className={`media-item ${isVideo ? 'video-item' : 'image-item'}`}>
+                                      <div className="media-label">
+                                        {isVideo ? <Play size={14} /> : <Image size={14} />}
+                                        {label}
+                                      </div>
+                                      {isVideo ? (
+                                        <video controls className="media-video" preload="metadata">
+                                          <source src={url} />
+                                        </video>
+                                      ) : (
+                                        <a href={url} target="_blank" rel="noopener noreferrer">
+                                          <img src={url} alt={label} className="media-image" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           {application.why_trailblaize && (
                             <div className="application-section">
                               <h4>Why Trailblaize?</h4>
@@ -704,13 +757,6 @@ export default function EmployeesModule() {
                             <div className="application-section">
                               <h4>Experience</h4>
                               <p>{application.experience}</p>
-                            </div>
-                          )}
-
-                          {application.cover_letter && (
-                            <div className="application-section">
-                              <h4>Cover Letter</h4>
-                              <p>{application.cover_letter}</p>
                             </div>
                           )}
 

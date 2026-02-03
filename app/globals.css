@@ -3731,6 +3731,80 @@ input:focus {
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
+/* Application Media Section */
+.application-media-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.application-media-section h4 {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.application-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.media-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.media-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.media-label svg {
+  color: #3b82f6;
+}
+
+.media-video {
+  width: 100%;
+  max-height: 300px;
+  background: #0f172a;
+  display: block;
+}
+
+.media-image {
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.media-image:hover {
+  transform: scale(1.02);
+}
+
+.media-item.video-item .media-label svg {
+  color: #ef4444;
+}
+
+.media-item.image-item .media-label svg {
+  color: #10b981;
+}
+
 /* Module Loading State */
 .module-loading {
   display: flex;
