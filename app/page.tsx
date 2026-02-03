@@ -32,6 +32,7 @@ export default function HomePage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
 
   // Mouse tracking for ambient effect
@@ -62,12 +63,67 @@ export default function HomePage() {
     }
   };
 
+  // Upload a single file and return the URL
+  const uploadFile = async (file: File, folder: string): Promise<string | null> => {
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+    uploadData.append('folder', folder);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: uploadData,
+    });
+
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    return result.data?.url || null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setSubmitStatus(null);
+    setUploadProgress('');
 
     try {
+      // Upload files first
+      let videoUrl = '';
+      let scenario1Url = '';
+      let scenario2Url = '';
+      let scenario3Url = '';
+
+      if (formData.video) {
+        setUploadProgress('Uploading video...');
+        videoUrl = await uploadFile(formData.video, 'videos') || '';
+      }
+
+      if (formData.scenario1) {
+        setUploadProgress('Uploading scenario 1...');
+        scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
+      }
+
+      if (formData.scenario2) {
+        setUploadProgress('Uploading scenario 2...');
+        scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
+      }
+
+      if (formData.scenario3) {
+        setUploadProgress('Uploading scenario 3...');
+        scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
+      }
+
+      setUploadProgress('Submitting application...');
+
+      // Build cover letter with all challenge proof URLs
+      const challengeProof = [
+        videoUrl ? `Video Challenge: ${videoUrl}` : '',
+        scenario1Url ? `Scenario 1 Proof: ${scenario1Url}` : '',
+        scenario2Url ? `Scenario 2 Proof: ${scenario2Url}` : '',
+        scenario3Url ? `Scenario 3 Proof: ${scenario3Url}` : '',
+      ].filter(Boolean).join('\n\n');
+
       // Submit application to CRM
       const response = await fetch('/api/applications', {
         method: 'POST',
@@ -78,7 +134,9 @@ export default function HomePage() {
           phone: formData.phone,
           position: 'growth_intern',
           linkedin_url: formData.linkedin,
+          portfolio_url: videoUrl, // Store video URL in portfolio field
           experience: `Instagram: ${formData.instagram}`,
+          cover_letter: challengeProof,
           why_trailblaize: 'Applied via careers page - completed all sales challenges',
           source: 'website',
         }),
@@ -104,6 +162,7 @@ export default function HomePage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
+      setUploadProgress('');
     }
   };
 
@@ -336,7 +395,7 @@ export default function HomePage() {
 
             <button type="submit" className="landing-submit-button" disabled={submitting}>
               {submitting ? (
-                <>Submitting...<Loader2 className="landing-spinner" /></>
+                <>{uploadProgress || 'Submitting...'}<Loader2 className="landing-spinner" /></>
               ) : (
                 <>Submit Application<ArrowRight size={20} /></>
               )}
