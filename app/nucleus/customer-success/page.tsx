@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, ChevronRight, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Chapter, ONBOARDING_STEPS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -28,6 +28,13 @@ export default function CustomerSuccessModule() {
     next_action: '',
     notes: '',
     alumni_channels: '',
+    // Payment tracking
+    payment_day: null as number | null,
+    payment_type: 'annual' as Chapter['payment_type'],
+    payment_amount: 299,
+    payment_start_date: '',
+    last_payment_date: '',
+    next_payment_date: '',
   });
 
   useEffect(() => {
@@ -66,6 +73,10 @@ export default function CustomerSuccessModule() {
         ...formData,
         chapter_created: true,
         onboarding_started: new Date().toISOString().split('T')[0],
+        // Convert empty strings to null for date fields
+        payment_start_date: formData.payment_start_date || null,
+        last_payment_date: formData.last_payment_date || null,
+        next_payment_date: formData.next_payment_date || null,
       }]);
 
     if (error) {
@@ -82,7 +93,13 @@ export default function CustomerSuccessModule() {
 
     const { error } = await supabase
       .from('chapters')
-      .update(formData)
+      .update({
+        ...formData,
+        // Convert empty strings to null for date fields
+        payment_start_date: formData.payment_start_date || null,
+        last_payment_date: formData.last_payment_date || null,
+        next_payment_date: formData.next_payment_date || null,
+      })
       .eq('id', editingChapter.id);
 
     if (error) {
@@ -161,6 +178,12 @@ export default function CustomerSuccessModule() {
       next_action: '',
       notes: '',
       alumni_channels: '',
+      payment_day: null,
+      payment_type: 'annual',
+      payment_amount: 299,
+      payment_start_date: '',
+      last_payment_date: '',
+      next_payment_date: '',
     });
     setEditingChapter(null);
     setShowModal(false);
@@ -181,6 +204,12 @@ export default function CustomerSuccessModule() {
       next_action: chapter.next_action || '',
       notes: chapter.notes || '',
       alumni_channels: chapter.alumni_channels || '',
+      payment_day: chapter.payment_day,
+      payment_type: chapter.payment_type || 'annual',
+      payment_amount: chapter.payment_amount || 299,
+      payment_start_date: chapter.payment_start_date || '',
+      last_payment_date: chapter.last_payment_date || '',
+      next_payment_date: chapter.next_payment_date || '',
     });
     setShowModal(true);
   }
@@ -212,6 +241,29 @@ export default function CustomerSuccessModule() {
   const activeChapters = chapters.filter(c => c.status === 'active').length;
   const onboardingChapters = chapters.filter(c => c.status === 'onboarding').length;
   const totalMRR = chapters.reduce((sum, c) => sum + (c.mrr || 0), 0);
+
+  // Payment helpers
+  const paymentTypeLabels: Record<Chapter['payment_type'], string> = {
+    monthly: 'Monthly',
+    one_time: 'One-Time',
+    annual: 'Annual Commitment',
+  };
+
+  function formatPaymentDay(day: number | null): string {
+    if (!day) return 'Not set';
+    const suffix = day === 1 || day === 21 || day === 31 ? 'st' 
+      : day === 2 || day === 22 ? 'nd' 
+      : day === 3 || day === 23 ? 'rd' 
+      : 'th';
+    return `${day}${suffix}`;
+  }
+
+  // Upcoming payments this month
+  const today = new Date();
+  const currentDay = today.getDate();
+  const upcomingPayments = chapters.filter(c => 
+    c.payment_day && c.payment_day >= currentDay && c.status === 'active'
+  ).length;
 
   const statusLabels: Record<Chapter['status'], string> = {
     onboarding: 'Onboarding',
@@ -284,6 +336,10 @@ export default function CustomerSuccessModule() {
             <span className="module-stat-value">${totalMRR.toLocaleString()}</span>
             <span className="module-stat-label">Total MRR</span>
           </div>
+          <div className="module-stat">
+            <span className="module-stat-value" style={{ color: '#8b5cf6' }}>{upcomingPayments}</span>
+            <span className="module-stat-label">Payments Due This Month</span>
+          </div>
         </div>
 
         {/* Actions Bar */}
@@ -349,6 +405,25 @@ export default function CustomerSuccessModule() {
                   </div>
                   <span className={`module-status ${chapter.status}`}>{statusLabels[chapter.status]}</span>
                   <span className={`module-health ${chapter.health}`}>{healthLabels[chapter.health]}</span>
+                  {chapter.payment_day && (
+                    <span 
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        borderRadius: '4px',
+                        background: '#f3e8ff',
+                        color: '#7c3aed',
+                      }}
+                      title={`Payment due on the ${formatPaymentDay(chapter.payment_day)}`}
+                    >
+                      <CreditCard size={12} />
+                      {chapter.payment_day}
+                    </span>
+                  )}
                   <div className="chapter-card-actions" onClick={(e) => e.stopPropagation()}>
                     <button className="module-table-action" onClick={() => openEditModal(chapter)}>
                       <Edit2 size={14} />
@@ -393,6 +468,40 @@ export default function CustomerSuccessModule() {
                     {chapter.alumni_channels && (
                       <div className="chapter-alumni-channels">
                         <strong>📱 Alumni Channels:</strong> {chapter.alumni_channels}
+                      </div>
+                    )}
+                    {(chapter.payment_day || chapter.payment_type || chapter.payment_amount) && (
+                      <div className="chapter-payment-info" style={{ 
+                        marginTop: '12px',
+                        padding: '12px 16px',
+                        background: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <CreditCard size={16} style={{ color: '#8b5cf6' }} />
+                          <strong style={{ color: '#374151' }}>Payment Info</strong>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '14px', color: '#64748b' }}>
+                          <span>
+                            <DollarSign size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                            <strong>${chapter.payment_amount || 299}</strong> ({paymentTypeLabels[chapter.payment_type || 'annual']})
+                          </span>
+                          {chapter.payment_day && (
+                            <span>
+                              <Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                              Due: {formatPaymentDay(chapter.payment_day)} of each month
+                            </span>
+                          )}
+                          {chapter.last_payment_date && (
+                            <span>Last payment: {new Date(chapter.last_payment_date).toLocaleDateString()}</span>
+                          )}
+                          {chapter.next_payment_date && (
+                            <span style={{ color: '#8b5cf6', fontWeight: 500 }}>
+                              Next: {new Date(chapter.next_payment_date).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
                     {chapter.next_action && (
@@ -519,6 +628,84 @@ export default function CustomerSuccessModule() {
                   </select>
                 </div>
               </div>
+
+              {/* Payment Tracking Section */}
+              <div style={{ 
+                marginTop: '16px', 
+                marginBottom: '16px', 
+                padding: '16px', 
+                background: '#faf5ff', 
+                borderRadius: '8px',
+                border: '1px solid #e9d5ff'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <CreditCard size={18} style={{ color: '#8b5cf6' }} />
+                  <span style={{ fontWeight: 600, color: '#6b21a8' }}>Payment Tracking</span>
+                </div>
+                <div className="module-form-row">
+                  <div className="module-form-group">
+                    <label>Payment Day (1-31)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={formData.payment_day || ''}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        payment_day: e.target.value ? parseInt(e.target.value) : null 
+                      })}
+                      placeholder="e.g. 15"
+                    />
+                  </div>
+                  <div className="module-form-group">
+                    <label>Payment Type</label>
+                    <select
+                      value={formData.payment_type}
+                      onChange={(e) => setFormData({ ...formData, payment_type: e.target.value as Chapter['payment_type'] })}
+                    >
+                      <option value="annual">Annual Commitment ($299)</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="one_time">One-Time</option>
+                    </select>
+                  </div>
+                  <div className="module-form-group">
+                    <label>Payment Amount ($)</label>
+                    <input
+                      type="number"
+                      value={formData.payment_amount}
+                      onChange={(e) => setFormData({ ...formData, payment_amount: parseFloat(e.target.value) || 299 })}
+                      placeholder="299"
+                    />
+                  </div>
+                </div>
+                <div className="module-form-row">
+                  <div className="module-form-group">
+                    <label>Subscription Start Date</label>
+                    <input
+                      type="date"
+                      value={formData.payment_start_date}
+                      onChange={(e) => setFormData({ ...formData, payment_start_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="module-form-group">
+                    <label>Last Payment Date</label>
+                    <input
+                      type="date"
+                      value={formData.last_payment_date}
+                      onChange={(e) => setFormData({ ...formData, last_payment_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="module-form-group">
+                    <label>Next Payment Date</label>
+                    <input
+                      type="date"
+                      value={formData.next_payment_date}
+                      onChange={(e) => setFormData({ ...formData, next_payment_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="module-form-group">
                 <label>Next Action</label>
                 <input

@@ -256,6 +256,14 @@ export interface Chapter {
   notes: string;
   alumni_channels: string;
   
+  // Payment Tracking
+  payment_day: number | null;
+  payment_type: 'monthly' | 'one_time' | 'annual';
+  payment_amount: number;
+  payment_start_date: string | null;
+  last_payment_date: string | null;
+  next_payment_date: string | null;
+  
   created_at: string;
   updated_at: string;
 }
