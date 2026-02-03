@@ -2,21 +2,22 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Join the Team | Trailblaize Growth Space",
-  description: "We're looking for 5 exceptional individuals to help us revolutionize alumni engagement. Apply now to join the Trailblaize team.",
-  keywords: ["internship", "sales", "growth", "alumni", "Trailblaize", "startup", "career"],
+  title: "Trailblaize | Build the Future of Alumni Networks",
+  description: "Trailblaize is revolutionizing how organizations connect with their communities. Join 5,500+ users across 5 schools building the future of alumni engagement.",
+  keywords: ["alumni", "networking", "community", "organizations", "Trailblaize", "engagement", "growth"],
   authors: [{ name: "Trailblaize" }],
+  metadataBase: new URL("https://trailblaize.space"),
   openGraph: {
-    title: "Join the Trailblaize Team",
-    description: "We're looking for 5 exceptional individuals to help us revolutionize alumni engagement.",
-    url: "https://trailblaize.net",
-    siteName: "Trailblaize Growth Space",
+    title: "Build the Future of Alumni Networks",
+    description: "Trailblaize is revolutionizing how organizations connect with their communities. Whether you're joining our team or managing your organization, start your journey here.",
+    url: "https://trailblaize.space",
+    siteName: "Trailblaize",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Join the Trailblaize Team",
-    description: "We're looking for 5 exceptional individuals to help us revolutionize alumni engagement.",
+    title: "Build the Future of Alumni Networks",
+    description: "Trailblaize is revolutionizing how organizations connect with their communities. Join 5,500+ users across 5 schools.",
   },
   icons: {
     icon: "/logo-icon.svg",

@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export const alt = 'Join the Trailblaize Team'
+export const alt = 'Trailblaize - Build the Future of Alumni Networks'
 export const size = {
   width: 1200,
   height: 630,
@@ -14,74 +14,137 @@ export default async function Image() {
     (
       <div
         style={{
-          background: 'linear-gradient(180deg, #f5f7f6 0%, #eef1ef 100%)',
+          background: '#0a0f1a',
           width: '100%',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'Georgia, serif',
+          position: 'relative',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
       >
-        {/* Flag Icon */}
-        <svg
-          width="120"
-          height="120"
-          viewBox="0 0 40 40"
-          fill="none"
-          style={{ marginBottom: 30 }}
-        >
-          <path
-            d="M12 8C10 14 7 32 5 38"
-            stroke="#1a2744"
-            strokeWidth="4"
-            strokeLinecap="round"
-          />
-          <path
-            d="M14 5C14 5 20 3 26 5C32 7 36 5 38 6C38 6 36 12 38 16C32 14 26 16 20 14C14 12 14 14 14 14V5Z"
-            fill="#1a2744"
-          />
-          <path
-            d="M14 18C14 18 20 16 26 18C32 20 36 19 38 20C40 22 40 26 37 28C33 30 28 29 22 27C16 25 14 26 14 26V18Z"
-            fill="#1a2744"
-          />
-        </svg>
-        
+        {/* Grid Pattern Background */}
         <div
           style={{
-            fontSize: 72,
-            fontWeight: 400,
-            color: '#1a2744',
-            marginBottom: 10,
-            fontStyle: 'normal',
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundSize: '60px 60px',
           }}
-        >
-          Trailblaize
-        </div>
+        />
         
+        {/* Subtle gradient overlay */}
         <div
           style={{
-            fontSize: 36,
-            fontWeight: 400,
-            color: '#1a2744',
-            fontStyle: 'italic',
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(45, 212, 191, 0.08) 0%, transparent 60%)',
+          }}
+        />
+
+        {/* Now Hiring Badge */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: 50,
+            padding: '12px 24px',
             marginBottom: 40,
           }}
         >
-          Growth Space
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+              boxShadow: '0 0 12px #10b981',
+            }}
+          />
+          <span
+            style={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: 18,
+              fontWeight: 500,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Now Hiring — Limited Positions
+          </span>
         </div>
-        
+
+        {/* Main Title */}
         <div
           style={{
-            fontSize: 42,
-            fontWeight: 400,
-            color: '#4b5563',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             textAlign: 'center',
-            maxWidth: 800,
           }}
         >
-          Join the Team
+          <span
+            style={{
+              fontSize: 72,
+              fontWeight: 700,
+              color: '#ffffff',
+              lineHeight: 1.1,
+            }}
+          >
+            Build the Future
+          </span>
+          <span
+            style={{
+              fontSize: 72,
+              fontWeight: 700,
+              color: '#2dd4bf',
+              lineHeight: 1.1,
+              marginTop: 8,
+            }}
+          >
+            of Alumni Networks
+          </span>
+        </div>
+
+        {/* Description */}
+        <p
+          style={{
+            fontSize: 24,
+            color: 'rgba(255, 255, 255, 0.6)',
+            marginTop: 40,
+            textAlign: 'center',
+            maxWidth: 800,
+            lineHeight: 1.5,
+          }}
+        >
+          Trailblaize is revolutionizing how organizations connect with their communities.
+        </p>
+
+        {/* Stats Row */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 40,
+            marginTop: 50,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 18 }}>5,500+ Users</span>
+          </div>
+          <div style={{ width: 1, height: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 18 }}>5 Schools</span>
+          </div>
+          <div style={{ width: 1, height: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 18 }}>Growing Fast</span>
+          </div>
         </div>
       </div>
     ),
