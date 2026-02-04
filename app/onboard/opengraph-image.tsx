@@ -9,11 +9,6 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  // Load Instrument Serif font
-  const instrumentSerif = await fetch(
-    new URL('https://fonts.gstatic.com/s/instrumentserif/v4/jizBRFtNs2ka5fXjeivQ4LroWlx-2zIZj1bIkNo.woff2')
-  ).then((res) => res.arrayBuffer());
-
   return new ImageResponse(
     (
       <div
@@ -24,58 +19,31 @@ export default async function Image() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #1a2744 0%, #0f172a 100%)',
-          fontFamily: 'Instrument Serif',
+          backgroundColor: '#000000',
         }}
       >
-        {/* Trailblaize logo/branding */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: 40,
-          }}
-        >
-          <svg
-            width="60"
-            height="60"
-            viewBox="0 0 100 100"
-            fill="none"
-          >
-            <circle cx="50" cy="50" r="45" fill="#14b8a6" />
-            <path
-              d="M30 50 L45 65 L70 35"
-              stroke="white"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-        </div>
-        
         {/* Main text */}
         <div
           style={{
-            fontSize: 64,
+            fontSize: 72,
             fontWeight: 400,
-            color: 'white',
+            color: '#ffffff',
             textAlign: 'center',
-            lineHeight: 1.2,
-            fontFamily: 'Instrument Serif',
+            lineHeight: 1.3,
+            fontFamily: 'Georgia, serif',
           }}
         >
           Start Onboarding
         </div>
         <div
           style={{
-            fontSize: 64,
+            fontSize: 72,
             fontWeight: 400,
-            color: '#14b8a6',
+            color: '#ffffff',
             textAlign: 'center',
-            lineHeight: 1.2,
+            lineHeight: 1.3,
             marginTop: 8,
-            fontFamily: 'Instrument Serif',
+            fontFamily: 'Georgia, serif',
           }}
         >
           with Trailblaize
@@ -84,9 +52,10 @@ export default async function Image() {
         {/* URL */}
         <div
           style={{
-            fontSize: 24,
-            color: 'rgba(255, 255, 255, 0.6)',
-            marginTop: 48,
+            fontSize: 28,
+            color: 'rgba(255, 255, 255, 0.7)',
+            marginTop: 60,
+            fontFamily: 'Georgia, serif',
           }}
         >
           trailblaize.net
@@ -95,14 +64,6 @@ export default async function Image() {
     ),
     {
       ...size,
-      fonts: [
-        {
-          name: 'Instrument Serif',
-          data: instrumentSerif,
-          style: 'normal',
-          weight: 400,
-        },
-      ],
     }
   );
 }
