@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, 
   ChevronRight, CreditCard, Calendar, DollarSign, Clock, MessageSquare, Copy, 
-  ExternalLink, Eye, Filter, Undo2, AlertTriangle, Sparkles
+  ExternalLink, Eye, Undo2, AlertTriangle, Sparkles, Settings, Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -63,6 +63,11 @@ export default function CustomerSuccessModule() {
   const [completedChapter, setCompletedChapter] = useState<ChapterWithOnboarding | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  // Booking link settings
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [bookingLink, setBookingLink] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Check-in form state
   const [checkInForm, setCheckInForm] = useState({
@@ -94,10 +99,46 @@ export default function CustomerSuccessModule() {
     check_in_frequency: 'biweekly' as CheckInFrequency,
   });
 
-  // Fetch chapters
+  // Fetch chapters and settings
   useEffect(() => {
     fetchChapters();
+    fetchBookingLink();
   }, []);
+
+  async function fetchBookingLink() {
+    try {
+      const response = await fetch('/api/settings?key=booking_link');
+      const result = await response.json();
+      if (result.data?.value) {
+        setBookingLink(result.data.value);
+      }
+    } catch (err) {
+      console.error('Failed to fetch booking link:', err);
+    }
+  }
+
+  async function saveBookingLink() {
+    setSavingSettings(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'booking_link', value: bookingLink }),
+      });
+      const result = await response.json();
+      if (result.error) {
+        showToast(result.error.message, 'error');
+      } else {
+        showToast('Booking link saved!', 'success');
+        setShowSettingsModal(false);
+      }
+    } catch (err) {
+      console.error('Failed to save booking link:', err);
+      showToast('Failed to save booking link', 'error');
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   // Keyboard navigation
   useEffect(() => {
@@ -717,6 +758,13 @@ export default function CustomerSuccessModule() {
             <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Add Chapter
+            </button>
+            <button 
+              className="module-filter-btn" 
+              onClick={() => setShowSettingsModal(true)}
+              title="Settings"
+            >
+              <Settings size={18} />
             </button>
           </div>
         </div>
@@ -1570,6 +1618,49 @@ export default function CustomerSuccessModule() {
             <button className="cs-celebration-close" onClick={() => setCompletedChapter(null)}>
               Awesome!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="module-modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="module-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>Onboarding Settings</h2>
+              <button className="module-modal-close" onClick={() => setShowSettingsModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <div className="module-form-group">
+                <label>
+                  <LinkIcon size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                  Demo Booking Link
+                </label>
+                <input
+                  type="url"
+                  value={bookingLink}
+                  onChange={(e) => setBookingLink(e.target.value)}
+                  placeholder="https://calendar.google.com/calendar/appointments/..."
+                />
+                <span style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.5rem', display: 'block' }}>
+                  This link will appear on all active onboarding forms for chapters to book demos.
+                </span>
+              </div>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => setShowSettingsModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={saveBookingLink}
+                disabled={savingSettings}
+              >
+                {savingSettings ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       )}

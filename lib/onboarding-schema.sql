@@ -1,6 +1,22 @@
 -- Onboarding System Schema
 -- Run this in your Supabase SQL Editor
 
+-- Settings table for configurable values
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default booking link
+INSERT INTO app_settings (key, value) 
+VALUES ('booking_link', 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ0Pf0XIHuat6OK9bUzwVDbSfR3tGMRGrcxmJI4vmtqKUjE7_7ykzOm0kLJFTMIzXM8g6FAJMsLt?gv=true')
+ON CONFLICT (key) DO NOTHING;
+
+-- Allow all operations for authenticated users
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for authenticated" ON app_settings FOR ALL USING (true);
+
 -- Add onboarding token to chapters table
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS onboarding_token TEXT UNIQUE;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS onboarding_token_created_at TIMESTAMPTZ;

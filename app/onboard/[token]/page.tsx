@@ -17,8 +17,8 @@ import {
   OUTREACH_CHANNEL_LABELS,
 } from '@/lib/supabase';
 
-// Cal.com embed URL - configurable
-const CALCOM_EMBED_URL = process.env.NEXT_PUBLIC_CALCOM_URL || 'https://cal.com/trailblaize/onboarding-demo';
+// Default booking link fallback
+const DEFAULT_BOOKING_LINK = '';
 
 interface ValidationErrors {
   [key: string]: string;
@@ -114,6 +114,7 @@ export default function OnboardingForm() {
 
   // Demo
   const [scheduledDemo, setScheduledDemo] = useState('');
+  const [bookingLink, setBookingLink] = useState(DEFAULT_BOOKING_LINK);
 
   // Instagram Launch
   const [igHandle, setIgHandle] = useState('');
@@ -173,7 +174,7 @@ export default function OnboardingForm() {
     return () => clearTimeout(timeout);
   }, [saveDraft]);
 
-  // Validate token on mount
+  // Validate token and fetch settings on mount
   useEffect(() => {
     async function validateToken() {
       try {
@@ -207,8 +208,21 @@ export default function OnboardingForm() {
         setLoading(false);
       }
     }
+
+    async function fetchBookingLink() {
+      try {
+        const response = await fetch('/api/settings?key=booking_link');
+        const result = await response.json();
+        if (result.data?.value) {
+          setBookingLink(result.data.value);
+        }
+      } catch (err) {
+        console.error('Failed to fetch booking link:', err);
+      }
+    }
     
     validateToken();
+    fetchBookingLink();
   }, [token]);
 
   // Filter universities for autocomplete
@@ -851,16 +865,14 @@ export default function OnboardingForm() {
                         </div>
                       )}
 
-                      {(type === 'alumni_database' || type === 'other') && (
+                      {type === 'other' && (
                         <div className="form-group">
                           <label>Description</label>
                           <textarea
                             value={channelData[type].description || ''}
                             onChange={(e) => updateChannelData(type, 'description', e.target.value)}
-                            placeholder={type === 'alumni_database' 
-                              ? "Describe what contact data you have..."
-                              : "Describe your other communication channel..."}
-                            rows={3}
+                            placeholder="Describe your other communication channel..."
+                            rows={2}
                           />
                         </div>
                       )}
@@ -968,15 +980,21 @@ export default function OnboardingForm() {
                   <p>30-minute walkthrough with our team to get your chapter set up for success.</p>
                 </div>
               </div>
-              <a 
-                href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0Pf0XIHuat6OK9bUzwVDbSfR3tGMRGrcxmJI4vmtqKUjE7_7ykzOm0kLJFTMIzXM8g6FAJMsLt?gv=true"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="schedule-demo-btn"
-              >
-                <Calendar size={18} />
-                Schedule with Ford
-              </a>
+              {bookingLink ? (
+                <a 
+                  href={bookingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="schedule-demo-btn"
+                >
+                  <Calendar size={18} />
+                  Schedule Demo
+                </a>
+              ) : (
+                <div className="schedule-demo-pending">
+                  <p>Scheduling link coming soon! Your CS manager will reach out to schedule.</p>
+                </div>
+              )}
             </div>
 
             <p className="fallback-text">
@@ -1002,11 +1020,11 @@ export default function OnboardingForm() {
                 <ul>
                   <li>
                     <Check size={14} />
-                    A high-quality photo of your chapter house
+                    <strong>A high-quality photo of your chapter house</strong>
                   </li>
                   <li>
                     <Check size={14} />
-                    Your chapter&apos;s Instagram handle so we can tag you
+                    <strong>Your chapter&apos;s Instagram handle</strong> so we can tag you
                   </li>
                 </ul>
               </div>
