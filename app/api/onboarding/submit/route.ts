@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         chapter_designation: formData.chapter_designation,
         year_founded: formData.year_founded,
         estimated_alumni: formData.estimated_alumni,
+        active_members: formData.active_members,
         instagram_handle: formData.instagram_handle,
         instagram_photo_url: formData.instagram_photo_url,
         alumni_list_url: formData.alumni_list_file_url,

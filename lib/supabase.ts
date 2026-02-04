@@ -450,6 +450,7 @@ export interface OnboardingFormData {
   chapter_designation?: string;
   year_founded?: number;
   estimated_alumni: number;
+  active_members: number;
   
   // Section 2: Executive Board
   executives: {
@@ -498,6 +499,7 @@ export interface ChapterWithOnboarding extends Chapter {
   chapter_designation?: string;
   year_founded?: number;
   estimated_alumni?: number;
+  active_members?: number;
   instagram_handle?: string;
   instagram_photo_url?: string;
   alumni_list_url?: string;

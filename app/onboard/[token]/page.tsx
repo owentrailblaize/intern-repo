@@ -88,6 +88,7 @@ export default function OnboardingForm() {
   const [chapterDesignation, setChapterDesignation] = useState('');
   const [yearFounded, setYearFounded] = useState<number | ''>('');
   const [estimatedAlumni, setEstimatedAlumni] = useState<number | ''>('');
+  const [activeMembers, setActiveMembers] = useState<number | ''>('');
 
   // Executives
   const [executives, setExecutives] = useState<Executive[]>([
@@ -134,6 +135,7 @@ export default function OnboardingForm() {
           if (parsed.chapterDesignation) setChapterDesignation(parsed.chapterDesignation);
           if (parsed.yearFounded) setYearFounded(parsed.yearFounded);
           if (parsed.estimatedAlumni) setEstimatedAlumni(parsed.estimatedAlumni);
+          if (parsed.activeMembers) setActiveMembers(parsed.activeMembers);
           if (parsed.executives) setExecutives(parsed.executives);
           if (parsed.selectedChannels) setSelectedChannels(new Set(parsed.selectedChannels));
           if (parsed.channelData) setChannelData(parsed.channelData);
@@ -156,6 +158,7 @@ export default function OnboardingForm() {
         chapterDesignation,
         yearFounded,
         estimatedAlumni,
+        activeMembers,
         executives,
         selectedChannels: Array.from(selectedChannels),
         channelData,
@@ -165,7 +168,7 @@ export default function OnboardingForm() {
       };
       localStorage.setItem(`onboarding_draft_${token}`, JSON.stringify(draft));
     }
-  }, [token, university, fraternity, chapterDesignation, yearFounded, estimatedAlumni, 
+  }, [token, university, fraternity, chapterDesignation, yearFounded, estimatedAlumni, activeMembers,
       executives, selectedChannels, channelData, noAlumniList, igHandle, currentSection]);
 
   // Auto-save draft on changes
@@ -320,6 +323,7 @@ export default function OnboardingForm() {
         if (!university.trim()) errors.university = 'University is required';
         if (!fraternity.trim()) errors.fraternity = 'Fraternity/Sorority is required';
         if (!estimatedAlumni) errors.estimatedAlumni = 'Estimated alumni count is required';
+        if (!activeMembers) errors.activeMembers = 'Active member count is required';
         break;
       case 2:
         executives.forEach((exec, index) => {
@@ -384,6 +388,7 @@ export default function OnboardingForm() {
       chapter_designation: chapterDesignation || undefined,
       year_founded: yearFounded ? Number(yearFounded) : undefined,
       estimated_alumni: Number(estimatedAlumni),
+      active_members: Number(activeMembers),
       executives: executives.map(e => ({
         full_name: e.full_name,
         position: e.position,
@@ -623,20 +628,37 @@ export default function OnboardingForm() {
               </div>
             </div>
 
-            <div className="form-group" data-field="estimatedAlumni">
-              <label>Estimated Total Living Alumni *</label>
-              <input
-                type="number"
-                value={estimatedAlumni}
-                onChange={(e) => setEstimatedAlumni(e.target.value ? parseInt(e.target.value) : '')}
-                placeholder="e.g., 500"
-                min={0}
-                className={validationErrors.estimatedAlumni ? 'error' : ''}
-              />
-              <span className="helper-text">Approximate is fine - helps us plan outreach</span>
-              {validationErrors.estimatedAlumni && (
-                <span className="error-message">{validationErrors.estimatedAlumni}</span>
-              )}
+            <div className="form-row">
+              <div className="form-group" data-field="estimatedAlumni">
+                <label>Estimated Total Living Alumni *</label>
+                <input
+                  type="number"
+                  value={estimatedAlumni}
+                  onChange={(e) => setEstimatedAlumni(e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder="e.g., 500"
+                  min={0}
+                  className={validationErrors.estimatedAlumni ? 'error' : ''}
+                />
+                <span className="helper-text">Approximate is fine</span>
+                {validationErrors.estimatedAlumni && (
+                  <span className="error-message">{validationErrors.estimatedAlumni}</span>
+                )}
+              </div>
+              <div className="form-group" data-field="activeMembers">
+                <label># of Active Members *</label>
+                <input
+                  type="number"
+                  value={activeMembers}
+                  onChange={(e) => setActiveMembers(e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder="e.g., 80"
+                  min={0}
+                  className={validationErrors.activeMembers ? 'error' : ''}
+                />
+                <span className="helper-text">Current chapter size</span>
+                {validationErrors.activeMembers && (
+                  <span className="error-message">{validationErrors.activeMembers}</span>
+                )}
+              </div>
             </div>
           </section>
         )}

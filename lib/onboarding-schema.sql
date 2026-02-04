@@ -31,6 +31,7 @@ ALTER TABLE chapters ADD COLUMN IF NOT EXISTS next_check_in_date DATE;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS chapter_designation TEXT;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS year_founded INTEGER;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS estimated_alumni INTEGER;
+ALTER TABLE chapters ADD COLUMN IF NOT EXISTS active_members INTEGER;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS instagram_handle TEXT;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS instagram_photo_url TEXT;
 ALTER TABLE chapters ADD COLUMN IF NOT EXISTS alumni_list_url TEXT;
