@@ -28,17 +28,12 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error) {
-      // Return default for booking_link if not found
-      if (key === 'booking_link') {
-        return NextResponse.json({ 
-          data: { value: '' }, 
-          error: null 
-        });
-      }
-      return NextResponse.json(
-        { data: null, error: { message: 'Setting not found', code: 'NOT_FOUND' } },
-        { status: 404 }
-      );
+      // Return empty value if table doesn't exist or setting not found
+      // This handles the case before the table is created
+      return NextResponse.json({ 
+        data: { value: '' }, 
+        error: null 
+      });
     }
 
     return NextResponse.json({ data, error: null });
@@ -81,6 +76,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      // Check if table doesn't exist
+      if (error.message.includes('app_settings') || error.code === '42P01') {
+        return NextResponse.json(
+          { data: null, error: { message: 'Settings table not created. Please run the onboarding-schema.sql migration.', code: 'TABLE_NOT_FOUND' } },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
         { data: null, error: { message: error.message, code: 'DB_ERROR' } },
         { status: 500 }
