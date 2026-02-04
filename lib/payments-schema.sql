@@ -42,5 +42,7 @@ CREATE TRIGGER update_payments_updated_at
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
 -- Policy for authenticated users (adjust based on your auth setup)
+-- Drop existing policy first to avoid conflicts
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON payments;
 CREATE POLICY "Enable all access for authenticated users" ON payments
   FOR ALL USING (true);
