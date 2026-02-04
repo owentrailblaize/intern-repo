@@ -313,6 +313,8 @@ export default function OnboardingForm() {
           if (!exec.email.trim()) errors[`exec_${index}_email`] = 'Email is required';
           else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exec.email)) {
             errors[`exec_${index}_email`] = 'Invalid email format';
+          } else if (exec.email.toLowerCase().endsWith('.edu')) {
+            errors[`exec_${index}_email`] = 'Please use a personal email (no .edu addresses)';
           }
           if (exec.position === 'other' && !exec.custom_position.trim()) {
             errors[`exec_${index}_position`] = 'Please specify position';
@@ -684,14 +686,15 @@ export default function OnboardingForm() {
                   </div>
 
                   <div className="form-group" data-field={`exec_${index}_email`}>
-                    <label>Email *</label>
+                    <label>Personal Email *</label>
                     <input
                       type="email"
                       value={exec.email}
                       onChange={(e) => updateExecutive(exec.id, 'email', e.target.value)}
-                      placeholder="john@university.edu"
+                      placeholder="john@gmail.com"
                       className={validationErrors[`exec_${index}_email`] ? 'error' : ''}
                     />
+                    <span className="helper-text">Use a personal email (no .edu) - graduates lose access to school emails</span>
                     {validationErrors[`exec_${index}_email`] && (
                       <span className="error-message">{validationErrors[`exec_${index}_email`]}</span>
                     )}
