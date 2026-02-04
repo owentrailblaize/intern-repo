@@ -23,7 +23,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Activity,
-  Zap
+  Zap,
+  Wallet
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -64,6 +65,12 @@ interface ModuleStats {
     value: number;
     pending: number;
   };
+  finance: {
+    totalRevenue: number;
+    thisMonth: number;
+    pending: number;
+    pendingCount: number;
+  };
 }
 
 export default function Nucleus() {
@@ -89,14 +96,16 @@ export default function Nucleus() {
         dealsRes,
         tasksRes,
         chaptersRes,
-        contractsRes
+        contractsRes,
+        paymentsRes
       ] = await Promise.all([
         supabase.from('employees').select('*'),
         supabase.from('network_contacts').select('*'),
         supabase.from('deals').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('chapters').select('*'),
-        supabase.from('enterprise_contracts').select('*')
+        supabase.from('enterprise_contracts').select('*'),
+        supabase.from('payments').select('*')
       ]);
 
       const employees = employeesRes.data || [];
@@ -105,10 +114,19 @@ export default function Nucleus() {
       const tasks = tasksRes.data || [];
       const chapters = chaptersRes.data || [];
       const contracts = contractsRes.data || [];
+      const payments = paymentsRes.data || [];
 
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const today = now.toDateString();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Calculate finance stats
+      const completedPayments = payments.filter((p: { status: string }) => p.status === 'completed');
+      const pendingPayments = payments.filter((p: { status: string }) => p.status === 'pending');
+      const thisMonthPayments = completedPayments.filter((p: { payment_date: string }) => 
+        new Date(p.payment_date) >= monthStart
+      );
 
       setStats({
         employees: {
@@ -150,6 +168,12 @@ export default function Nucleus() {
           inNegotiation: contracts.filter(c => ['negotiation', 'contract_sent'].includes(c.stage)).length,
           value: contracts.filter(c => c.stage === 'signed').reduce((sum, c) => sum + (c.value || 0), 0),
           pending: contracts.filter(c => c.stage === 'contract_sent').length,
+        },
+        finance: {
+          totalRevenue: completedPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
+          thisMonth: thisMonthPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
+          pending: pendingPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
+          pendingCount: pendingPayments.length,
         },
       });
     } catch (error) {
@@ -233,6 +257,23 @@ export default function Nucleus() {
       highlight: stats?.customerSuccess.onboarding ? { 
         text: `${stats.customerSuccess.onboarding} onboarding`, 
         type: 'info' 
+      } : null,
+    },
+    {
+      title: 'Finance',
+      description: 'Track chapter payments and revenue.',
+      icon: Wallet,
+      href: '/nucleus/finance',
+      color: '#10b981',
+      gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+      stats: stats?.finance ? [
+        { label: 'Total', value: formatCurrency(stats.finance.totalRevenue), icon: DollarSign },
+        { label: 'This Month', value: formatCurrency(stats.finance.thisMonth), icon: TrendingUp, color: '#10b981' },
+        { label: 'Pending', value: formatCurrency(stats.finance.pending), icon: Clock, color: '#f59e0b' },
+      ] : [],
+      highlight: stats?.finance.pendingCount ? { 
+        text: `${stats.finance.pendingCount} pending payment${stats.finance.pendingCount !== 1 ? 's' : ''}`, 
+        type: stats.finance.pendingCount > 0 ? 'warning' : 'success' 
       } : null,
     },
     {

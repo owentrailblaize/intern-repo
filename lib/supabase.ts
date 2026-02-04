@@ -299,3 +299,18 @@ export interface EnterpriseContract {
   notes: string;
   created_at: string;
 }
+
+export interface Payment {
+  id: string;
+  chapter_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: 'card' | 'bank_transfer' | 'check' | 'cash' | 'other';
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  reference_number: string | null;
+  notes: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
