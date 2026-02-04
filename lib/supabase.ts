@@ -361,7 +361,7 @@ export type OutreachChannelType =
   | 'other';
 
 export const OUTREACH_CHANNEL_LABELS: Record<OutreachChannelType, string> = {
-  email_newsletter: 'Email Newsletter',
+  email_newsletter: 'Newsletter (Email or Mail)',
   facebook_group: 'Facebook Group',
   instagram: 'Instagram Page',
   linkedin_group: 'LinkedIn Group',

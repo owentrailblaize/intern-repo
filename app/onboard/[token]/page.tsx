@@ -56,7 +56,7 @@ const SECTIONS = [
   { id: 7, title: 'Submit', icon: Send },
 ];
 
-const EMAIL_PLATFORMS = ['Mailchimp', 'Constant Contact', 'SendGrid', 'Other'];
+const COMMUNICATION_METHODS = ['Email', 'Physical Mail', 'Both Email and Mail'];
 
 export default function OnboardingForm() {
   const params = useParams();
@@ -741,19 +741,19 @@ export default function OnboardingForm() {
                       {type === 'email_newsletter' && (
                         <>
                           <div className="form-group">
-                            <label>Platform</label>
+                            <label>How do you currently send updates?</label>
                             <select
                               value={channelData[type].email_platform || ''}
                               onChange={(e) => updateChannelData(type, 'email_platform', e.target.value)}
                             >
-                              <option value="">Select platform...</option>
-                              {EMAIL_PLATFORMS.map(p => (
-                                <option key={p} value={p}>{p}</option>
+                              <option value="">Select method...</option>
+                              {COMMUNICATION_METHODS.map(m => (
+                                <option key={m} value={m}>{m}</option>
                               ))}
                             </select>
                           </div>
                           <div className="form-group">
-                            <label>Subscriber Count</label>
+                            <label>How many alumni do you reach?</label>
                             <input
                               type="number"
                               value={channelData[type].email_subscriber_count || ''}
