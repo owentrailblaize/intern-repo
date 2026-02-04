@@ -20857,7 +20857,70 @@ input:focus {
   color: #0d9488;
 }
 
-/* Cal.com Embed */
+/* Schedule Demo Card */
+.schedule-demo-card {
+  background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
+  border: 1px solid #99f6e4;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.schedule-demo-info {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.schedule-demo-icon {
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #14b8a6;
+  flex-shrink: 0;
+}
+
+.schedule-demo-info h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.schedule-demo-info p {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.schedule-demo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: #14b8a6;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.schedule-demo-btn:hover {
+  background: #0d9488;
+  transform: translateY(-1px);
+}
+
+/* Cal.com Embed (legacy) */
 .cal-embed-container {
   border: 1px solid #e2e8f0;
   border-radius: 12px;

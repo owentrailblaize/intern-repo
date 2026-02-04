@@ -518,6 +518,7 @@ export default function OnboardingForm() {
                   value={universitySearch}
                   onChange={(e) => {
                     setUniversitySearch(e.target.value);
+                    setUniversity(e.target.value); // Also set university for validation
                     setShowUniversitySuggestions(true);
                   }}
                   onFocus={() => setShowUniversitySuggestions(true)}
@@ -555,6 +556,7 @@ export default function OnboardingForm() {
                   value={fraternitySearch}
                   onChange={(e) => {
                     setFraternitySearch(e.target.value);
+                    setFraternity(e.target.value); // Also set fraternity for validation
                     setShowFraternitySuggestions(true);
                   }}
                   onFocus={() => setShowFraternitySuggestions(true)}
@@ -953,18 +955,30 @@ export default function OnboardingForm() {
               Let&apos;s get your executive team up to speed! Pick a time that works for your officers.
             </p>
 
-            <div className="cal-embed-container">
-              <iframe
-                src={CALCOM_EMBED_URL}
-                frameBorder="0"
-                className="cal-embed"
-                title="Schedule Demo"
-              />
+            <div className="schedule-demo-card">
+              <div className="schedule-demo-info">
+                <div className="schedule-demo-icon">
+                  <Calendar size={32} />
+                </div>
+                <div>
+                  <h3>Book a Demo Call</h3>
+                  <p>30-minute walkthrough with our team to get your chapter set up for success.</p>
+                </div>
+              </div>
+              <a 
+                href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0Pf0XIHuat6OK9bUzwVDbSfR3tGMRGrcxmJI4vmtqKUjE7_7ykzOm0kLJFTMIzXM8g6FAJMsLt?gv=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="schedule-demo-btn"
+              >
+                <Calendar size={18} />
+                Schedule with Ford
+              </a>
             </div>
 
             <p className="fallback-text">
               Can&apos;t find a time? Email us at{' '}
-              <a href="mailto:success@trailblaize.space">success@trailblaize.space</a>
+              <a href="mailto:ford@trailblaize.net">ford@trailblaize.net</a>
             </p>
           </section>
         )}
@@ -985,7 +999,7 @@ export default function OnboardingForm() {
                 <ul>
                   <li>
                     <Check size={14} />
-                    A high-quality chapter photo (group photo, house, letters)
+                    A high-quality photo of your chapter house
                   </li>
                   <li>
                     <Check size={14} />
@@ -1009,7 +1023,7 @@ export default function OnboardingForm() {
             </div>
 
             <div className="form-group">
-              <label>Upload Photo (optional)</label>
+              <label>Upload House Photo (optional)</label>
               <div 
                 className={`file-upload-zone image-upload ${igPhotoPreview ? 'has-file' : ''}`}
                 onDragOver={(e) => e.preventDefault()}
@@ -1041,7 +1055,7 @@ export default function OnboardingForm() {
                     ) : (
                       <Upload size={32} />
                     )}
-                    <p>Drag and drop your photo here, or click to browse</p>
+                    <p>Drag and drop a photo of your chapter house</p>
                     <span className="file-types">Accepts .jpg, .png (min 1080x1080)</span>
                     <input
                       type="file"
