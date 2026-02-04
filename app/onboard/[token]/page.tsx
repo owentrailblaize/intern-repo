@@ -767,13 +767,16 @@ export default function OnboardingForm() {
                       {type === 'facebook_group' && (
                         <>
                           <div className="form-group">
-                            <label>Group URL</label>
-                            <input
-                              type="url"
+                            <label>Who has access to the group?</label>
+                            <select
                               value={channelData[type].facebook_url || ''}
                               onChange={(e) => updateChannelData(type, 'facebook_url', e.target.value)}
-                              placeholder="https://facebook.com/groups/..."
-                            />
+                            >
+                              <option value="">Select access...</option>
+                              <option value="alumni_only">Alumni only</option>
+                              <option value="actives_have_access">An active member has access</option>
+                              <option value="both">Both actives and alumni</option>
+                            </select>
                           </div>
                           <div className="form-group">
                             <label>Member Count</label>
