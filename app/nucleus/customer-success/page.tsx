@@ -1,20 +1,77 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, ChevronRight, CreditCard, Calendar, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, 
+  ChevronRight, CreditCard, Calendar, DollarSign, Clock, MessageSquare, Copy, 
+  ExternalLink, Eye, Filter, Undo2, AlertTriangle, Sparkles
+} from 'lucide-react';
 import Link from 'next/link';
-import { supabase, Chapter, ONBOARDING_STEPS } from '@/lib/supabase';
+import { 
+  supabase, Chapter, ONBOARDING_STEPS, ChapterCheckIn, CheckInFrequency, 
+  CHECK_IN_FREQUENCY_LABELS, HealthScore, HEALTH_SCORE_LABELS, HEALTH_SCORE_COLORS,
+  ChapterExecutive, ChapterOutreachChannel, EXECUTIVE_POSITION_LABELS,
+  OUTREACH_CHANNEL_LABELS, ChapterWithOnboarding
+} from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
 
+// Toast notification type
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+// Confetti particle type
+interface ConfettiParticle {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+  rotation: number;
+  scale: number;
+}
+
 export default function CustomerSuccessModule() {
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ChapterWithOnboarding[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
-  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [editingChapter, setEditingChapter] = useState<ChapterWithOnboarding | null>(null);
   const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  
+  // New state for enhanced features
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showCheckInModal, setShowCheckInModal] = useState<string | null>(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState<string | null>(null);
+  const [checkIns, setCheckIns] = useState<Record<string, ChapterCheckIn[]>>({});
+  const [submissionData, setSubmissionData] = useState<{
+    chapter: ChapterWithOnboarding;
+    executives: ChapterExecutive[];
+    outreach_channels: ChapterOutreachChannel[];
+    submitted_at: string | null;
+  } | null>(null);
+  const [quickFilter, setQuickFilter] = useState<'all' | 'overdue' | 'stalled'>('all');
+  const [celebratingChapter, setCelebratingChapter] = useState<string | null>(null);
+  const [celebratingCategory, setCelebratingCategory] = useState<{ chapterId: string; category: string } | null>(null);
+  const [completedChapter, setCompletedChapter] = useState<ChapterWithOnboarding | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Check-in form state
+  const [checkInForm, setCheckInForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    health_score: 'good' as HealthScore,
+    action_items: [''],
+  });
+
   const [formData, setFormData] = useState({
     chapter_name: '',
     school: '',
@@ -28,17 +85,66 @@ export default function CustomerSuccessModule() {
     next_action: '',
     notes: '',
     alumni_channels: '',
-    // Payment tracking
     payment_day: null as number | null,
     payment_type: 'annual' as Chapter['payment_type'],
     payment_amount: 299,
     payment_start_date: '',
     last_payment_date: '',
     next_payment_date: '',
+    check_in_frequency: 'biweekly' as CheckInFrequency,
   });
 
+  // Fetch chapters
   useEffect(() => {
     fetchChapters();
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (showModal || showCheckInModal || showSubmissionModal) return;
+      
+      const filteredLen = filteredChapters.length;
+      if (filteredLen === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex(prev => Math.min(prev + 1, filteredLen - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === ' ' && focusedIndex >= 0) {
+        e.preventDefault();
+        const chapter = filteredChapters[focusedIndex];
+        if (chapter) {
+          setExpandedChapter(expandedChapter === chapter.id ? null : chapter.id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedIndex, expandedChapter, showModal, showCheckInModal, showSubmissionModal]);
+
+  // Scroll focused chapter into view
+  useEffect(() => {
+    if (focusedIndex >= 0 && chapterRefs.current[focusedIndex]) {
+      chapterRefs.current[focusedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [focusedIndex]);
+
+  // Toast management
+  const showToast = useCallback((message: string, type: Toast['type'] = 'info', action?: Toast['action']) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type, action }]);
+    
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, action ? 5000 : 3000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   async function fetchChapters() {
@@ -51,19 +157,49 @@ export default function CustomerSuccessModule() {
 
     if (error) {
       console.error('Error fetching chapters:', error);
+      showToast('Failed to load chapters', 'error');
     } else {
       setChapters(data || []);
     }
     setLoading(false);
   }
 
+  async function fetchCheckIns(chapterId: string) {
+    if (!supabase) return;
+    
+    const { data, error } = await supabase
+      .from('chapter_check_ins')
+      .select('*, action_items:check_in_action_items(*)')
+      .eq('chapter_id', chapterId)
+      .order('check_in_date', { ascending: false })
+      .limit(5);
+
+    if (!error && data) {
+      setCheckIns(prev => ({ ...prev, [chapterId]: data }));
+    }
+  }
+
+  async function fetchSubmission(chapterId: string) {
+    try {
+      const response = await fetch(`/api/onboarding/submission/${chapterId}`);
+      const result = await response.json();
+      
+      if (result.data) {
+        setSubmissionData(result.data);
+      }
+    } catch (err) {
+      console.error('Error fetching submission:', err);
+      showToast('Failed to load submission data', 'error');
+    }
+  }
+
   async function createChapter() {
     if (!supabase) {
-      alert('Database not connected');
+      showToast('Database not connected', 'error');
       return;
     }
     if (!formData.chapter_name.trim()) {
-      alert('Chapter name is required');
+      showToast('Chapter name is required', 'error');
       return;
     }
 
@@ -73,7 +209,6 @@ export default function CustomerSuccessModule() {
         ...formData,
         chapter_created: true,
         onboarding_started: new Date().toISOString().split('T')[0],
-        // Convert empty strings to null for date fields
         payment_start_date: formData.payment_start_date || null,
         last_payment_date: formData.last_payment_date || null,
         next_payment_date: formData.next_payment_date || null,
@@ -81,8 +216,9 @@ export default function CustomerSuccessModule() {
 
     if (error) {
       console.error('Error creating chapter:', error);
-      alert(`Failed to create chapter: ${error.message}`);
+      showToast(`Failed to create chapter: ${error.message}`, 'error');
     } else {
+      showToast('Chapter created successfully', 'success');
       resetForm();
       fetchChapters();
     }
@@ -95,7 +231,6 @@ export default function CustomerSuccessModule() {
       .from('chapters')
       .update({
         ...formData,
-        // Convert empty strings to null for date fields
         payment_start_date: formData.payment_start_date || null,
         last_payment_date: formData.last_payment_date || null,
         next_payment_date: formData.next_payment_date || null,
@@ -104,24 +239,35 @@ export default function CustomerSuccessModule() {
 
     if (error) {
       console.error('Error updating chapter:', error);
-      alert(`Failed to update chapter: ${error.message}`);
+      showToast(`Failed to update chapter: ${error.message}`, 'error');
     } else {
+      showToast('Chapter updated successfully', 'success');
       resetForm();
       fetchChapters();
     }
   }
 
-  async function toggleOnboardingStep(chapter: Chapter, stepKey: string) {
+  async function toggleOnboardingStep(chapter: ChapterWithOnboarding, stepKey: string, categoryKey: string) {
     if (!supabase) return;
     
-    const currentValue = chapter[stepKey as keyof Chapter];
+    const currentValue = chapter[stepKey as keyof ChapterWithOnboarding];
     const newValue = !currentValue;
     
+    // Optimistically update UI
+    setChapters(prev => prev.map(c => 
+      c.id === chapter.id ? { ...c, [stepKey]: newValue } : c
+    ));
+
+    // Check category completion
+    const categorySteps = ONBOARDING_STEPS.filter(s => s.category === categoryKey);
+    const categoryComplete = categorySteps.every(s => 
+      s.key === stepKey ? newValue : chapter[s.key as keyof ChapterWithOnboarding]
+    );
+
     // Check if all steps are now complete
     const allSteps = ONBOARDING_STEPS.map(s => s.key);
-    const updatedSteps = { ...chapter, [stepKey]: newValue };
     const completedCount = allSteps.filter(key => 
-      key === stepKey ? newValue : updatedSteps[key as keyof Chapter]
+      key === stepKey ? newValue : chapter[key as keyof ChapterWithOnboarding]
     ).length;
     
     const updateData: Record<string, unknown> = {
@@ -142,7 +288,37 @@ export default function CustomerSuccessModule() {
 
     if (error) {
       console.error('Error updating step:', error);
+      // Revert optimistic update
+      setChapters(prev => prev.map(c => 
+        c.id === chapter.id ? { ...c, [stepKey]: currentValue } : c
+      ));
+      showToast('Failed to update step', 'error');
     } else {
+      // Show undo toast for completion
+      if (newValue) {
+        showToast(
+          `Completed: ${ONBOARDING_STEPS.find(s => s.key === stepKey)?.label}`,
+          'success',
+          {
+            label: 'Undo',
+            onClick: () => toggleOnboardingStep({ ...chapter, [stepKey]: newValue } as ChapterWithOnboarding, stepKey, categoryKey),
+          }
+        );
+      }
+
+      // Celebrate category completion
+      if (categoryComplete && newValue) {
+        setCelebratingCategory({ chapterId: chapter.id, category: categoryKey });
+        setTimeout(() => setCelebratingCategory(null), 2000);
+      }
+
+      // Celebrate full completion
+      if (completedCount === allSteps.length && newValue) {
+        setCelebratingChapter(chapter.id);
+        setCompletedChapter({ ...chapter, [stepKey]: newValue } as ChapterWithOnboarding);
+        setTimeout(() => setCelebratingChapter(null), 3000);
+      }
+
       fetchChapters();
     }
   }
@@ -157,11 +333,97 @@ export default function CustomerSuccessModule() {
 
     if (error) {
       console.error('Error deleting chapter:', error);
-      alert('Failed to delete chapter');
+      showToast('Failed to delete chapter', 'error');
     } else {
+      showToast('Chapter deleted', 'success');
       fetchChapters();
     }
     setDeleteConfirm({ show: false, id: null });
+  }
+
+  async function generateOnboardingLink(chapterId: string, regenerate = false) {
+    try {
+      const response = await fetch('/api/onboarding/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter_id: chapterId, regenerate }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        showToast(result.error.message, 'error');
+        return;
+      }
+
+      const link = `${window.location.origin}/onboard/${result.data.token}`;
+      await navigator.clipboard.writeText(link);
+      showToast('Onboarding link copied to clipboard!', 'success');
+      fetchChapters();
+    } catch (err) {
+      console.error('Error generating link:', err);
+      showToast('Failed to generate link', 'error');
+    }
+  }
+
+  async function updateCheckInFrequency(chapterId: string, frequency: CheckInFrequency) {
+    try {
+      const response = await fetch('/api/check-ins', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter_id: chapterId, frequency }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        showToast(result.error.message, 'error');
+        return;
+      }
+
+      showToast('Check-in frequency updated', 'success');
+      fetchChapters();
+    } catch (err) {
+      console.error('Error updating frequency:', err);
+      showToast('Failed to update frequency', 'error');
+    }
+  }
+
+  async function submitCheckIn(chapterId: string) {
+    try {
+      const response = await fetch('/api/check-ins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chapter_id: chapterId,
+          check_in_date: checkInForm.date,
+          notes: checkInForm.notes,
+          health_score: checkInForm.health_score,
+          action_items: checkInForm.action_items.filter(a => a.trim()),
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        showToast(result.error.message, 'error');
+        return;
+      }
+
+      showToast('Check-in logged successfully', 'success');
+      setShowCheckInModal(null);
+      setCheckInForm({
+        date: new Date().toISOString().split('T')[0],
+        notes: '',
+        health_score: 'good',
+        action_items: [''],
+      });
+      fetchChapters();
+      fetchCheckIns(chapterId);
+    } catch (err) {
+      console.error('Error submitting check-in:', err);
+      showToast('Failed to submit check-in', 'error');
+    }
   }
 
   function resetForm() {
@@ -184,12 +446,13 @@ export default function CustomerSuccessModule() {
       payment_start_date: '',
       last_payment_date: '',
       next_payment_date: '',
+      check_in_frequency: 'biweekly',
     });
     setEditingChapter(null);
     setShowModal(false);
   }
 
-  function openEditModal(chapter: Chapter) {
+  function openEditModal(chapter: ChapterWithOnboarding) {
     setEditingChapter(chapter);
     setFormData({
       chapter_name: chapter.chapter_name,
@@ -210,25 +473,58 @@ export default function CustomerSuccessModule() {
       payment_start_date: chapter.payment_start_date || '',
       last_payment_date: chapter.last_payment_date || '',
       next_payment_date: chapter.next_payment_date || '',
+      check_in_frequency: chapter.check_in_frequency || 'biweekly',
     });
     setShowModal(true);
   }
 
-  function getCompletionPercentage(chapter: Chapter): number {
+  function getCompletionPercentage(chapter: ChapterWithOnboarding): number {
     const completed = ONBOARDING_STEPS.filter(step => 
-      chapter[step.key as keyof Chapter]
+      chapter[step.key as keyof ChapterWithOnboarding]
     ).length;
     return Math.round((completed / ONBOARDING_STEPS.length) * 100);
   }
 
-  function getCompletedStepsCount(chapter: Chapter): number {
+  function getCompletedStepsCount(chapter: ChapterWithOnboarding): number {
     return ONBOARDING_STEPS.filter(step => 
-      chapter[step.key as keyof Chapter]
+      chapter[step.key as keyof ChapterWithOnboarding]
     ).length;
   }
 
+  function getCategoryCompletedCount(chapter: ChapterWithOnboarding, category: string): number {
+    return ONBOARDING_STEPS.filter(step => 
+      step.category === category && chapter[step.key as keyof ChapterWithOnboarding]
+    ).length;
+  }
+
+  function getCategoryTotalCount(category: string): number {
+    return ONBOARDING_STEPS.filter(step => step.category === category).length;
+  }
+
+  function getProgressGradient(percentage: number): string {
+    if (percentage < 25) return 'linear-gradient(90deg, #f97316, #fb923c)';
+    if (percentage < 50) return 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+    if (percentage < 75) return 'linear-gradient(90deg, #10b981, #34d399)';
+    return 'linear-gradient(90deg, #14b8a6, #2dd4bf)';
+  }
+
+  function getDaysUntilCheckIn(chapter: ChapterWithOnboarding): number | null {
+    if (!chapter.next_check_in_date) return null;
+    const next = new Date(chapter.next_check_in_date);
+    const today = new Date();
+    const diff = Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  }
+
+  function getDaysSinceActivity(chapter: ChapterWithOnboarding): number | null {
+    if (!chapter.last_activity) return null;
+    const last = new Date(chapter.last_activity);
+    const today = new Date();
+    return Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
   // Filter chapters
-  const filteredChapters = chapters.filter(c => {
+  let filteredChapters = chapters.filter(c => {
     const matchesSearch = c.chapter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.school && c.school.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (c.fraternity && c.fraternity.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -236,29 +532,29 @@ export default function CustomerSuccessModule() {
     return matchesSearch && matchesStatus;
   });
 
+  // Apply quick filters
+  if (quickFilter === 'overdue') {
+    filteredChapters = filteredChapters.filter(c => {
+      const days = getDaysUntilCheckIn(c);
+      return days !== null && days < 0;
+    });
+  } else if (quickFilter === 'stalled') {
+    filteredChapters = filteredChapters.filter(c => {
+      const days = getDaysSinceActivity(c);
+      return days !== null && days >= 7;
+    });
+  }
+
   // Stats
   const totalChapters = chapters.length;
   const activeChapters = chapters.filter(c => c.status === 'active').length;
   const onboardingChapters = chapters.filter(c => c.status === 'onboarding').length;
   const totalMRR = chapters.reduce((sum, c) => sum + (c.mrr || 0), 0);
+  const overdueCheckIns = chapters.filter(c => {
+    const days = getDaysUntilCheckIn(c);
+    return days !== null && days < 0;
+  }).length;
 
-  // Payment helpers
-  const paymentTypeLabels: Record<Chapter['payment_type'], string> = {
-    monthly: 'Monthly',
-    one_time: 'One-Time',
-    annual: 'Annual Commitment',
-  };
-
-  function formatPaymentDay(day: number | null): string {
-    if (!day) return 'Not set';
-    const suffix = day === 1 || day === 21 || day === 31 ? 'st' 
-      : day === 2 || day === 22 ? 'nd' 
-      : day === 3 || day === 23 ? 'rd' 
-      : 'th';
-    return `${day}${suffix}`;
-  }
-
-  // Upcoming payments this month
   const today = new Date();
   const currentDay = today.getDate();
   const upcomingPayments = chapters.filter(c => 
@@ -278,6 +574,21 @@ export default function CustomerSuccessModule() {
     critical: 'Critical',
   };
 
+  const paymentTypeLabels: Record<Chapter['payment_type'], string> = {
+    monthly: 'Monthly',
+    one_time: 'One-Time',
+    annual: 'Annual Commitment',
+  };
+
+  function formatPaymentDay(day: number | null): string {
+    if (!day) return 'Not set';
+    const suffix = day === 1 || day === 21 || day === 31 ? 'st' 
+      : day === 2 || day === 22 ? 'nd' 
+      : day === 3 || day === 23 ? 'rd' 
+      : 'th';
+    return `${day}${suffix}`;
+  }
+
   // Group steps by category
   const stepsByCategory = {
     setup: ONBOARDING_STEPS.filter(s => s.category === 'setup'),
@@ -296,6 +607,19 @@ export default function CustomerSuccessModule() {
     engagement: '💬 Engagement',
     social: '📱 Social',
   };
+
+  // Generate confetti particles
+  function generateConfetti(): ConfettiParticle[] {
+    const colors = ['#14b8a6', '#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#3b82f6'];
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      scale: 0.5 + Math.random() * 0.5,
+    }));
+  }
 
   return (
     <div className="module-page">
@@ -319,7 +643,7 @@ export default function CustomerSuccessModule() {
 
       <main className="module-main">
         {/* Stats Row */}
-        <div className="module-stats-row">
+        <div className="module-stats-row" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
           <div className="module-stat">
             <span className="module-stat-value">{totalChapters}</span>
             <span className="module-stat-label">Total Chapters</span>
@@ -337,8 +661,10 @@ export default function CustomerSuccessModule() {
             <span className="module-stat-label">Total MRR</span>
           </div>
           <div className="module-stat">
-            <span className="module-stat-value" style={{ color: '#8b5cf6' }}>{upcomingPayments}</span>
-            <span className="module-stat-label">Payments Due This Month</span>
+            <span className="module-stat-value" style={{ color: overdueCheckIns > 0 ? '#ef4444' : '#8b5cf6' }}>
+              {overdueCheckIns}
+            </span>
+            <span className="module-stat-label">Overdue Check-ins</span>
           </div>
         </div>
 
@@ -354,6 +680,29 @@ export default function CustomerSuccessModule() {
             />
           </div>
           <div className="module-actions">
+            {/* Quick Filters */}
+            <div className="cs-quick-filters">
+              <button
+                className={`cs-quick-filter ${quickFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setQuickFilter('all')}
+              >
+                All
+              </button>
+              <button
+                className={`cs-quick-filter ${quickFilter === 'overdue' ? 'active' : ''}`}
+                onClick={() => setQuickFilter('overdue')}
+              >
+                <AlertTriangle size={14} />
+                Overdue Check-in
+              </button>
+              <button
+                className={`cs-quick-filter ${quickFilter === 'stalled' ? 'active' : ''}`}
+                onClick={() => setQuickFilter('stalled')}
+              >
+                <Clock size={14} />
+                Stalled
+              </button>
+            </div>
             <select
               className="module-filter-select"
               value={filterStatus}
@@ -377,153 +726,351 @@ export default function CustomerSuccessModule() {
           {loading ? (
             <div className="module-loading">Loading...</div>
           ) : filteredChapters.length > 0 ? (
-            filteredChapters.map((chapter) => (
-              <div key={chapter.id} className="chapter-card">
+            filteredChapters.map((chapter, index) => {
+              const percentage = getCompletionPercentage(chapter);
+              const daysUntilCheckIn = getDaysUntilCheckIn(chapter);
+              const isOverdue = daysUntilCheckIn !== null && daysUntilCheckIn < 0;
+              const isCelebrating = celebratingChapter === chapter.id;
+              
+              return (
                 <div 
-                  className="chapter-card-header"
-                  onClick={() => setExpandedChapter(expandedChapter === chapter.id ? null : chapter.id)}
+                  key={chapter.id} 
+                  ref={el => { chapterRefs.current[index] = el; }}
+                  className={`chapter-card ${focusedIndex === index ? 'focused' : ''} ${isOverdue ? 'overdue' : ''} ${isCelebrating ? 'celebrating' : ''}`}
                 >
-                  <div className="chapter-card-expand">
-                    {expandedChapter === chapter.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                  </div>
-                  <div className="chapter-card-info">
-                    <h3>{chapter.chapter_name}</h3>
-                    <span className="chapter-card-subtitle">
-                      {chapter.fraternity}{chapter.fraternity && chapter.school ? ' • ' : ''}{chapter.school}
-                    </span>
-                  </div>
-                  <div className="chapter-card-progress">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill"
-                        style={{ width: `${getCompletionPercentage(chapter)}%` }}
-                      />
-                    </div>
-                    <span className="progress-text">
-                      {getCompletedStepsCount(chapter)}/{ONBOARDING_STEPS.length} steps
-                    </span>
-                  </div>
-                  <span className={`module-status ${chapter.status}`}>{statusLabels[chapter.status]}</span>
-                  <span className={`module-health ${chapter.health}`}>{healthLabels[chapter.health]}</span>
-                  {chapter.payment_day && (
-                    <span 
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        borderRadius: '4px',
-                        background: '#f3e8ff',
-                        color: '#7c3aed',
-                      }}
-                      title={`Payment due on the ${formatPaymentDay(chapter.payment_day)}`}
-                    >
-                      <CreditCard size={12} />
-                      {chapter.payment_day}
-                    </span>
-                  )}
-                  <div className="chapter-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="module-table-action" onClick={() => openEditModal(chapter)}>
-                      <Edit2 size={14} />
-                    </button>
-                    <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: chapter.id })}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {expandedChapter === chapter.id && (
-                  <div className="chapter-card-body">
-                    <div className="onboarding-checklist">
-                      {Object.entries(stepsByCategory).map(([category, steps]) => (
-                        <div key={category} className="checklist-category">
-                          <h4>{categoryLabels[category]}</h4>
-                          <div className="checklist-items">
-                            {steps.map((step) => (
-                              <label key={step.key} className="checklist-item">
-                                <input
-                                  type="checkbox"
-                                  checked={!!chapter[step.key as keyof Chapter]}
-                                  onChange={() => toggleOnboardingStep(chapter, step.key)}
-                                />
-                                <span className="checkmark">
-                                  {chapter[step.key as keyof Chapter] && <Check size={12} />}
-                                </span>
-                                <span className="checklist-label">{step.label}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
+                  {/* Confetti for celebration */}
+                  {isCelebrating && (
+                    <div className="confetti-container">
+                      {generateConfetti().map(p => (
+                        <div
+                          key={p.id}
+                          className="confetti-particle"
+                          style={{
+                            left: `${p.x}%`,
+                            top: `${p.y}%`,
+                            backgroundColor: p.color,
+                            transform: `rotate(${p.rotation}deg) scale(${p.scale})`,
+                          }}
+                        />
                       ))}
                     </div>
-                    {chapter.contact_name && (
-                      <div className="chapter-contact">
-                        <strong>Contact:</strong> {chapter.contact_name}
-                        {chapter.contact_email && ` • ${chapter.contact_email}`}
-                        {chapter.contact_phone && ` • ${chapter.contact_phone}`}
+                  )}
+                  
+                  <div 
+                    className="chapter-card-header"
+                    onClick={() => {
+                      setExpandedChapter(expandedChapter === chapter.id ? null : chapter.id);
+                      if (!checkIns[chapter.id]) {
+                        fetchCheckIns(chapter.id);
+                      }
+                    }}
+                  >
+                    <div className="chapter-card-expand">
+                      {expandedChapter === chapter.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                    </div>
+                    <div className="chapter-card-info">
+                      <h3>{chapter.chapter_name}</h3>
+                      <span className="chapter-card-subtitle">
+                        {chapter.fraternity}{chapter.fraternity && chapter.school ? ' • ' : ''}{chapter.school}
+                      </span>
+                    </div>
+                    <div className="chapter-card-progress">
+                      <div className="progress-bar-animated">
+                        <div 
+                          className="progress-fill-animated"
+                          style={{ 
+                            width: `${percentage}%`,
+                            background: getProgressGradient(percentage),
+                          }}
+                        />
                       </div>
+                      <span className="progress-text">
+                        {getCompletedStepsCount(chapter)}/{ONBOARDING_STEPS.length} steps
+                      </span>
+                    </div>
+                    <span className={`module-status ${chapter.status}`}>{statusLabels[chapter.status]}</span>
+                    <span 
+                      className="cs-health-badge"
+                      style={{
+                        background: HEALTH_SCORE_COLORS[chapter.health === 'good' ? 'good' : chapter.health === 'warning' ? 'needs_attention' : 'at_risk'].bg,
+                        color: HEALTH_SCORE_COLORS[chapter.health === 'good' ? 'good' : chapter.health === 'warning' ? 'needs_attention' : 'at_risk'].text,
+                        boxShadow: `0 0 12px ${HEALTH_SCORE_COLORS[chapter.health === 'good' ? 'good' : chapter.health === 'warning' ? 'needs_attention' : 'at_risk'].glow}`,
+                      }}
+                    >
+                      {healthLabels[chapter.health]}
+                    </span>
+                    {chapter.payment_day && (
+                      <span 
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          borderRadius: '4px',
+                          background: '#f3e8ff',
+                          color: '#7c3aed',
+                        }}
+                        title={`Payment due on the ${formatPaymentDay(chapter.payment_day)}`}
+                      >
+                        <CreditCard size={12} />
+                        {chapter.payment_day}
+                      </span>
                     )}
-                    {chapter.alumni_channels && (
-                      <div className="chapter-alumni-channels">
-                        <strong>📱 Alumni Channels:</strong> {chapter.alumni_channels}
-                      </div>
-                    )}
-                    {(chapter.payment_day || chapter.payment_type || chapter.payment_amount) && (
-                      <div className="chapter-payment-info" style={{ 
-                        marginTop: '12px',
-                        padding: '12px 16px',
-                        background: '#f8fafc',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <CreditCard size={16} style={{ color: '#8b5cf6' }} />
-                          <strong style={{ color: '#374151' }}>Payment Info</strong>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '14px', color: '#64748b' }}>
-                          <span>
-                            <DollarSign size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                            <strong>${chapter.payment_amount || 299}</strong> ({paymentTypeLabels[chapter.payment_type || 'annual']})
-                          </span>
-                          {chapter.payment_day && (
-                            <span>
-                              <Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                              Due: {formatPaymentDay(chapter.payment_day)} of each month
-                            </span>
-                          )}
-                          {chapter.last_payment_date && (
-                            <span>Last payment: {new Date(chapter.last_payment_date).toLocaleDateString()}</span>
-                          )}
-                          {chapter.next_payment_date && (
-                            <span style={{ color: '#8b5cf6', fontWeight: 500 }}>
-                              Next: {new Date(chapter.next_payment_date).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {chapter.next_action && (
-                      <div className="chapter-next-action">
-                        <strong>Next Action:</strong> {chapter.next_action}
-                      </div>
-                    )}
+                    <div className="chapter-card-actions" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        className="module-table-action" 
+                        onClick={() => {
+                          setShowSubmissionModal(chapter.id);
+                          fetchSubmission(chapter.id);
+                        }}
+                        title="View Submission"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button 
+                        className="module-table-action" 
+                        onClick={() => generateOnboardingLink(chapter.id, !!chapter.onboarding_token)}
+                        title={chapter.onboarding_token ? "Copy Link" : "Generate Link"}
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <button className="module-table-action" onClick={() => openEditModal(chapter)}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button className="module-table-action delete" onClick={() => setDeleteConfirm({ show: true, id: chapter.id })}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))
+
+                  {expandedChapter === chapter.id && (
+                    <div className="chapter-card-body">
+                      {/* Check-ins Section */}
+                      <div className="cs-checkins-section">
+                        <div className="cs-checkins-header">
+                          <h4><MessageSquare size={16} /> Check-ins</h4>
+                          <div className="cs-checkins-controls">
+                            <select
+                              value={chapter.check_in_frequency || 'biweekly'}
+                              onChange={(e) => updateCheckInFrequency(chapter.id, e.target.value as CheckInFrequency)}
+                              className="cs-frequency-select"
+                            >
+                              {Object.entries(CHECK_IN_FREQUENCY_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>{label}</option>
+                              ))}
+                            </select>
+                            <button 
+                              className="cs-log-btn"
+                              onClick={() => setShowCheckInModal(chapter.id)}
+                            >
+                              <Plus size={14} />
+                              Log Check-in
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="cs-next-checkin">
+                          <Calendar size={14} />
+                          <span>
+                            {chapter.next_check_in_date ? (
+                              <>
+                                Next: {new Date(chapter.next_check_in_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {daysUntilCheckIn !== null && (
+                                  <span className={`cs-countdown ${daysUntilCheckIn < 0 ? 'overdue' : daysUntilCheckIn <= 3 ? 'soon' : ''}`}>
+                                    {daysUntilCheckIn < 0 
+                                      ? `(${Math.abs(daysUntilCheckIn)} days overdue)`
+                                      : daysUntilCheckIn === 0 
+                                        ? '(Today)'
+                                        : `(in ${daysUntilCheckIn} days)`}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="cs-no-checkin">No check-ins scheduled</span>
+                            )}
+                          </span>
+                        </div>
+
+                        {checkIns[chapter.id] && checkIns[chapter.id].length > 0 && (
+                          <div className="cs-recent-checkins">
+                            <h5>Recent Check-ins</h5>
+                            {checkIns[chapter.id].slice(0, 3).map(ci => (
+                              <div key={ci.id} className="cs-checkin-item">
+                                <span className="cs-checkin-date">
+                                  {new Date(ci.check_in_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                {ci.health_score && (
+                                  <span 
+                                    className="cs-checkin-health"
+                                    style={{
+                                      background: HEALTH_SCORE_COLORS[ci.health_score].bg,
+                                      color: HEALTH_SCORE_COLORS[ci.health_score].text,
+                                    }}
+                                  >
+                                    {HEALTH_SCORE_LABELS[ci.health_score]}
+                                  </span>
+                                )}
+                                {ci.notes && (
+                                  <span className="cs-checkin-notes">{ci.notes.slice(0, 50)}{ci.notes.length > 50 ? '...' : ''}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Onboarding Checklist */}
+                      <div className="onboarding-checklist">
+                        {Object.entries(stepsByCategory).map(([category, steps]) => {
+                          const completedInCategory = getCategoryCompletedCount(chapter, category);
+                          const totalInCategory = getCategoryTotalCount(category);
+                          const categoryPercent = Math.round((completedInCategory / totalInCategory) * 100);
+                          const isCategoryComplete = completedInCategory === totalInCategory;
+                          const isCategoryCelebrating = celebratingCategory?.chapterId === chapter.id && celebratingCategory?.category === category;
+                          
+                          return (
+                            <div 
+                              key={category} 
+                              className={`checklist-category ${isCategoryCelebrating ? 'celebrating' : ''}`}
+                            >
+                              <h4>
+                                {categoryLabels[category]}
+                                <span className="category-progress">{completedInCategory}/{totalInCategory}</span>
+                              </h4>
+                              <div className="category-progress-bar">
+                                <div 
+                                  className="category-progress-fill"
+                                  style={{ 
+                                    width: `${categoryPercent}%`,
+                                    background: getProgressGradient(categoryPercent),
+                                  }}
+                                />
+                              </div>
+                              <div className="checklist-items">
+                                {steps.map((step) => {
+                                  const isChecked = !!chapter[step.key as keyof ChapterWithOnboarding];
+                                  return (
+                                    <label key={step.key} className={`checklist-item-animated ${isChecked ? 'checked' : ''}`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => toggleOnboardingStep(chapter, step.key, category)}
+                                      />
+                                      <span className="checkmark-animated">
+                                        {isChecked && <Check size={12} />}
+                                      </span>
+                                      <span className="checklist-label">{step.label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                              {isCategoryCelebrating && (
+                                <div className="category-confetti">
+                                  {generateConfetti().slice(0, 20).map(p => (
+                                    <div
+                                      key={p.id}
+                                      className="confetti-particle-mini"
+                                      style={{
+                                        left: `${p.x}%`,
+                                        top: `${p.y}%`,
+                                        backgroundColor: p.color,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {chapter.contact_name && (
+                        <div className="chapter-contact">
+                          <strong>Contact:</strong> {chapter.contact_name}
+                          {chapter.contact_email && ` • ${chapter.contact_email}`}
+                          {chapter.contact_phone && ` • ${chapter.contact_phone}`}
+                        </div>
+                      )}
+                      {chapter.alumni_channels && (
+                        <div className="chapter-alumni-channels">
+                          <strong>📱 Alumni Channels:</strong> {chapter.alumni_channels}
+                        </div>
+                      )}
+                      {(chapter.payment_day || chapter.payment_type || chapter.payment_amount) && (
+                        <div className="chapter-payment-info" style={{ 
+                          marginTop: '12px',
+                          padding: '12px 16px',
+                          background: '#f8fafc',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <CreditCard size={16} style={{ color: '#8b5cf6' }} />
+                            <strong style={{ color: '#374151' }}>Payment Info</strong>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '14px', color: '#64748b' }}>
+                            <span>
+                              <DollarSign size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                              <strong>${chapter.payment_amount || 299}</strong> ({paymentTypeLabels[chapter.payment_type || 'annual']})
+                            </span>
+                            {chapter.payment_day && (
+                              <span>
+                                <Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                                Due: {formatPaymentDay(chapter.payment_day)} of each month
+                              </span>
+                            )}
+                            {chapter.last_payment_date && (
+                              <span>Last payment: {new Date(chapter.last_payment_date).toLocaleDateString()}</span>
+                            )}
+                            {chapter.next_payment_date && (
+                              <span style={{ color: '#8b5cf6', fontWeight: 500 }}>
+                                Next: {new Date(chapter.next_payment_date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {chapter.next_action && (
+                        <div className="chapter-next-action">
+                          <strong>Next Action:</strong> {chapter.next_action}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div className="module-empty-state">
               <HeartHandshake size={48} />
-              <h3>No chapters yet</h3>
-              <p>Add your first chapter to start tracking onboarding</p>
+              <h3>No chapters found</h3>
+              <p>{quickFilter !== 'all' ? 'No chapters match the selected filter' : 'Add your first chapter to start tracking onboarding'}</p>
             </div>
           )}
         </div>
       </main>
 
-      {/* Modal */}
+      {/* Toast Notifications */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`toast toast-${toast.type}`}>
+            <span>{toast.message}</span>
+            {toast.action && (
+              <button className="toast-action" onClick={toast.action.onClick}>
+                <Undo2 size={14} />
+                {toast.action.label}
+              </button>
+            )}
+            <button className="toast-dismiss" onClick={() => dismissToast(toast.id)}>
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add/Edit Chapter Modal */}
       {showModal && (
         <div className="module-modal-overlay" onClick={() => resetForm()}>
           <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
@@ -625,6 +1172,17 @@ export default function CustomerSuccessModule() {
                     <option value="good">Good</option>
                     <option value="warning">Warning</option>
                     <option value="critical">Critical</option>
+                  </select>
+                </div>
+                <div className="module-form-group">
+                  <label>Check-in Frequency</label>
+                  <select
+                    value={formData.check_in_frequency}
+                    onChange={(e) => setFormData({ ...formData, check_in_frequency: e.target.value as CheckInFrequency })}
+                  >
+                    {Object.entries(CHECK_IN_FREQUENCY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -746,6 +1304,272 @@ export default function CustomerSuccessModule() {
                 {editingChapter ? 'Update' : 'Create'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Check-in Modal */}
+      {showCheckInModal && (
+        <div className="module-modal-overlay" onClick={() => setShowCheckInModal(null)}>
+          <div className="module-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>Log Check-in</h2>
+              <button className="module-modal-close" onClick={() => setShowCheckInModal(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body">
+              <div className="module-form-group">
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={checkInForm.date}
+                  onChange={(e) => setCheckInForm({ ...checkInForm, date: e.target.value })}
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Health Score</label>
+                <div className="cs-health-options">
+                  {(Object.keys(HEALTH_SCORE_LABELS) as HealthScore[]).map(score => (
+                    <label 
+                      key={score} 
+                      className={`cs-health-option ${checkInForm.health_score === score ? 'selected' : ''}`}
+                      style={{
+                        background: checkInForm.health_score === score ? HEALTH_SCORE_COLORS[score].bg : 'transparent',
+                        borderColor: HEALTH_SCORE_COLORS[score].bg,
+                        color: checkInForm.health_score === score ? HEALTH_SCORE_COLORS[score].text : '#64748b',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="health_score"
+                        value={score}
+                        checked={checkInForm.health_score === score}
+                        onChange={() => setCheckInForm({ ...checkInForm, health_score: score })}
+                      />
+                      {HEALTH_SCORE_LABELS[score]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="module-form-group">
+                <label>Notes</label>
+                <textarea
+                  value={checkInForm.notes}
+                  onChange={(e) => setCheckInForm({ ...checkInForm, notes: e.target.value })}
+                  placeholder="How did the check-in go? Any concerns or wins?"
+                  rows={4}
+                />
+              </div>
+              <div className="module-form-group">
+                <label>Action Items (optional)</label>
+                {checkInForm.action_items.map((item, index) => (
+                  <div key={index} className="cs-action-item-input">
+                    <input
+                      type="text"
+                      value={item}
+                      onChange={(e) => {
+                        const newItems = [...checkInForm.action_items];
+                        newItems[index] = e.target.value;
+                        setCheckInForm({ ...checkInForm, action_items: newItems });
+                      }}
+                      placeholder="e.g., Follow up on alumni list upload"
+                    />
+                    {checkInForm.action_items.length > 1 && (
+                      <button 
+                        type="button"
+                        className="cs-remove-action"
+                        onClick={() => {
+                          const newItems = checkInForm.action_items.filter((_, i) => i !== index);
+                          setCheckInForm({ ...checkInForm, action_items: newItems });
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="cs-add-action"
+                  onClick={() => setCheckInForm({ ...checkInForm, action_items: [...checkInForm.action_items, ''] })}
+                >
+                  <Plus size={14} />
+                  Add Action Item
+                </button>
+              </div>
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => setShowCheckInModal(null)}>
+                Cancel
+              </button>
+              <button
+                className="module-primary-btn"
+                onClick={() => submitCheckIn(showCheckInModal)}
+              >
+                Log Check-in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Submission Modal */}
+      {showSubmissionModal && (
+        <div className="module-modal-overlay" onClick={() => { setShowSubmissionModal(null); setSubmissionData(null); }}>
+          <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>Onboarding Submission</h2>
+              <button className="module-modal-close" onClick={() => { setShowSubmissionModal(null); setSubmissionData(null); }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="module-modal-body cs-submission-view">
+              {submissionData ? (
+                <>
+                  <div className="cs-submission-section">
+                    <h4>Chapter Information</h4>
+                    <div className="cs-submission-grid">
+                      <div><strong>Chapter:</strong> {submissionData.chapter.chapter_name}</div>
+                      <div><strong>University:</strong> {submissionData.chapter.school}</div>
+                      <div><strong>Organization:</strong> {submissionData.chapter.fraternity}</div>
+                      {submissionData.chapter.chapter_designation && (
+                        <div><strong>Designation:</strong> {submissionData.chapter.chapter_designation}</div>
+                      )}
+                      {submissionData.chapter.year_founded && (
+                        <div><strong>Founded:</strong> {submissionData.chapter.year_founded}</div>
+                      )}
+                      {submissionData.chapter.estimated_alumni && (
+                        <div><strong>Estimated Alumni:</strong> {submissionData.chapter.estimated_alumni.toLocaleString()}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {submissionData.executives.length > 0 && (
+                    <div className="cs-submission-section">
+                      <h4>Executive Board ({submissionData.executives.length})</h4>
+                      <div className="cs-executives-list">
+                        {submissionData.executives.map(exec => (
+                          <div key={exec.id} className="cs-executive-item">
+                            <strong>{exec.full_name}</strong>
+                            <span>{EXECUTIVE_POSITION_LABELS[exec.position]}{exec.custom_position ? ` (${exec.custom_position})` : ''}</span>
+                            <a href={`mailto:${exec.email}`}>{exec.email}</a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {submissionData.outreach_channels.length > 0 && (
+                    <div className="cs-submission-section">
+                      <h4>Outreach Channels ({submissionData.outreach_channels.length})</h4>
+                      <div className="cs-channels-list">
+                        {submissionData.outreach_channels.map(channel => (
+                          <div key={channel.id} className="cs-channel-item">
+                            <strong>{OUTREACH_CHANNEL_LABELS[channel.channel_type]}</strong>
+                            {channel.email_platform && <span>Platform: {channel.email_platform}</span>}
+                            {channel.email_subscriber_count && <span>{channel.email_subscriber_count} subscribers</span>}
+                            {channel.facebook_url && <a href={channel.facebook_url} target="_blank" rel="noopener noreferrer">View Group</a>}
+                            {channel.facebook_member_count && <span>{channel.facebook_member_count} members</span>}
+                            {channel.instagram_handle && <span>@{channel.instagram_handle}</span>}
+                            {channel.instagram_follower_count && <span>{channel.instagram_follower_count} followers</span>}
+                            {channel.linkedin_url && <a href={channel.linkedin_url} target="_blank" rel="noopener noreferrer">View Group</a>}
+                            {channel.linkedin_member_count && <span>{channel.linkedin_member_count} members</span>}
+                            {channel.website_url && <a href={channel.website_url} target="_blank" rel="noopener noreferrer">Visit Website</a>}
+                            {channel.description && <p>{channel.description}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="cs-submission-section">
+                    <h4>Additional Info</h4>
+                    <div className="cs-submission-grid">
+                      {submissionData.chapter.alumni_list_url && (
+                        <div>
+                          <strong>Alumni List:</strong>{' '}
+                          <a href={submissionData.chapter.alumni_list_url} target="_blank" rel="noopener noreferrer">
+                            Download <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      )}
+                      {submissionData.chapter.scheduled_demo_time && (
+                        <div><strong>Demo Scheduled:</strong> {new Date(submissionData.chapter.scheduled_demo_time).toLocaleString()}</div>
+                      )}
+                      {submissionData.chapter.instagram_handle && (
+                        <div><strong>Instagram:</strong> @{submissionData.chapter.instagram_handle}</div>
+                      )}
+                      {submissionData.chapter.instagram_photo_url && (
+                        <div>
+                          <strong>Launch Photo:</strong>{' '}
+                          <a href={submissionData.chapter.instagram_photo_url} target="_blank" rel="noopener noreferrer">
+                            View <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {submissionData.submitted_at && (
+                    <div className="cs-submission-timestamp">
+                      Submitted on {new Date(submissionData.submitted_at).toLocaleString()}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="cs-submission-empty">
+                  <p>No onboarding submission data available for this chapter.</p>
+                  <p className="text-secondary">Generate an onboarding link and share it with the chapter president.</p>
+                </div>
+              )}
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => { setShowSubmissionModal(null); setSubmissionData(null); }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Completion Celebration Modal */}
+      {completedChapter && (
+        <div className="cs-celebration-modal" onClick={() => setCompletedChapter(null)}>
+          <div className="cs-celebration-content" onClick={(e) => e.stopPropagation()}>
+            <div className="cs-celebration-confetti">
+              {generateConfetti().map(p => (
+                <div
+                  key={p.id}
+                  className="confetti-particle-large"
+                  style={{
+                    left: `${p.x}%`,
+                    top: `${p.y}%`,
+                    backgroundColor: p.color,
+                    transform: `rotate(${p.rotation}deg) scale(${p.scale})`,
+                    animationDelay: `${Math.random() * 0.5}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="cs-celebration-icon">
+              <Sparkles size={48} />
+            </div>
+            <h2>🎉 Chapter Fully Onboarded!</h2>
+            <p className="cs-celebration-chapter">{completedChapter.chapter_name}</p>
+            <div className="cs-celebration-stats">
+              <div>
+                <strong>16/16</strong>
+                <span>Steps Completed</span>
+              </div>
+              <div>
+                <strong>{completedChapter.onboarding_started ? Math.ceil((Date.now() - new Date(completedChapter.onboarding_started).getTime()) / (1000 * 60 * 60 * 24)) : '--'}</strong>
+                <span>Days to Complete</span>
+              </div>
+            </div>
+            <button className="cs-celebration-close" onClick={() => setCompletedChapter(null)}>
+              Awesome!
+            </button>
           </div>
         </div>
       )}

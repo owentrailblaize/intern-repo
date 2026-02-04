@@ -314,3 +314,279 @@ export interface Payment {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================
+// Onboarding System Types
+// ============================================
+
+export type ExecutivePosition = 
+  | 'president' 
+  | 'vice_president' 
+  | 'treasurer' 
+  | 'secretary' 
+  | 'alumni_relations' 
+  | 'social_chair' 
+  | 'recruitment_chair' 
+  | 'other';
+
+export const EXECUTIVE_POSITION_LABELS: Record<ExecutivePosition, string> = {
+  president: 'President',
+  vice_president: 'Vice President',
+  treasurer: 'Treasurer',
+  secretary: 'Secretary',
+  alumni_relations: 'Alumni Relations Chair',
+  social_chair: 'Social Chair',
+  recruitment_chair: 'Recruitment Chair',
+  other: 'Other',
+};
+
+export interface ChapterExecutive {
+  id: string;
+  chapter_id: string;
+  full_name: string;
+  position: ExecutivePosition;
+  custom_position?: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OutreachChannelType = 
+  | 'email_newsletter' 
+  | 'facebook_group' 
+  | 'instagram' 
+  | 'linkedin_group' 
+  | 'chapter_website' 
+  | 'alumni_database' 
+  | 'other';
+
+export const OUTREACH_CHANNEL_LABELS: Record<OutreachChannelType, string> = {
+  email_newsletter: 'Email Newsletter',
+  facebook_group: 'Facebook Group',
+  instagram: 'Instagram Page',
+  linkedin_group: 'LinkedIn Group',
+  chapter_website: 'Chapter Website',
+  alumni_database: 'Alumni Database/Email List',
+  other: 'Other',
+};
+
+export interface ChapterOutreachChannel {
+  id: string;
+  chapter_id: string;
+  channel_type: OutreachChannelType;
+  email_platform?: string;
+  email_subscriber_count?: number;
+  facebook_url?: string;
+  facebook_member_count?: number;
+  instagram_handle?: string;
+  instagram_follower_count?: number;
+  linkedin_url?: string;
+  linkedin_member_count?: number;
+  website_url?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CheckInFrequency = 'weekly' | 'biweekly' | 'monthly';
+
+export const CHECK_IN_FREQUENCY_LABELS: Record<CheckInFrequency, string> = {
+  weekly: 'Weekly',
+  biweekly: 'Biweekly',
+  monthly: 'Monthly',
+};
+
+export type HealthScore = 'excellent' | 'good' | 'needs_attention' | 'at_risk';
+
+export const HEALTH_SCORE_LABELS: Record<HealthScore, string> = {
+  excellent: 'Excellent',
+  good: 'Good',
+  needs_attention: 'Needs Attention',
+  at_risk: 'At Risk',
+};
+
+export const HEALTH_SCORE_COLORS: Record<HealthScore, { bg: string; text: string; glow: string }> = {
+  excellent: { bg: '#d1fae5', text: '#065f46', glow: 'rgba(16, 185, 129, 0.3)' },
+  good: { bg: '#dbeafe', text: '#1e40af', glow: 'rgba(59, 130, 246, 0.3)' },
+  needs_attention: { bg: '#fef3c7', text: '#92400e', glow: 'rgba(245, 158, 11, 0.3)' },
+  at_risk: { bg: '#fee2e2', text: '#991b1b', glow: 'rgba(239, 68, 68, 0.3)' },
+};
+
+export interface ChapterCheckIn {
+  id: string;
+  chapter_id: string;
+  check_in_date: string;
+  notes?: string;
+  health_score?: HealthScore;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  action_items?: CheckInActionItem[];
+}
+
+export interface CheckInActionItem {
+  id: string;
+  check_in_id: string;
+  action_item: string;
+  completed: boolean;
+  completed_at?: string;
+  created_at: string;
+}
+
+export interface OnboardingSubmission {
+  id: string;
+  chapter_id: string;
+  submission_data: OnboardingFormData;
+  submitted_at: string;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+// Onboarding Form Data Structure
+export interface OnboardingFormData {
+  // Section 1: Chapter Information
+  university: string;
+  fraternity: string;
+  chapter_designation?: string;
+  year_founded?: number;
+  estimated_alumni: number;
+  
+  // Section 2: Executive Board
+  executives: {
+    full_name: string;
+    position: ExecutivePosition;
+    custom_position?: string;
+    email: string;
+  }[];
+  
+  // Section 3: Outreach Channels
+  outreach_channels: {
+    type: OutreachChannelType;
+    email_platform?: string;
+    email_subscriber_count?: number;
+    facebook_url?: string;
+    facebook_member_count?: number;
+    instagram_handle?: string;
+    instagram_follower_count?: number;
+    linkedin_url?: string;
+    linkedin_member_count?: number;
+    website_url?: string;
+    description?: string;
+  }[];
+  
+  // Section 4: Alumni List
+  alumni_list_file_name?: string;
+  alumni_list_file_url?: string;
+  no_alumni_list?: boolean;
+  
+  // Section 5: Demo Schedule
+  scheduled_demo_time?: string;
+  
+  // Section 6: Instagram Launch
+  instagram_handle?: string;
+  instagram_photo_url?: string;
+}
+
+// Extended Chapter type with new onboarding fields
+export interface ChapterWithOnboarding extends Chapter {
+  onboarding_token?: string;
+  onboarding_token_created_at?: string;
+  onboarding_submitted_at?: string;
+  check_in_frequency?: CheckInFrequency;
+  last_check_in_date?: string;
+  next_check_in_date?: string;
+  chapter_designation?: string;
+  year_founded?: number;
+  estimated_alumni?: number;
+  instagram_handle?: string;
+  instagram_photo_url?: string;
+  alumni_list_url?: string;
+  scheduled_demo_time?: string;
+}
+
+// List of common US universities for autocomplete
+export const UNIVERSITIES = [
+  'University of Alabama',
+  'University of Mississippi',
+  'University of Georgia',
+  'University of Florida',
+  'Florida State University',
+  'University of Texas at Austin',
+  'Texas A&M University',
+  'University of Oklahoma',
+  'Oklahoma State University',
+  'University of Arkansas',
+  'Louisiana State University',
+  'Auburn University',
+  'University of Tennessee',
+  'University of Kentucky',
+  'University of South Carolina',
+  'Clemson University',
+  'University of Virginia',
+  'Virginia Tech',
+  'University of North Carolina at Chapel Hill',
+  'North Carolina State University',
+  'Duke University',
+  'Wake Forest University',
+  'Georgia Tech',
+  'University of Miami',
+  'Vanderbilt University',
+  'University of Missouri',
+  'Texas Tech University',
+  'Baylor University',
+  'TCU',
+  'SMU',
+  'Ole Miss',
+  'Mississippi State University',
+];
+
+// List of common Greek organizations
+export const FRATERNITIES = [
+  'Phi Delta Theta',
+  'Sigma Chi',
+  'Sigma Alpha Epsilon',
+  'Beta Theta Pi',
+  'Kappa Alpha Order',
+  'Pi Kappa Alpha',
+  'Sigma Nu',
+  'Kappa Sigma',
+  'Lambda Chi Alpha',
+  'Phi Gamma Delta (FIJI)',
+  'Alpha Tau Omega',
+  'Delta Tau Delta',
+  'Sigma Phi Epsilon',
+  'Phi Kappa Psi',
+  'Pi Kappa Phi',
+  'Theta Chi',
+  'Delta Chi',
+  'Chi Phi',
+  'Delta Kappa Epsilon',
+  'Zeta Beta Tau',
+  'Alpha Epsilon Pi',
+  'Alpha Sigma Phi',
+  'Phi Kappa Sigma',
+  'Tau Kappa Epsilon',
+];
+
+export const SORORITIES = [
+  'Alpha Chi Omega',
+  'Alpha Delta Pi',
+  'Alpha Gamma Delta',
+  'Alpha Omicron Pi',
+  'Alpha Phi',
+  'Alpha Xi Delta',
+  'Chi Omega',
+  'Delta Delta Delta',
+  'Delta Gamma',
+  'Delta Zeta',
+  'Gamma Phi Beta',
+  'Kappa Alpha Theta',
+  'Kappa Delta',
+  'Kappa Kappa Gamma',
+  'Phi Mu',
+  'Pi Beta Phi',
+  'Sigma Kappa',
+  'Zeta Tau Alpha',
+];
+
+export const GREEK_ORGANIZATIONS = [...FRATERNITIES, ...SORORITIES].sort();
