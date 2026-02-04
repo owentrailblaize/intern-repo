@@ -66,10 +66,10 @@ interface ModuleStats {
     pending: number;
   };
   finance: {
-    totalRevenue: number;
-    thisMonth: number;
-    pending: number;
-    pendingCount: number;
+    activeSubscriptions: number;
+    expectedThisMonth: number;
+    annualCommitments: number;
+    upcomingCount: number;
   };
 }
 
@@ -96,16 +96,14 @@ export default function Nucleus() {
         dealsRes,
         tasksRes,
         chaptersRes,
-        contractsRes,
-        paymentsRes
+        contractsRes
       ] = await Promise.all([
         supabase.from('employees').select('*'),
         supabase.from('network_contacts').select('*'),
         supabase.from('deals').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('chapters').select('*'),
-        supabase.from('enterprise_contracts').select('*'),
-        supabase.from('payments').select('*')
+        supabase.from('enterprise_contracts').select('*')
       ]);
 
       const employees = employeesRes.data || [];
@@ -114,19 +112,10 @@ export default function Nucleus() {
       const tasks = tasksRes.data || [];
       const chapters = chaptersRes.data || [];
       const contracts = contractsRes.data || [];
-      const payments = paymentsRes.data || [];
 
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const today = now.toDateString();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      // Calculate finance stats
-      const completedPayments = payments.filter((p: { status: string }) => p.status === 'completed');
-      const pendingPayments = payments.filter((p: { status: string }) => p.status === 'pending');
-      const thisMonthPayments = completedPayments.filter((p: { payment_date: string }) => 
-        new Date(p.payment_date) >= monthStart
-      );
 
       setStats({
         employees: {
@@ -169,12 +158,33 @@ export default function Nucleus() {
           value: contracts.filter(c => c.stage === 'signed').reduce((sum, c) => sum + (c.value || 0), 0),
           pending: contracts.filter(c => c.stage === 'contract_sent').length,
         },
-        finance: {
-          totalRevenue: completedPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
-          thisMonth: thisMonthPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
-          pending: pendingPayments.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0),
-          pendingCount: pendingPayments.length,
-        },
+        finance: (() => {
+          // Calculate from chapter subscription data (Stripe info)
+          const chaptersWithPayments = chapters.filter((c: { payment_day?: number; payment_start_date?: string; next_payment_date?: string }) => 
+            c.payment_day || c.payment_start_date || c.next_payment_date
+          );
+          const activeSubscriptions = chaptersWithPayments.filter((c: { status: string }) => c.status === 'active').length;
+          
+          // Upcoming payments this month
+          const upcomingThisMonth = chaptersWithPayments.filter((c: { next_payment_date?: string }) => {
+            if (!c.next_payment_date) return false;
+            const nextDate = new Date(c.next_payment_date);
+            return nextDate.getMonth() === now.getMonth() && nextDate.getFullYear() === now.getFullYear() && nextDate >= now;
+          });
+          const expectedThisMonth = upcomingThisMonth.reduce((sum: number, c: { payment_amount?: number }) => sum + (c.payment_amount || 0), 0);
+          
+          // Annual commitments
+          const annualCommitments = chaptersWithPayments
+            .filter((c: { payment_type?: string; status: string }) => c.payment_type === 'annual' && c.status === 'active')
+            .reduce((sum: number, c: { payment_amount?: number }) => sum + (c.payment_amount || 0), 0);
+          
+          return {
+            activeSubscriptions,
+            expectedThisMonth,
+            annualCommitments,
+            upcomingCount: upcomingThisMonth.length,
+          };
+        })(),
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -267,13 +277,13 @@ export default function Nucleus() {
       color: '#10b981',
       gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
       stats: stats?.finance ? [
-        { label: 'Total', value: formatCurrency(stats.finance.totalRevenue), icon: DollarSign },
-        { label: 'This Month', value: formatCurrency(stats.finance.thisMonth), icon: TrendingUp, color: '#10b981' },
-        { label: 'Pending', value: formatCurrency(stats.finance.pending), icon: Clock, color: '#f59e0b' },
+        { label: 'Subscriptions', value: stats.finance.activeSubscriptions, icon: Activity },
+        { label: 'This Month', value: formatCurrency(stats.finance.expectedThisMonth), icon: TrendingUp, color: '#10b981' },
+        { label: 'Annual', value: formatCurrency(stats.finance.annualCommitments), icon: DollarSign, color: '#8b5cf6' },
       ] : [],
-      highlight: stats?.finance.pendingCount ? { 
-        text: `${stats.finance.pendingCount} pending payment${stats.finance.pendingCount !== 1 ? 's' : ''}`, 
-        type: stats.finance.pendingCount > 0 ? 'warning' : 'success' 
+      highlight: stats?.finance.upcomingCount ? { 
+        text: `${stats.finance.upcomingCount} payment${stats.finance.upcomingCount !== 1 ? 's' : ''} due this month`, 
+        type: 'info' 
       } : null,
     },
     {
