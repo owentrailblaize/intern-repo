@@ -24,6 +24,10 @@ import {
   RefreshCw,
   ArrowUpRight,
   ArrowDownRight,
+  CalendarDays,
+  Receipt,
+  AlertTriangle,
+  Repeat,
 } from 'lucide-react';
 import { supabase, Chapter } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -51,6 +55,7 @@ interface Payment {
 }
 
 type TimeRange = 'week' | 'month' | 'quarter' | 'year' | 'all';
+type ActiveTab = 'payments' | 'schedule';
 
 export default function FinanceModule() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -60,6 +65,7 @@ export default function FinanceModule() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterChapter, setFilterChapter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('payments');
   const [showModal, setShowModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
@@ -327,6 +333,62 @@ export default function FinanceModule() {
     };
   }, [filteredPayments, payments, dateRange]);
 
+  // Calculate schedule data from chapters (Stripe subscription info)
+  const scheduleData = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    // Chapters with payment info
+    const chaptersWithPayments = chapters.filter(c => 
+      c.payment_start_date || c.next_payment_date || c.payment_day
+    );
+
+    // Upcoming payments (next 30 days)
+    const upcomingPayments = chaptersWithPayments
+      .filter(c => c.next_payment_date)
+      .map(c => ({
+        chapter: c,
+        dueDate: new Date(c.next_payment_date!),
+        daysUntil: Math.ceil((new Date(c.next_payment_date!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+      }))
+      .filter(p => p.daysUntil >= 0 && p.daysUntil <= 30)
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+
+    // Overdue payments
+    const overduePayments = chaptersWithPayments
+      .filter(c => c.next_payment_date && new Date(c.next_payment_date) < now)
+      .map(c => ({
+        chapter: c,
+        dueDate: new Date(c.next_payment_date!),
+        daysOverdue: Math.ceil((now.getTime() - new Date(c.next_payment_date!).getTime()) / (1000 * 60 * 60 * 24)),
+      }))
+      .sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+    // Monthly recurring revenue from subscriptions
+    const monthlyRecurring = chaptersWithPayments
+      .filter(c => c.payment_type === 'monthly' && c.status === 'active')
+      .reduce((sum, c) => sum + (c.payment_amount || 0), 0);
+
+    const annualRecurring = chaptersWithPayments
+      .filter(c => c.payment_type === 'annual' && c.status === 'active')
+      .reduce((sum, c) => sum + (c.payment_amount || 0), 0);
+
+    // Expected this month
+    const expectedThisMonth = upcomingPayments
+      .filter(p => p.dueDate.getMonth() === now.getMonth())
+      .reduce((sum, p) => sum + (p.chapter.payment_amount || 0), 0);
+
+    return {
+      chaptersWithPayments,
+      upcomingPayments,
+      overduePayments,
+      monthlyRecurring,
+      annualRecurring,
+      expectedThisMonth,
+      totalSubscriptions: chaptersWithPayments.filter(c => c.status === 'active').length,
+    };
+  }, [chapters]);
+
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -342,6 +404,16 @@ export default function FinanceModule() {
       day: 'numeric',
       year: 'numeric',
     });
+  }
+
+  function getOrdinalSuffix(day: number): string {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
   }
 
   const statusConfig = {
@@ -446,7 +518,231 @@ export default function FinanceModule() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Tab Navigation */}
+      <div className="finance-tabs">
+        <button 
+          className={`finance-tab ${activeTab === 'payments' ? 'active' : ''}`}
+          onClick={() => setActiveTab('payments')}
+        >
+          <Receipt size={18} />
+          Payment History
+        </button>
+        <button 
+          className={`finance-tab ${activeTab === 'schedule' ? 'active' : ''}`}
+          onClick={() => setActiveTab('schedule')}
+        >
+          <CalendarDays size={18} />
+          Payment Schedule
+          {scheduleData.overduePayments.length > 0 && (
+            <span className="finance-tab-badge">{scheduleData.overduePayments.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Schedule View */}
+      {activeTab === 'schedule' && (
+        <div className="finance-schedule">
+          {/* Schedule Metrics */}
+          <div className="schedule-metrics">
+            <div className="schedule-metric-card">
+              <div className="schedule-metric-icon subscriptions">
+                <Repeat size={20} />
+              </div>
+              <div className="schedule-metric-content">
+                <span className="schedule-metric-value">{scheduleData.totalSubscriptions}</span>
+                <span className="schedule-metric-label">Active Subscriptions</span>
+              </div>
+            </div>
+            <div className="schedule-metric-card">
+              <div className="schedule-metric-icon expected">
+                <Calendar size={20} />
+              </div>
+              <div className="schedule-metric-content">
+                <span className="schedule-metric-value">{formatCurrency(scheduleData.expectedThisMonth)}</span>
+                <span className="schedule-metric-label">Expected This Month</span>
+              </div>
+            </div>
+            <div className="schedule-metric-card">
+              <div className="schedule-metric-icon annual">
+                <DollarSign size={20} />
+              </div>
+              <div className="schedule-metric-content">
+                <span className="schedule-metric-value">{formatCurrency(scheduleData.annualRecurring)}</span>
+                <span className="schedule-metric-label">Annual Commitments</span>
+              </div>
+            </div>
+            {scheduleData.overduePayments.length > 0 && (
+              <div className="schedule-metric-card overdue">
+                <div className="schedule-metric-icon overdue-icon">
+                  <AlertTriangle size={20} />
+                </div>
+                <div className="schedule-metric-content">
+                  <span className="schedule-metric-value">{scheduleData.overduePayments.length}</span>
+                  <span className="schedule-metric-label">Overdue Payments</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Overdue Section */}
+          {scheduleData.overduePayments.length > 0 && (
+            <div className="schedule-section overdue-section">
+              <div className="schedule-section-header">
+                <AlertTriangle size={18} />
+                <h3>Overdue Payments</h3>
+                <span className="schedule-count">{scheduleData.overduePayments.length}</span>
+              </div>
+              <div className="schedule-list">
+                {scheduleData.overduePayments.map((item) => (
+                  <div key={item.chapter.id} className="schedule-item overdue">
+                    <div className="schedule-item-left">
+                      <div className="schedule-item-chapter">
+                        <span className="schedule-chapter-name">{item.chapter.chapter_name}</span>
+                        {item.chapter.school && (
+                          <span className="schedule-chapter-school">{item.chapter.school}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="schedule-item-center">
+                      <span className="schedule-amount">{formatCurrency(item.chapter.payment_amount || 0)}</span>
+                      <span className="schedule-type">
+                        {item.chapter.payment_type === 'monthly' ? 'Monthly' : 
+                         item.chapter.payment_type === 'annual' ? 'Annual' : 'One-time'}
+                      </span>
+                    </div>
+                    <div className="schedule-item-right">
+                      <span className="schedule-overdue-badge">
+                        {item.daysOverdue} day{item.daysOverdue !== 1 ? 's' : ''} overdue
+                      </span>
+                      <span className="schedule-date">Due: {formatDate(item.chapter.next_payment_date!)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Section */}
+          <div className="schedule-section">
+            <div className="schedule-section-header">
+              <Calendar size={18} />
+              <h3>Upcoming Payments</h3>
+              <span className="schedule-count">{scheduleData.upcomingPayments.length}</span>
+            </div>
+            {scheduleData.upcomingPayments.length === 0 ? (
+              <div className="schedule-empty">
+                <Calendar size={32} />
+                <p>No upcoming payments in the next 30 days</p>
+              </div>
+            ) : (
+              <div className="schedule-list">
+                {scheduleData.upcomingPayments.map((item) => (
+                  <div key={item.chapter.id} className="schedule-item">
+                    <div className="schedule-item-left">
+                      <div className="schedule-item-chapter">
+                        <span className="schedule-chapter-name">{item.chapter.chapter_name}</span>
+                        {item.chapter.school && (
+                          <span className="schedule-chapter-school">{item.chapter.school}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="schedule-item-center">
+                      <span className="schedule-amount">{formatCurrency(item.chapter.payment_amount || 0)}</span>
+                      <span className="schedule-type">
+                        {item.chapter.payment_type === 'monthly' ? 'Monthly' : 
+                         item.chapter.payment_type === 'annual' ? 'Annual' : 'One-time'}
+                      </span>
+                    </div>
+                    <div className="schedule-item-right">
+                      <span className={`schedule-days-badge ${item.daysUntil <= 7 ? 'soon' : ''}`}>
+                        {item.daysUntil === 0 ? 'Today' : 
+                         item.daysUntil === 1 ? 'Tomorrow' : 
+                         `In ${item.daysUntil} days`}
+                      </span>
+                      <span className="schedule-date">{formatDate(item.chapter.next_payment_date!)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* All Subscriptions */}
+          <div className="schedule-section">
+            <div className="schedule-section-header">
+              <Building2 size={18} />
+              <h3>All Chapter Subscriptions</h3>
+              <span className="schedule-count">{scheduleData.chaptersWithPayments.length}</span>
+            </div>
+            {scheduleData.chaptersWithPayments.length === 0 ? (
+              <div className="schedule-empty">
+                <CreditCard size={32} />
+                <p>No chapters with payment information yet</p>
+                <span>Add payment details in Customer Success to track schedules</span>
+              </div>
+            ) : (
+              <div className="schedule-table-container">
+                <table className="schedule-table">
+                  <thead>
+                    <tr>
+                      <th>Chapter</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Payment Day</th>
+                      <th>Started</th>
+                      <th>Last Payment</th>
+                      <th>Next Payment</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleData.chaptersWithPayments.map((chapter) => {
+                      const isOverdue = chapter.next_payment_date && new Date(chapter.next_payment_date) < new Date();
+                      return (
+                        <tr key={chapter.id} className={isOverdue ? 'overdue-row' : ''}>
+                          <td>
+                            <div className="schedule-table-chapter">
+                              <span className="chapter-name">{chapter.chapter_name}</span>
+                              {chapter.school && <span className="chapter-school">{chapter.school}</span>}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`schedule-type-badge ${chapter.payment_type}`}>
+                              {chapter.payment_type === 'monthly' ? 'Monthly' : 
+                               chapter.payment_type === 'annual' ? 'Annual' : 'One-time'}
+                            </span>
+                          </td>
+                          <td className="schedule-table-amount">
+                            {formatCurrency(chapter.payment_amount || 0)}
+                          </td>
+                          <td className="schedule-table-day">
+                            {chapter.payment_day ? `${chapter.payment_day}${getOrdinalSuffix(chapter.payment_day)}` : '—'}
+                          </td>
+                          <td>{chapter.payment_start_date ? formatDate(chapter.payment_start_date) : '—'}</td>
+                          <td>{chapter.last_payment_date ? formatDate(chapter.last_payment_date) : '—'}</td>
+                          <td className={isOverdue ? 'overdue-date' : ''}>
+                            {chapter.next_payment_date ? formatDate(chapter.next_payment_date) : '—'}
+                          </td>
+                          <td>
+                            <span className={`chapter-status-badge ${chapter.status}`}>
+                              {chapter.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Payment History View */}
+      {activeTab === 'payments' && (
+        <>
+          {/* Filters */}
       <div className="finance-filters">
         <div className="finance-search">
           <Search size={18} />
@@ -606,6 +902,8 @@ export default function FinanceModule() {
           Total: {formatCurrency(filteredPayments.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0))}
         </span>
       </div>
+        </>
+      )}
 
       {/* Payment Modal */}
       {showModal && (
@@ -1388,6 +1686,425 @@ export default function FinanceModule() {
           box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
+        /* Tab Navigation */
+        .finance-tabs {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1.5rem;
+          background: white;
+          padding: 0.5rem;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+          width: fit-content;
+        }
+
+        .finance-tab {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.625rem 1.25rem;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #6b7280;
+          background: transparent;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .finance-tab:hover {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .finance-tab.active {
+          background: #10b981;
+          color: white;
+        }
+
+        .finance-tab-badge {
+          background: #ef4444;
+          color: white;
+          padding: 0.125rem 0.5rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+
+        .finance-tab.active .finance-tab-badge {
+          background: white;
+          color: #ef4444;
+        }
+
+        /* Schedule Styles */
+        .finance-schedule {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .schedule-metrics {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+
+        .schedule-metric-card {
+          background: white;
+          border-radius: 12px;
+          padding: 1rem 1.25rem;
+          border: 1px solid #e5e7eb;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .schedule-metric-card.overdue {
+          background: #fef2f2;
+          border-color: #fecaca;
+        }
+
+        .schedule-metric-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .schedule-metric-icon.subscriptions {
+          background: #eff6ff;
+          color: #3b82f6;
+        }
+
+        .schedule-metric-icon.expected {
+          background: #ecfdf5;
+          color: #10b981;
+        }
+
+        .schedule-metric-icon.annual {
+          background: #faf5ff;
+          color: #8b5cf6;
+        }
+
+        .schedule-metric-icon.overdue-icon {
+          background: #fee2e2;
+          color: #ef4444;
+        }
+
+        .schedule-metric-content {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .schedule-metric-value {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .schedule-metric-label {
+          font-size: 0.75rem;
+          color: #6b7280;
+        }
+
+        .schedule-section {
+          background: white;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          overflow: hidden;
+        }
+
+        .schedule-section.overdue-section {
+          border-color: #fecaca;
+        }
+
+        .schedule-section-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem 1.25rem;
+          background: #f9fafb;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .overdue-section .schedule-section-header {
+          background: #fef2f2;
+          border-bottom-color: #fecaca;
+          color: #dc2626;
+        }
+
+        .schedule-section-header h3 {
+          font-size: 0.9375rem;
+          font-weight: 600;
+          color: #374151;
+          margin: 0;
+          flex: 1;
+        }
+
+        .overdue-section .schedule-section-header h3 {
+          color: #dc2626;
+        }
+
+        .schedule-count {
+          background: #e5e7eb;
+          padding: 0.25rem 0.625rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .overdue-section .schedule-count {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+
+        .schedule-list {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .schedule-item {
+          display: grid;
+          grid-template-columns: 1fr 150px 150px;
+          gap: 1rem;
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid #f3f4f6;
+          align-items: center;
+        }
+
+        .schedule-item:last-child {
+          border-bottom: none;
+        }
+
+        .schedule-item.overdue {
+          background: #fef2f2;
+        }
+
+        .schedule-item-left {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .schedule-item-chapter {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .schedule-chapter-name {
+          font-weight: 500;
+          color: #111827;
+        }
+
+        .schedule-chapter-school {
+          font-size: 0.75rem;
+          color: #9ca3af;
+        }
+
+        .schedule-item-center {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .schedule-amount {
+          font-weight: 600;
+          color: #10b981;
+          font-size: 1rem;
+        }
+
+        .schedule-type {
+          font-size: 0.75rem;
+          color: #6b7280;
+        }
+
+        .schedule-item-right {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+        }
+
+        .schedule-days-badge {
+          padding: 0.25rem 0.75rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          background: #ecfdf5;
+          color: #10b981;
+        }
+
+        .schedule-days-badge.soon {
+          background: #fffbeb;
+          color: #f59e0b;
+        }
+
+        .schedule-overdue-badge {
+          padding: 0.25rem 0.75rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          background: #fee2e2;
+          color: #dc2626;
+        }
+
+        .schedule-date {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin-top: 0.25rem;
+        }
+
+        .schedule-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 3rem 2rem;
+          color: #9ca3af;
+          text-align: center;
+        }
+
+        .schedule-empty svg {
+          margin-bottom: 0.75rem;
+          opacity: 0.5;
+        }
+
+        .schedule-empty p {
+          margin: 0;
+          font-size: 0.875rem;
+          color: #6b7280;
+        }
+
+        .schedule-empty span {
+          font-size: 0.75rem;
+          margin-top: 0.25rem;
+        }
+
+        .schedule-table-container {
+          overflow-x: auto;
+        }
+
+        .schedule-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .schedule-table th {
+          text-align: left;
+          padding: 0.875rem 1rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #e5e7eb;
+          background: #f9fafb;
+        }
+
+        .schedule-table td {
+          padding: 0.875rem 1rem;
+          font-size: 0.875rem;
+          color: #374151;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .schedule-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .schedule-table tr:hover td {
+          background: #f9fafb;
+        }
+
+        .schedule-table tr.overdue-row td {
+          background: #fef2f2;
+        }
+
+        .schedule-table-chapter {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .schedule-table-chapter .chapter-name {
+          font-weight: 500;
+          color: #111827;
+        }
+
+        .schedule-table-chapter .chapter-school {
+          font-size: 0.75rem;
+          color: #9ca3af;
+        }
+
+        .schedule-table-amount {
+          font-weight: 600;
+          color: #10b981;
+        }
+
+        .schedule-table-day {
+          color: #6b7280;
+        }
+
+        .schedule-type-badge {
+          display: inline-block;
+          padding: 0.25rem 0.625rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+
+        .schedule-type-badge.monthly {
+          background: #eff6ff;
+          color: #3b82f6;
+        }
+
+        .schedule-type-badge.annual {
+          background: #faf5ff;
+          color: #8b5cf6;
+        }
+
+        .schedule-type-badge.one_time {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+
+        .chapter-status-badge {
+          display: inline-block;
+          padding: 0.25rem 0.625rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          text-transform: capitalize;
+        }
+
+        .chapter-status-badge.active {
+          background: #ecfdf5;
+          color: #10b981;
+        }
+
+        .chapter-status-badge.onboarding {
+          background: #eff6ff;
+          color: #3b82f6;
+        }
+
+        .chapter-status-badge.at_risk {
+          background: #fffbeb;
+          color: #f59e0b;
+        }
+
+        .chapter-status-badge.churned {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+
+        .overdue-date {
+          color: #dc2626;
+          font-weight: 500;
+        }
+
         @media (max-width: 1024px) {
           .finance-metrics {
             grid-template-columns: repeat(2, 1fr);
@@ -1441,6 +2158,24 @@ export default function FinanceModule() {
 
           .finance-form-group.full {
             grid-column: span 1;
+          }
+
+          .finance-tabs {
+            width: 100%;
+          }
+
+          .schedule-item {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+          }
+
+          .schedule-item-center,
+          .schedule-item-right {
+            align-items: flex-start;
+          }
+
+          .schedule-table {
+            min-width: 800px;
           }
         }
       `}</style>
