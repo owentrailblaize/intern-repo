@@ -755,7 +755,7 @@ export default function FinanceModule() {
         isOpen={deleteConfirm.show}
         title="Delete Payment"
         message="Are you sure you want to delete this payment record? This action cannot be undone."
-        confirmLabel="Delete"
+        confirmText="Delete"
         onConfirm={() => deleteConfirm.id && deletePayment(deleteConfirm.id)}
         onCancel={() => setDeleteConfirm({ show: false, id: null })}
       />
