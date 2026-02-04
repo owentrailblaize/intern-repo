@@ -65,7 +65,7 @@ export default function FinanceModule() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterChapter, setFilterChapter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
-  const [activeTab, setActiveTab] = useState<ActiveTab>('payments');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('schedule');
   const [showModal, setShowModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
@@ -102,15 +102,7 @@ export default function FinanceModule() {
       `)
       .order('payment_date', { ascending: false });
 
-    if (error) {
-      // If table doesn't exist, that's okay - it just means no payments yet
-      if (error.code === '42P01') {
-        console.log('Payments table does not exist yet. Run the payments-schema.sql migration.');
-      } else {
-        console.error('Error fetching payments:', error);
-      }
-    } else {
-      console.log('Fetched payments:', data?.length, 'payments');
+    if (!error) {
       setPayments(data || []);
     }
   }
@@ -123,11 +115,7 @@ export default function FinanceModule() {
       .select('*')
       .order('chapter_name');
 
-    if (error) {
-      console.error('Error fetching chapters:', error);
-    } else {
-      console.log('Fetched chapters:', data?.length, 'chapters');
-      console.log('Chapters with payment data:', data?.filter(c => c.payment_day || c.payment_start_date || c.next_payment_date));
+    if (!error) {
       setChapters(data || []);
     }
   }
@@ -344,31 +332,11 @@ export default function FinanceModule() {
   // Calculate schedule data from chapters (Stripe subscription info)
   const scheduleData = useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    
-    // Debug: Log all chapters and their payment fields
-    if (chapters.length > 0) {
-      console.log('Schedule calculation - Total chapters:', chapters.length);
-      chapters.forEach(c => {
-        if (c.payment_day || c.payment_start_date || c.next_payment_date) {
-          console.log(`Chapter ${c.chapter_name}:`, {
-            payment_day: c.payment_day,
-            payment_type: c.payment_type,
-            payment_amount: c.payment_amount,
-            payment_start_date: c.payment_start_date,
-            last_payment_date: c.last_payment_date,
-            next_payment_date: c.next_payment_date,
-          });
-        }
-      });
-    }
     
     // Chapters with payment info
     const chaptersWithPayments = chapters.filter(c => 
       c.payment_start_date || c.next_payment_date || c.payment_day
     );
-    
-    console.log('Chapters with payment info:', chaptersWithPayments.length);
 
     // Upcoming payments (next 30 days)
     const upcomingPayments = chaptersWithPayments
@@ -480,80 +448,8 @@ export default function FinanceModule() {
         </button>
       </header>
 
-      {/* Time Range Selector */}
-      <div className="finance-time-selector">
-        {(['week', 'month', 'quarter', 'year', 'all'] as TimeRange[]).map((range) => (
-          <button
-            key={range}
-            className={`finance-time-btn ${timeRange === range ? 'active' : ''}`}
-            onClick={() => setTimeRange(range)}
-          >
-            {range === 'all' ? 'All Time' : range.charAt(0).toUpperCase() + range.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Metrics Cards */}
-      <div className="finance-metrics">
-        <div className="finance-metric-card primary">
-          <div className="finance-metric-icon">
-            <DollarSign size={24} />
-          </div>
-          <div className="finance-metric-content">
-            <span className="finance-metric-label">Total Revenue</span>
-            <span className="finance-metric-value">{formatCurrency(metrics.totalRevenue)}</span>
-            {timeRange !== 'all' && (
-              <span className={`finance-metric-change ${metrics.revenueChange >= 0 ? 'positive' : 'negative'}`}>
-                {metrics.revenueChange >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                {Math.abs(metrics.revenueChange).toFixed(1)}% vs prev
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="finance-metric-card">
-          <div className="finance-metric-icon pending">
-            <Clock size={24} />
-          </div>
-          <div className="finance-metric-content">
-            <span className="finance-metric-label">Pending</span>
-            <span className="finance-metric-value">{formatCurrency(metrics.pendingAmount)}</span>
-            <span className="finance-metric-sub">{metrics.pendingCount} payment{metrics.pendingCount !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-
-        <div className="finance-metric-card">
-          <div className="finance-metric-icon chapters">
-            <Building2 size={24} />
-          </div>
-          <div className="finance-metric-content">
-            <span className="finance-metric-label">Paying Chapters</span>
-            <span className="finance-metric-value">{metrics.payingChapters}</span>
-            <span className="finance-metric-sub">of {chapters.length} total</span>
-          </div>
-        </div>
-
-        <div className="finance-metric-card">
-          <div className="finance-metric-icon avg">
-            <TrendingUp size={24} />
-          </div>
-          <div className="finance-metric-content">
-            <span className="finance-metric-label">Avg Payment</span>
-            <span className="finance-metric-value">{formatCurrency(metrics.avgPayment)}</span>
-            <span className="finance-metric-sub">{metrics.totalPayments} payments</span>
-          </div>
-        </div>
-      </div>
-
       {/* Tab Navigation */}
       <div className="finance-tabs">
-        <button 
-          className={`finance-tab ${activeTab === 'payments' ? 'active' : ''}`}
-          onClick={() => setActiveTab('payments')}
-        >
-          <Receipt size={18} />
-          Payment History
-        </button>
         <button 
           className={`finance-tab ${activeTab === 'schedule' ? 'active' : ''}`}
           onClick={() => setActiveTab('schedule')}
@@ -563,6 +459,13 @@ export default function FinanceModule() {
           {scheduleData.overduePayments.length > 0 && (
             <span className="finance-tab-badge">{scheduleData.overduePayments.length}</span>
           )}
+        </button>
+        <button 
+          className={`finance-tab ${activeTab === 'payments' ? 'active' : ''}`}
+          onClick={() => setActiveTab('payments')}
+        >
+          <Receipt size={18} />
+          Payment History
         </button>
       </div>
 
@@ -769,8 +672,73 @@ export default function FinanceModule() {
       {/* Payment History View */}
       {activeTab === 'payments' && (
         <>
+          {/* Time Range Selector */}
+          <div className="finance-time-selector">
+            {(['week', 'month', 'quarter', 'year', 'all'] as TimeRange[]).map((range) => (
+              <button
+                key={range}
+                className={`finance-time-btn ${timeRange === range ? 'active' : ''}`}
+                onClick={() => setTimeRange(range)}
+              >
+                {range === 'all' ? 'All Time' : range.charAt(0).toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Metrics Cards */}
+          <div className="finance-metrics">
+            <div className="finance-metric-card primary">
+              <div className="finance-metric-icon">
+                <DollarSign size={24} />
+              </div>
+              <div className="finance-metric-content">
+                <span className="finance-metric-label">Total Revenue</span>
+                <span className="finance-metric-value">{formatCurrency(metrics.totalRevenue)}</span>
+                {timeRange !== 'all' && (
+                  <span className={`finance-metric-change ${metrics.revenueChange >= 0 ? 'positive' : 'negative'}`}>
+                    {metrics.revenueChange >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    {Math.abs(metrics.revenueChange).toFixed(1)}% vs prev
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="finance-metric-card">
+              <div className="finance-metric-icon pending">
+                <Clock size={24} />
+              </div>
+              <div className="finance-metric-content">
+                <span className="finance-metric-label">Pending</span>
+                <span className="finance-metric-value">{formatCurrency(metrics.pendingAmount)}</span>
+                <span className="finance-metric-sub">{metrics.pendingCount} payment{metrics.pendingCount !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+
+            <div className="finance-metric-card">
+              <div className="finance-metric-icon chapters">
+                <Building2 size={24} />
+              </div>
+              <div className="finance-metric-content">
+                <span className="finance-metric-label">Paying Chapters</span>
+                <span className="finance-metric-value">{metrics.payingChapters}</span>
+                <span className="finance-metric-sub">of {chapters.length} total</span>
+              </div>
+            </div>
+
+            <div className="finance-metric-card">
+              <div className="finance-metric-icon avg">
+                <TrendingUp size={24} />
+              </div>
+              <div className="finance-metric-content">
+                <span className="finance-metric-label">Avg Payment</span>
+                <span className="finance-metric-value">{formatCurrency(metrics.avgPayment)}</span>
+                <span className="finance-metric-sub">{metrics.totalPayments} payments</span>
+              </div>
+            </div>
+          </div>
+
           {/* Filters */}
-      <div className="finance-filters">
+          <div className="finance-filters">
         <div className="finance-search">
           <Search size={18} />
           <input
