@@ -103,8 +103,14 @@ export default function FinanceModule() {
       .order('payment_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching payments:', error);
+      // If table doesn't exist, that's okay - it just means no payments yet
+      if (error.code === '42P01') {
+        console.log('Payments table does not exist yet. Run the payments-schema.sql migration.');
+      } else {
+        console.error('Error fetching payments:', error);
+      }
     } else {
+      console.log('Fetched payments:', data?.length, 'payments');
       setPayments(data || []);
     }
   }
@@ -120,6 +126,8 @@ export default function FinanceModule() {
     if (error) {
       console.error('Error fetching chapters:', error);
     } else {
+      console.log('Fetched chapters:', data?.length, 'chapters');
+      console.log('Chapters with payment data:', data?.filter(c => c.payment_day || c.payment_start_date || c.next_payment_date));
       setChapters(data || []);
     }
   }
@@ -338,10 +346,29 @@ export default function FinanceModule() {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     
+    // Debug: Log all chapters and their payment fields
+    if (chapters.length > 0) {
+      console.log('Schedule calculation - Total chapters:', chapters.length);
+      chapters.forEach(c => {
+        if (c.payment_day || c.payment_start_date || c.next_payment_date) {
+          console.log(`Chapter ${c.chapter_name}:`, {
+            payment_day: c.payment_day,
+            payment_type: c.payment_type,
+            payment_amount: c.payment_amount,
+            payment_start_date: c.payment_start_date,
+            last_payment_date: c.last_payment_date,
+            next_payment_date: c.next_payment_date,
+          });
+        }
+      });
+    }
+    
     // Chapters with payment info
     const chaptersWithPayments = chapters.filter(c => 
       c.payment_start_date || c.next_payment_date || c.payment_day
     );
+    
+    console.log('Chapters with payment info:', chaptersWithPayments.length);
 
     // Upcoming payments (next 30 days)
     const upcomingPayments = chaptersWithPayments
