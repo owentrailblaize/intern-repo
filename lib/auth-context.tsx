@@ -38,17 +38,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Build profile from JWT user_metadata - NO DATABASE QUERY NEEDED
-        buildProfileFromSession(session);
-      }
+    // Get initial session with timeout and error handling
+    const timeoutId = setTimeout(() => {
+      console.log('Auth timeout - forcing loading to complete');
       setLoading(false);
-    });
+    }, 5000); // 5 second timeout
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        clearTimeout(timeoutId);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Build profile from JWT user_metadata - NO DATABASE QUERY NEEDED
+          buildProfileFromSession(session);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        console.error('Error getting session:', error);
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -66,7 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Build profile directly from session/JWT - no database query!
