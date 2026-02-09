@@ -10190,6 +10190,42 @@ input:focus {
   color: #10b981;
 }
 
+/* Compact Upload Button */
+.landing-upload-compact {
+  margin-top: 1rem;
+}
+
+.landing-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #4b5563;
+  transition: all 0.15s;
+}
+
+.landing-upload-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.landing-upload-btn.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.landing-upload-btn.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 /* Important Box */
 .landing-important {
   background: #eff6ff;

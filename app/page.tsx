@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Upload, CheckCircle2, AlertCircle, Loader2, ArrowRight, Sparkles, Users, Zap, Globe } from 'lucide-react';
+import { Upload, CheckCircle2, AlertCircle, Loader2, ArrowRight, Sparkles, Users, Zap, Globe } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client for direct uploads (bypasses API size limits)
@@ -37,6 +37,22 @@ export default function HomePage() {
     scenario3: '',
   });
 
+  // Track upload status per file field
+  const [uploadStatus, setUploadStatus] = useState<Record<string, 'idle' | 'uploading' | 'success' | 'error'>>({
+    video: 'idle',
+    scenario1: 'idle',
+    scenario2: 'idle',
+    scenario3: 'idle',
+  });
+
+  // Store uploaded URLs
+  const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({
+    video: '',
+    scenario1: '',
+    scenario2: '',
+    scenario3: '',
+  });
+
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
@@ -63,11 +79,28 @@ export default function HomePage() {
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof typeof fileNames) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof typeof fileNames) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFormData(prev => ({ ...prev, [fieldName]: file }));
-      setFileNames(prev => ({ ...prev, [fieldName]: file.name }));
+    if (!file) return;
+
+    // Store file locally and show name immediately
+    setFormData(prev => ({ ...prev, [fieldName]: file }));
+    setFileNames(prev => ({ ...prev, [fieldName]: file.name }));
+    setUploadStatus(prev => ({ ...prev, [fieldName]: 'uploading' }));
+
+    // Upload immediately for instant feedback
+    try {
+      const url = await uploadFile(file, 'applications');
+      if (url) {
+        setUploadedUrls(prev => ({ ...prev, [fieldName]: url }));
+        setUploadStatus(prev => ({ ...prev, [fieldName]: 'success' }));
+      } else {
+        throw new Error('Upload failed - no URL returned');
+      }
+    } catch (error) {
+      console.error(`Upload error for ${fieldName}:`, error);
+      setUploadStatus(prev => ({ ...prev, [fieldName]: 'error' }));
+      setErrorDetails(error instanceof Error ? error.message : 'Upload failed. Please check storage configuration.');
     }
   };
 
@@ -145,54 +178,32 @@ export default function HomePage() {
     setErrorDetails('');
 
     try {
-      // Upload files if provided
-      let videoUrl = '';
-      let scenario1Url = '';
-      let scenario2Url = '';
-      let scenario3Url = '';
-      let uploadFailed = false;
+      // Use pre-uploaded URLs (files were uploaded immediately when selected)
+      const videoUrl = uploadedUrls.video || '';
+      const scenario1Url = uploadedUrls.scenario1 || '';
+      const scenario2Url = uploadedUrls.scenario2 || '';
+      const scenario3Url = uploadedUrls.scenario3 || '';
 
-      // Upload each file
-      if (formData.video) {
-        setUploadProgress('Uploading video...');
-        try {
-          videoUrl = await uploadFile(formData.video, 'videos') || '';
-        } catch (err) {
-          console.error('Video upload failed:', err);
-          uploadFailed = true;
-        }
-      }
-      if (formData.scenario1) {
-        setUploadProgress('Uploading scenario 1...');
-        try {
-          scenario1Url = await uploadFile(formData.scenario1, 'scenarios') || '';
-        } catch (err) {
-          console.error('Scenario 1 upload failed:', err);
-          uploadFailed = true;
-        }
-      }
-      if (formData.scenario2) {
-        setUploadProgress('Uploading scenario 2...');
-        try {
-          scenario2Url = await uploadFile(formData.scenario2, 'scenarios') || '';
-        } catch (err) {
-          console.error('Scenario 2 upload failed:', err);
-          uploadFailed = true;
-        }
-      }
-      if (formData.scenario3) {
-        setUploadProgress('Uploading scenario 3...');
-        try {
-          scenario3Url = await uploadFile(formData.scenario3, 'scenarios') || '';
-        } catch (err) {
-          console.error('Scenario 3 upload failed:', err);
-          uploadFailed = true;
-        }
+      // Check if any files were selected but failed to upload
+      const hasFailedUploads = 
+        (formData.video && uploadStatus.video === 'error') ||
+        (formData.scenario1 && uploadStatus.scenario1 === 'error') ||
+        (formData.scenario2 && uploadStatus.scenario2 === 'error') ||
+        (formData.scenario3 && uploadStatus.scenario3 === 'error');
+
+      // Check if any files are still uploading
+      const stillUploading = 
+        uploadStatus.video === 'uploading' ||
+        uploadStatus.scenario1 === 'uploading' ||
+        uploadStatus.scenario2 === 'uploading' ||
+        uploadStatus.scenario3 === 'uploading';
+
+      if (stillUploading) {
+        throw new Error('Please wait for file uploads to complete before submitting.');
       }
 
-      // If uploads failed and user selected files, show error
-      if (uploadFailed && (formData.video || formData.scenario1 || formData.scenario2 || formData.scenario3)) {
-        throw new Error('File upload failed. Please check that storage is configured and try again.');
+      if (hasFailedUploads) {
+        throw new Error('Some file uploads failed. Please remove or re-upload the failed files and try again.');
       }
 
       setUploadProgress('Submitting application...');
@@ -234,6 +245,8 @@ export default function HomePage() {
           confirm1: false, confirm2: false, confirm3: false, confirm4: false,
         });
         setFileNames({ video: '', scenario1: '', scenario2: '', scenario3: '' });
+        setUploadStatus({ video: 'idle', scenario1: 'idle', scenario2: 'idle', scenario3: 'idle' });
+        setUploadedUrls({ video: '', scenario1: '', scenario2: '', scenario3: '' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         console.error('=== SUBMISSION FAILED ===', result.error);
@@ -250,38 +263,60 @@ export default function HomePage() {
     }
   };
 
-  const FileUploadBox = ({ id, fieldName, label, accept, icon: Icon, required = false }: {
+  const FileUploadBox = ({ id, fieldName, label, accept, required = false }: {
     id: string;
     fieldName: keyof typeof fileNames;
     label: string;
     accept: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon?: React.ComponentType<{ className?: string }>;
     required?: boolean;
-  }) => (
-    <div className="landing-upload-box">
-      <input
-        type="file"
-        id={id}
-        accept={accept}
-        onChange={(e) => handleFileChange(e, fieldName)}
-        className="landing-file-input"
-        required={required}
-      />
-      <label htmlFor={id} className="landing-upload-label">
-        <Icon className="landing-upload-icon" />
-        <div className="landing-upload-text">
-          <strong>{label}</strong>
-          <span className="landing-upload-hint">Click to browse or drag and drop</span>
-        </div>
-        {fileNames[fieldName] && (
-          <div className="landing-file-selected">
-            <CheckCircle2 className="landing-check-icon" />
-            {fileNames[fieldName]}
-          </div>
-        )}
-      </label>
-    </div>
-  );
+  }) => {
+    const status = uploadStatus[fieldName];
+    const isUploading = status === 'uploading';
+    const hasFile = fileNames[fieldName] && status === 'success';
+    const hasError = status === 'error';
+    
+    return (
+      <div className="landing-upload-compact">
+        <input
+          type="file"
+          id={id}
+          accept={accept}
+          onChange={(e) => handleFileChange(e, fieldName)}
+          className="landing-file-input"
+          required={required}
+          disabled={isUploading}
+        />
+        <label 
+          htmlFor={id} 
+          className={`landing-upload-btn ${hasFile ? 'success' : ''} ${hasError ? 'error' : ''}`}
+          style={isUploading ? { pointerEvents: 'none', opacity: 0.7 } : {}}
+        >
+          {isUploading ? (
+            <>
+              <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Uploading...</span>
+            </>
+          ) : hasFile ? (
+            <>
+              <CheckCircle2 size={14} />
+              <span>{fileNames[fieldName].length > 25 ? fileNames[fieldName].slice(0, 22) + '...' : fileNames[fieldName]}</span>
+            </>
+          ) : hasError ? (
+            <>
+              <AlertCircle size={14} />
+              <span>Failed - retry</span>
+            </>
+          ) : (
+            <>
+              <Upload size={14} />
+              <span>{label}</span>
+            </>
+          )}
+        </label>
+      </div>
+    );
+  };
 
   if (showApplication) {
     return (
@@ -386,29 +421,7 @@ export default function HomePage() {
 
             {/* Section 2 */}
             <div className="landing-form-section">
-              <h2>Section 2: Video Challenge (25 Seconds)</h2>
-              <div className="landing-video-challenge">
-                <h3>The $100 Million Question</h3>
-                <p>
-                  Imagine this scenario: You have exactly 25 seconds to describe yourself to someone who cannot see you. 
-                  They can only hear your voice. After listening to you, they&apos;ll spend a week observing 100 different 
-                  people. At the end, they need to identify YOU based solely on what you told them.
-                </p>
-                <p className="landing-stakes">
-                  The stakes? If they pick you correctly, you win $100 million. If they pick anyone else, you walk away with nothing.
-                </p>
-              </div>
-              <p>
-                <strong>Your Task:</strong><br />
-                Record a 25-second video describing yourself. Tell us <span className="landing-emphasis">WHO you are</span>. 
-                What traits make you uniquely identifiable?
-              </p>
-              <FileUploadBox id="videoUpload" fieldName="video" label="Upload your 25-second video (optional)" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" icon={Camera} />
-            </div>
-
-            {/* Section 3 */}
-            <div className="landing-form-section">
-              <h2>Section 3: Sales Challenge</h2>
+              <h2>Section 2: Sales Challenge</h2>
               <p>
                 This is where we see what you&apos;re made of. Complete <span className="landing-emphasis">ALL THREE calls/texts</span> and submit proof.
               </p>
@@ -431,7 +444,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get Adam to commit to a $10 donation</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might support the cause</p>
                 </div>
-                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario1Upload" fieldName="scenario1" label="Upload proof" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" />
               </div>
 
               {/* Scenario 2 */}
@@ -443,7 +456,7 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Book a meeting with Ford to discuss your software</p>
                   <p><strong>Backup:</strong> Get a referral to someone who handles software decisions</p>
                 </div>
-                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario2Upload" fieldName="scenario2" label="Upload proof" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" />
               </div>
 
               {/* Scenario 3 */}
@@ -455,8 +468,30 @@ export default function HomePage() {
                   <p><strong>Primary:</strong> Get them to commit to purchasing the product</p>
                   <p><strong>Backup:</strong> Ask for a referral to someone who might need it</p>
                 </div>
-                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof (optional)" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" icon={Upload} />
+                <FileUploadBox id="scenario3Upload" fieldName="scenario3" label="Upload proof" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm" />
               </div>
+            </div>
+
+            {/* Section 3 */}
+            <div className="landing-form-section">
+              <h2>Section 3: Video Challenge (25 Seconds)</h2>
+              <div className="landing-video-challenge">
+                <h3>The $100 Million Question</h3>
+                <p>
+                  Imagine this scenario: You have exactly 25 seconds to describe yourself to someone who cannot see you. 
+                  They can only hear your voice. After listening to you, they&apos;ll spend a week observing 100 different 
+                  people. At the end, they need to identify YOU based solely on what you told them.
+                </p>
+                <p className="landing-stakes">
+                  The stakes? If they pick you correctly, you win $100 million. If they pick anyone else, you walk away with nothing.
+                </p>
+              </div>
+              <p>
+                <strong>Your Task:</strong><br />
+                Record a 25-second video describing yourself. Tell us <span className="landing-emphasis">WHO you are</span>. 
+                What traits make you uniquely identifiable?
+              </p>
+              <FileUploadBox id="videoUpload" fieldName="video" label="Upload video" accept="video/mp4,video/quicktime,video/webm,video/mov,.mp4,.mov,.webm,.avi" />
             </div>
 
             {/* Section 4 */}
