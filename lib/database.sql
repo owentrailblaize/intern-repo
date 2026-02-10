@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS deals (
   phone TEXT,
   email TEXT,
   value DECIMAL(10,2) DEFAULT 299,
-  stage TEXT DEFAULT 'lead' CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost')),
+  stage TEXT DEFAULT 'lead' CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost', 'hold_off')),
   temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold')),
   expected_close DATE,
   last_contact DATE,
@@ -115,7 +115,8 @@ CREATE TABLE IF NOT EXISTS sales_stats (
 -- ALTER TABLE deals ADD COLUMN IF NOT EXISTS followup_count INTEGER DEFAULT 0;
 -- ALTER TABLE deals ADD COLUMN IF NOT EXISTS notes TEXT;
 -- ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
--- ALTER TABLE deals ADD CONSTRAINT deals_stage_check CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost'));
+-- ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
+-- ALTER TABLE deals ADD CONSTRAINT deals_stage_check CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost', 'hold_off'));
 -- UPDATE deals SET stage = 'lead' WHERE stage = 'discovery';
 -- UPDATE deals SET stage = 'contract_sent' WHERE stage = 'proposal';
 -- UPDATE deals SET stage = 'second_call' WHERE stage = 'negotiation';

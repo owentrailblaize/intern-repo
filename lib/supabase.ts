@@ -149,7 +149,7 @@ export interface ContactFollowup {
 // Legacy alias for backwards compatibility
 export type FundraisingContact = NetworkContact;
 
-export type DealStage = 'lead' | 'demo_booked' | 'first_demo' | 'second_call' | 'contract_sent' | 'closed_won' | 'closed_lost';
+export type DealStage = 'lead' | 'demo_booked' | 'first_demo' | 'second_call' | 'contract_sent' | 'closed_won' | 'closed_lost' | 'hold_off';
 
 export interface Deal {
   id: string;
@@ -189,10 +189,15 @@ export const STAGE_CONFIG: Record<DealStage, { label: string; points: number; em
   contract_sent: { label: 'Contract Sent', points: 100, emoji: '📝', color: '#ec4899' },
   closed_won: { label: 'Closed Won', points: 500, emoji: '🏆', color: '#10b981' },
   closed_lost: { label: 'Closed Lost', points: 0, emoji: '❌', color: '#ef4444' },
+  hold_off: { label: 'Hold Off', points: 0, emoji: '⏸️', color: '#9ca3af' },
 };
 
 export const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2500, 4000, 6000, 10000];
 export const LEVEL_TITLES = ['Rookie', 'Starter', 'Hustler', 'Closer', 'Dealmaker', 'Rainmaker', 'Sales Star', 'Legend', 'Champion', 'GOAT'];
+
+/** MRR-based level thresholds (dollars): $1k, $5k, $10k, $15k, $20k, then +$5k each */
+export const MRR_LEVEL_THRESHOLDS = [1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000];
+export const MRR_LEVEL_TITLES = ['Getting started', 'Rookie', 'Starter', 'Hustler', 'Closer', 'Dealmaker', 'Rainmaker', 'Sales Star', 'Legend', 'Champion', 'GOAT'];
 
 export interface Task {
   id: string;

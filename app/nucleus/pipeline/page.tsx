@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, Deal, DealStage, STAGE_CONFIG, LEVEL_THRESHOLDS, LEVEL_TITLES } from '@/lib/supabase';
+import { supabase, Deal, DealStage, STAGE_CONFIG, MRR_LEVEL_THRESHOLDS, MRR_LEVEL_TITLES } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
 
 interface ParsedDeal {
@@ -39,7 +39,8 @@ export default function PipelineModule() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const [filterStage, setFilterStage] = useState<DealStage | 'all'>('all');
-  
+  const [filterSchool, setFilterSchool] = useState<string>('');
+
   const [formData, setFormData] = useState({
     name: '',
     organization: '',
@@ -119,17 +120,17 @@ export default function PipelineModule() {
     });
   }
 
-  function getLevel(points: number): { level: number; title: string; progress: number; nextThreshold: number } {
+  function getLevelMrr(mrrDollars: number): { level: number; title: string; progress: number; nextThreshold: number } {
     let level = 0;
-    for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
-      if (points >= LEVEL_THRESHOLDS[i]) level = i;
+    for (let i = 0; i < MRR_LEVEL_THRESHOLDS.length; i++) {
+      if (mrrDollars >= MRR_LEVEL_THRESHOLDS[i]) level = i + 1;
     }
-    const currentThreshold = LEVEL_THRESHOLDS[level] || 0;
-    const nextThreshold = LEVEL_THRESHOLDS[level + 1] || LEVEL_THRESHOLDS[level];
-    const progress = nextThreshold > currentThreshold 
-      ? ((points - currentThreshold) / (nextThreshold - currentThreshold)) * 100 
+    const currentThreshold = level === 0 ? 0 : MRR_LEVEL_THRESHOLDS[level - 1];
+    const nextThreshold = MRR_LEVEL_THRESHOLDS[level] ?? MRR_LEVEL_THRESHOLDS[MRR_LEVEL_THRESHOLDS.length - 1];
+    const progress = nextThreshold > currentThreshold
+      ? ((mrrDollars - currentThreshold) / (nextThreshold - currentThreshold)) * 100
       : 100;
-    return { level, title: LEVEL_TITLES[level] || 'GOAT', progress, nextThreshold };
+    return { level, title: MRR_LEVEL_TITLES[level] ?? 'GOAT', progress, nextThreshold };
   }
 
   // Stage advancement with celebration
@@ -199,9 +200,16 @@ export default function PipelineModule() {
   async function createDeal() {
     if (!supabase) return;
     const today = new Date().toISOString().split('T')[0];
+    const insertPayload = {
+      ...formData,
+      expected_close: formData.expected_close?.trim() || null,
+      next_followup: formData.next_followup?.trim() || null,
+      last_contact: today,
+      followup_count: 0,
+    };
     const { error } = await supabase
       .from('deals')
-      .insert([{ ...formData, last_contact: today, followup_count: 0 }]);
+      .insert([insertPayload]);
 
     if (error) {
       console.error('Error creating deal:', error);
@@ -219,9 +227,25 @@ export default function PipelineModule() {
   async function updateDeal() {
     if (!supabase || !editingDeal) return;
 
+    // Build update payload: only columns that exist on deals, and send null for empty date strings
+    const updatePayload = {
+      name: formData.name,
+      organization: formData.organization || null,
+      contact_name: formData.contact_name || null,
+      fraternity: formData.fraternity || null,
+      phone: formData.phone || null,
+      email: formData.email || null,
+      value: formData.value,
+      stage: formData.stage,
+      temperature: formData.temperature,
+      expected_close: formData.expected_close?.trim() || null,
+      next_followup: formData.next_followup?.trim() || null,
+      notes: formData.notes || null,
+    };
+
     const { error } = await supabase
       .from('deals')
-      .update(formData)
+      .update(updatePayload)
       .eq('id', editingDeal.id);
 
     if (error) {
@@ -428,16 +452,35 @@ export default function PipelineModule() {
     setShowModal(true);
   }
 
+  // Full stage order for sorting (lead → ... → closed_won → closed_lost → hold_off)
+  const fullStageOrder: DealStage[] = ['lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost', 'hold_off'];
+
   // Filter deals
   const filteredDeals = deals.filter(d => {
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (d.organization && d.organization.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (d.fraternity && d.fraternity.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStage = filterStage === 'all' || d.stage === filterStage;
-    return matchesSearch && matchesStage;
+    const matchesSchool = !filterSchool || (d.organization && d.organization.trim().toLowerCase() === filterSchool.toLowerCase());
+    return matchesSearch && matchesStage && matchesSchool;
   });
 
-  // Group deals by stage for the pipeline view
+  // Sort by pipeline order (new lead first, then demo booked, etc.), then by contact name
+  const sortedDeals = [...filteredDeals].sort((a, b) => {
+    const stageA = fullStageOrder.indexOf(a.stage);
+    const stageB = fullStageOrder.indexOf(b.stage);
+    if (stageA !== stageB) return stageA - stageB;
+    const nameA = (a.contact_name || a.name || '').toLowerCase();
+    const nameB = (b.contact_name || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  // Unique schools for filter dropdown (from all deals)
+  const uniqueSchools: string[] = Array.from(
+    new Set(deals.map(d => d.organization?.trim()).filter((s): s is string => Boolean(s)))
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Group deals by stage for the pipeline view (used elsewhere if needed)
   const dealsByStage = filteredDeals.reduce((acc, deal) => {
     if (!acc[deal.stage]) acc[deal.stage] = [];
     acc[deal.stage].push(deal);
@@ -445,15 +488,18 @@ export default function PipelineModule() {
   }, {} as Record<DealStage, Deal[]>);
 
   // Calculate stats
-  const pipelineValue = deals.filter(d => d.stage !== 'closed_lost').reduce((sum, d) => sum + (d.value || 0), 0);
-  const activeDeals = deals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage)).length;
+  const pipelineValue = deals.filter(d => !['closed_lost', 'hold_off'].includes(d.stage)).reduce((sum, d) => sum + (d.value || 0), 0);
+  const activeDeals = deals.filter(d => !['closed_won', 'closed_lost', 'hold_off'].includes(d.stage)).length;
   const needsFollowup = deals.filter(d => {
-    if (['closed_won', 'closed_lost'].includes(d.stage)) return false;
+    if (['closed_won', 'closed_lost', 'hold_off'].includes(d.stage)) return false;
     if (!d.next_followup) return true;
     return new Date(d.next_followup) <= new Date();
   }).length;
 
-  const levelInfo = getLevel(stats.total_points);
+  // ARR/MRR from closed-won deals (treat deal value as annual)
+  const arrFromSold = deals.filter(d => d.stage === 'closed_won').reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const mrrFromSold = arrFromSold / 12;
+  const levelInfo = getLevelMrr(mrrFromSold);
 
   const stageOrder: DealStage[] = ['lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won'];
 
@@ -500,8 +546,27 @@ export default function PipelineModule() {
 
       {/* Main Content */}
       <main className="module-main">
-        {/* Gamification Stats Bar */}
-        <div className="pipeline-stats-bar">
+        {/* Dashboard: revenue, MRR level, and activity in one section */}
+        <div className="pipeline-dashboard">
+          <div className="pipeline-dashboard-metrics">
+            <div className="pipeline-metric">
+              <span className="pipeline-metric-value">{formatCurrency(pipelineValue)}</span>
+              <span className="pipeline-metric-label">Pipeline Value</span>
+            </div>
+            <div className="pipeline-metric">
+              <span className="pipeline-metric-value">{activeDeals}</span>
+              <span className="pipeline-metric-label">Active Leads</span>
+            </div>
+            <div className="pipeline-metric">
+              <span className="pipeline-metric-value">{formatCurrency(arrFromSold)}</span>
+              <span className="pipeline-metric-label">ARR (sold)</span>
+            </div>
+            <div className="pipeline-metric">
+              <span className="pipeline-metric-value">{formatCurrency(mrrFromSold)}</span>
+              <span className="pipeline-metric-label">MRR (sold)</span>
+            </div>
+          </div>
+
           <div className="pipeline-level-card">
             <div className="level-badge">
               <Trophy size={20} />
@@ -510,9 +575,9 @@ export default function PipelineModule() {
             <div className="level-info">
               <span className="level-title">{levelInfo.title}</span>
               <div className="level-progress-bar">
-                <div className="level-progress-fill" style={{ width: `${levelInfo.progress}%` }} />
+                <div className="level-progress-fill" style={{ width: `${Math.min(100, levelInfo.progress)}%` }} />
               </div>
-              <span className="level-points">{stats.total_points} / {levelInfo.nextThreshold} XP</span>
+              <span className="level-points">{formatCurrency(mrrFromSold)} / {formatCurrency(levelInfo.nextThreshold)} MRR</span>
             </div>
           </div>
 
@@ -548,18 +613,6 @@ export default function PipelineModule() {
           </div>
         </div>
 
-        {/* Pipeline Value Stats */}
-        <div className="module-stats-row compact">
-          <div className="module-stat">
-            <span className="module-stat-value">{formatCurrency(pipelineValue)}</span>
-            <span className="module-stat-label">Pipeline Value</span>
-          </div>
-          <div className="module-stat">
-            <span className="module-stat-value">{activeDeals}</span>
-            <span className="module-stat-label">Active Leads</span>
-          </div>
-        </div>
-
         {/* Actions Bar */}
         <div className="module-actions-bar">
           <div className="module-search">
@@ -578,8 +631,18 @@ export default function PipelineModule() {
               onChange={(e) => setFilterStage(e.target.value as DealStage | 'all')}
             >
               <option value="all">All Stages</option>
-              {stageOrder.map(stage => (
+              {fullStageOrder.map(stage => (
                 <option key={stage} value={stage}>{STAGE_CONFIG[stage].emoji} {STAGE_CONFIG[stage].label}</option>
+              ))}
+            </select>
+            <select
+              className="stage-filter pipeline-filter-school"
+              value={filterSchool}
+              onChange={(e) => setFilterSchool(e.target.value)}
+            >
+              <option value="">All Schools</option>
+              {uniqueSchools.map(school => (
+                <option key={school} value={school || ''}>{school}</option>
               ))}
             </select>
             <button className="module-secondary-btn" onClick={() => setShowImportModal(true)}>
@@ -593,63 +656,91 @@ export default function PipelineModule() {
           </div>
         </div>
 
-        {/* Pipeline Cards */}
-        <div className="pipeline-cards">
+        {/* Pipeline Table */}
+        <div className="pipeline-table-wrap">
           {loading ? (
             <div className="module-loading">Loading...</div>
-          ) : filteredDeals.length > 0 ? (
-            filteredDeals.map((deal) => (
-              <div key={deal.id} className={`pipeline-card stage-${deal.stage}`}>
-                <div className="pipeline-card-header">
-                  <div className="pipeline-card-stage">
-                    <span className="stage-emoji">{STAGE_CONFIG[deal.stage]?.emoji}</span>
-                    <span className="stage-label">{STAGE_CONFIG[deal.stage]?.label}</span>
-                  </div>
-                  <span className={`temp-badge ${deal.temperature}`}>
-                    {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
-                  </span>
-                </div>
-                
-                <div className="pipeline-card-body">
-                  <h3 className="pipeline-card-name">{deal.contact_name || deal.name}</h3>
-                  <div className="pipeline-card-details">
-                    <span className="detail-org">{deal.organization}</span>
-                    {deal.fraternity && <span className="detail-frat">{deal.fraternity}</span>}
-                  </div>
-                  <div className="pipeline-card-value">{formatCurrency(deal.value)}</div>
-                  
-                  {deal.next_followup && (
-                    <div className={`followup-reminder ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
-                      <Clock size={12} />
-                      <span>Follow-up: {getDaysUntil(deal.next_followup)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pipeline-card-actions">
-                  {deal.phone && (
-                    <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
-                      <MessageSquare size={16} />
-                    </a>
-                  )}
-                  <button className="action-btn followup" onClick={() => logFollowup(deal)} title="Log Follow-up">
-                    <Phone size={16} />
-                  </button>
-                  {deal.stage !== 'closed_won' && deal.stage !== 'closed_lost' && (
-                    <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
-                      <ChevronRight size={16} />
-                      <span>Next</span>
-                    </button>
-                  )}
-                  <button className="action-btn edit" onClick={() => openEditModal(deal)}>
-                    <Edit2 size={14} />
-                  </button>
-                  <button className="action-btn delete" onClick={() => setDeleteConfirm({ show: true, id: deal.id })}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
+          ) : sortedDeals.length > 0 ? (
+            <table className="pipeline-table">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>Contact</th>
+                  <th>School / Org</th>
+                  <th>Fraternity</th>
+                  <th className="pipeline-table-value">Value</th>
+                  <th>Follow-up</th>
+                  <th className="pipeline-table-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDeals.map((deal) => (
+                  <tr key={deal.id} className={`stage-${deal.stage}`}>
+                    <td>
+                      <div className="pipeline-table-stage">
+                        <span className="stage-emoji">{STAGE_CONFIG[deal.stage]?.emoji}</span>
+                        <span className="stage-label">{STAGE_CONFIG[deal.stage]?.label}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="pipeline-table-contact">
+                        <span className="pipeline-card-name">{deal.contact_name || deal.name}</span>
+                        <span className={`temp-badge ${deal.temperature}`}>
+                          {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="detail-org">{deal.organization || '—'}</span>
+                    </td>
+                    <td>
+                      {deal.fraternity ? (
+                        <span className="detail-frat">{deal.fraternity}</span>
+                      ) : (
+                        <span className="detail-org">—</span>
+                      )}
+                    </td>
+                    <td className="pipeline-table-value">
+                      <span className="pipeline-card-value">{formatCurrency(deal.value)}</span>
+                    </td>
+                    <td>
+                      {deal.next_followup ? (
+                        <div className={`followup-reminder ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
+                          <Clock size={12} />
+                          <span>{getDaysUntil(deal.next_followup)}</span>
+                        </div>
+                      ) : (
+                        <span className="detail-org">—</span>
+                      )}
+                    </td>
+                    <td className="pipeline-table-actions">
+                      <div className="pipeline-card-actions">
+                        {deal.phone && (
+                          <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
+                            <MessageSquare size={16} />
+                          </a>
+                        )}
+                        <button className="action-btn followup" onClick={() => logFollowup(deal)} title="Log Follow-up">
+                          <Phone size={16} />
+                        </button>
+                        {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
+                          <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
+                            <ChevronRight size={16} />
+                            <span>Next</span>
+                          </button>
+                        )}
+                        <button className="action-btn edit" onClick={() => openEditModal(deal)}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="action-btn delete" onClick={() => setDeleteConfirm({ show: true, id: deal.id })}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <div className="module-empty-state">
               <TrendingUp size={48} />
@@ -742,6 +833,7 @@ export default function PipelineModule() {
                       <option key={stage} value={stage}>{STAGE_CONFIG[stage].emoji} {STAGE_CONFIG[stage].label}</option>
                     ))}
                     <option value="closed_lost">❌ Closed Lost</option>
+                    <option value="hold_off">⏸️ Hold Off</option>
                   </select>
                 </div>
                 <div className="module-form-group">
