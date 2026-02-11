@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Deal, DealStage, STAGE_CONFIG, MRR_LEVEL_THRESHOLDS, MRR_LEVEL_TITLES } from '@/lib/supabase';
+import { getConferenceForDeal } from '@/lib/conference-map';
 import ConfirmModal from '@/components/ConfirmModal';
+import PipelineTreeView from './PipelineTreeView';
 
 interface ParsedDeal {
   name: string;
@@ -40,6 +42,9 @@ export default function PipelineModule() {
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const [filterStage, setFilterStage] = useState<DealStage | 'all'>('all');
   const [filterSchool, setFilterSchool] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
+  const [filterConference, setFilterConference] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -49,6 +54,7 @@ export default function PipelineModule() {
     phone: '',
     email: '',
     value: 299,
+    conference: '',
     stage: 'lead' as DealStage,
     temperature: 'cold' as Deal['temperature'],
     expected_close: '',
@@ -202,6 +208,7 @@ export default function PipelineModule() {
     const today = new Date().toISOString().split('T')[0];
     const insertPayload = {
       ...formData,
+      conference: formData.conference?.trim() || null,
       expected_close: formData.expected_close?.trim() || null,
       next_followup: formData.next_followup?.trim() || null,
       last_contact: today,
@@ -236,6 +243,7 @@ export default function PipelineModule() {
       phone: formData.phone || null,
       email: formData.email || null,
       value: formData.value,
+      conference: formData.conference?.trim() || null,
       stage: formData.stage,
       temperature: formData.temperature,
       expected_close: formData.expected_close?.trim() || null,
@@ -284,6 +292,7 @@ export default function PipelineModule() {
       phone: '',
       email: '',
       value: 299,
+      conference: '',
       stage: 'lead',
       temperature: 'cold',
       expected_close: '',
@@ -443,6 +452,7 @@ export default function PipelineModule() {
       phone: deal.phone || '',
       email: deal.email || '',
       value: deal.value,
+      conference: deal.conference || '',
       stage: deal.stage,
       temperature: deal.temperature || 'cold',
       expected_close: deal.expected_close || '',
@@ -479,6 +489,9 @@ export default function PipelineModule() {
   const uniqueSchools: string[] = Array.from(
     new Set(deals.map(d => d.organization?.trim()).filter((s): s is string => Boolean(s)))
   ).sort((a, b) => a.localeCompare(b));
+
+  // Unique conferences for tree filter (derived from deals)
+  const uniqueConferences: string[] = Array.from(new Set(deals.map(d => getConferenceForDeal(d)))).sort((a, b) => a.localeCompare(b));
 
   // Group deals by stage for the pipeline view (used elsewhere if needed)
   const dealsByStage = filteredDeals.reduce((acc, deal) => {
@@ -625,6 +638,22 @@ export default function PipelineModule() {
             />
           </div>
           <div className="module-actions">
+            <div className="pipeline-view-toggle">
+              <button
+                type="button"
+                className={viewMode === 'list' ? 'module-secondary-btn active' : 'module-secondary-btn'}
+                onClick={() => setViewMode('list')}
+              >
+                List View
+              </button>
+              <button
+                type="button"
+                className={viewMode === 'tree' ? 'module-secondary-btn active' : 'module-secondary-btn'}
+                onClick={() => setViewMode('tree')}
+              >
+                Tree View
+              </button>
+            </div>
             <select 
               className="stage-filter"
               value={filterStage}
@@ -645,6 +674,27 @@ export default function PipelineModule() {
                 <option key={school} value={school || ''}>{school}</option>
               ))}
             </select>
+            {viewMode === 'tree' && (
+              <>
+                <select
+                  className="stage-filter pipeline-filter-school"
+                  value={filterConference}
+                  onChange={(e) => setFilterConference(e.target.value)}
+                >
+                  <option value="">All Conferences</option>
+                  {uniqueConferences.map(conf => (
+                    <option key={conf} value={conf}>{conf}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  className="stage-filter pipeline-filter-date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  title="Date added from"
+                />
+              </>
+            )}
             <button className="module-secondary-btn" onClick={() => setShowImportModal(true)}>
               <Upload size={16} />
               Import
@@ -656,7 +706,8 @@ export default function PipelineModule() {
           </div>
         </div>
 
-        {/* Pipeline Table */}
+        {/* Pipeline Table or Tree */}
+        {viewMode === 'list' && (
         <div className="pipeline-table-wrap">
           {loading ? (
             <div className="module-loading">Loading...</div>
@@ -749,6 +800,19 @@ export default function PipelineModule() {
             </div>
           )}
         </div>
+        )}
+
+        {viewMode === 'tree' && (
+          <PipelineTreeView
+            deals={deals}
+            onEditDeal={openEditModal}
+            filterStage={filterStage}
+            filterConference={filterConference}
+            filterSchool={filterSchool}
+            filterDateFrom={filterDateFrom}
+            searchQuery={searchQuery}
+          />
+        )}
       </main>
 
       {/* Create/Edit Modal */}
@@ -793,7 +857,7 @@ export default function PipelineModule() {
                   />
                 </div>
                 <div className="module-form-group">
-                  <label>Fraternity</label>
+                  <label>Fraternity / Chapter</label>
                   <input
                     type="text"
                     value={formData.fraternity}
@@ -803,6 +867,22 @@ export default function PipelineModule() {
                 </div>
               </div>
               <div className="form-row">
+                <div className="module-form-group">
+                  <label>Conference</label>
+                  <select
+                    value={formData.conference}
+                    onChange={(e) => setFormData({ ...formData, conference: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    <option value="SEC">SEC</option>
+                    <option value="Big 12">Big 12</option>
+                    <option value="ACC">ACC</option>
+                    <option value="Big Ten">Big Ten</option>
+                    <option value="Pac-12">Pac-12</option>
+                    <option value="Non-SEC">Non-SEC</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
                 <div className="module-form-group">
                   <label>Email</label>
                   <input

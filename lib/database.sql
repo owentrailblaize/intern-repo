@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS deals (
   phone TEXT,
   email TEXT,
   value DECIMAL(10,2) DEFAULT 299,
+  conference TEXT,
   stage TEXT DEFAULT 'lead' CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost', 'hold_off')),
   temperature TEXT DEFAULT 'cold' CHECK (temperature IN ('hot', 'warm', 'cold')),
   expected_close DATE,
@@ -115,6 +116,7 @@ CREATE TABLE IF NOT EXISTS sales_stats (
 -- ALTER TABLE deals ADD COLUMN IF NOT EXISTS followup_count INTEGER DEFAULT 0;
 -- ALTER TABLE deals ADD COLUMN IF NOT EXISTS notes TEXT;
 -- ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
+-- Add conference for family tree: ALTER TABLE deals ADD COLUMN IF NOT EXISTS conference TEXT;
 -- ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
 -- ALTER TABLE deals ADD CONSTRAINT deals_stage_check CHECK (stage IN ('lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won', 'closed_lost', 'hold_off'));
 -- UPDATE deals SET stage = 'lead' WHERE stage = 'discovery';

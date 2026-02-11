@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS chapters (
   alumni_emails_sent BOOLEAN DEFAULT false,
   member_onboarding BOOLEAN DEFAULT false,
   budget_set BOOLEAN DEFAULT false,
+  qr_code BOOLEAN DEFAULT false,
   simple_function_guide BOOLEAN DEFAULT false,
   events_scheduled BOOLEAN DEFAULT false,
   test_announcements BOOLEAN DEFAULT false,

@@ -2080,6 +2080,414 @@ input:focus {
   min-width: 10rem;
 }
 
+.pipeline-view-toggle {
+  display: flex;
+  gap: 0;
+}
+
+.pipeline-view-toggle .module-secondary-btn {
+  border-radius: 0;
+}
+
+.pipeline-view-toggle .module-secondary-btn:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.pipeline-view-toggle .module-secondary-btn:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.pipeline-view-toggle .module-secondary-btn.active {
+  background: #1a2744;
+  color: white;
+  border-color: #1a2744;
+}
+
+.pipeline-filter-date {
+  min-width: 9rem;
+}
+
+/* Pipeline Tree View */
+.pipeline-tree-view {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Stats row: card per stat */
+.pipeline-tree-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pipeline-tree-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.6rem 1rem;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  min-width: 5rem;
+}
+
+.pipeline-tree-stat-card-highlight {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 15%);
+}
+
+.pipeline-tree-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.pipeline-tree-stat-card-highlight .pipeline-tree-stat-value {
+  color: #047857;
+}
+
+.pipeline-tree-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pipeline-tree-nodes {
+  padding: 1.25rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.pipeline-tree-empty {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.pipeline-tree-empty p {
+  margin: 0;
+}
+
+.pipeline-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Branch wrappers with vertical connector */
+.pipeline-tree-branch {
+  margin-bottom: 0;
+}
+
+.pipeline-tree-branch-conference {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pipeline-tree-branch-school .pipeline-tree-children-school,
+.pipeline-tree-children-school {
+  margin-left: 1.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid #e2e8f0;
+}
+
+.pipeline-tree-branch-chapter .pipeline-tree-children-chapter,
+.pipeline-tree-children-chapter {
+  margin-left: 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid #e2e8f0;
+}
+
+.pipeline-tree-children-contact {
+  margin-left: 1rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid #e2e8f0;
+}
+
+/* Base node */
+.pipeline-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: inherit;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  border-left: 4px solid transparent;
+  min-height: 2.5rem;
+}
+
+.pipeline-tree-node:hover {
+  background: #f8fafc;
+}
+
+.pipeline-tree-chevron {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  color: #94a3b8;
+  transition: color 0.15s;
+}
+
+.pipeline-tree-node:hover .pipeline-tree-chevron {
+  color: #64748b;
+}
+
+.pipeline-tree-chevron-placeholder {
+  width: 2rem;
+  cursor: default;
+}
+
+.pipeline-tree-node-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem 0.5rem 0;
+}
+
+.pipeline-tree-node-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pipeline-tree-node-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
+}
+
+.pipeline-tree-node-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #059669;
+  margin-left: auto;
+}
+
+/* Conference level */
+.pipeline-tree-node-conference {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 12px;
+  padding: 0;
+  min-height: auto;
+  border-left: none;
+}
+
+.pipeline-tree-node-conference:hover {
+  background: linear-gradient(135deg, #334155 0%, #475569 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.pipeline-tree-node-conference .pipeline-tree-chevron {
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.75rem 0 0.75rem 1rem;
+}
+
+.pipeline-tree-node-conference .pipeline-tree-node-main {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0.75rem 0;
+}
+
+.pipeline-tree-node-conference .pipeline-tree-node-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: white;
+  width: 100%;
+}
+
+.pipeline-tree-node-conference .pipeline-tree-node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pipeline-tree-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.pipeline-tree-badge-arr {
+  background: rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+}
+
+/* School level */
+.pipeline-tree-node-school {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 0.35rem;
+  border-left: 4px solid #cbd5e1;
+}
+
+.pipeline-tree-node-school:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.pipeline-tree-node-school .pipeline-tree-node-label {
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.pipeline-tree-node-school .pipeline-tree-node-meta {
+  margin-left: auto;
+}
+
+.pipeline-tree-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.pipeline-tree-status-active-client {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.pipeline-tree-status-pipeline {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.pipeline-tree-status-ifc-pipeline {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pipeline-tree-status-new-target {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Chapter level */
+.pipeline-tree-node-chapter {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 0.25rem;
+  border-left: 4px solid var(--stage-color, #94a3b8);
+}
+
+.pipeline-tree-node-chapter:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.pipeline-tree-node-chapter .pipeline-tree-node-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pipeline-tree-stage-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+/* Contact level */
+.pipeline-tree-node-contact {
+  cursor: default;
+  background: #fafafa;
+  border: 1px solid #f1f5f9;
+  border-left: 4px solid var(--stage-color, #94a3b8);
+  border-radius: 8px;
+  margin-bottom: 0.2rem;
+}
+
+.pipeline-tree-node-contact:hover {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.pipeline-tree-node-contact .pipeline-tree-node-label {
+  font-weight: 500;
+  color: #334155;
+  font-size: 0.875rem;
+}
+
+.pipeline-tree-node-contact .pipeline-tree-node-meta {
+  flex: 1;
+  margin-left: 0.5rem;
+  max-width: none;
+}
+
+.pipeline-tree-contact-icon {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.pipeline-tree-stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pipeline-tree-edit-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.pipeline-tree-edit-btn:hover {
+  background: #1e293b;
+  color: white;
+  border-color: #1e293b;
+}
+
+.pipeline-tree-children {
+  margin-top: 0.35rem;
+  padding-bottom: 0.25rem;
+}
+
 /* Pipeline Cards */
 .pipeline-cards {
   display: grid;

@@ -160,6 +160,7 @@ export interface Deal {
   phone: string;
   email: string;
   value: number;
+  conference?: string | null;
   stage: DealStage;
   temperature: 'hot' | 'warm' | 'cold';
   expected_close: string;
@@ -245,6 +246,7 @@ export interface Chapter {
   alumni_emails_sent: boolean;
   member_onboarding: boolean;
   budget_set: boolean;
+  qr_code: boolean;
   simple_function_guide: boolean;
   events_scheduled: boolean;
   test_announcements: boolean;
@@ -283,6 +285,7 @@ export const ONBOARDING_STEPS = [
   { key: 'alumni_emails_sent', label: 'Alumni Emails Sent', category: 'alumni' },
   { key: 'member_onboarding', label: 'Member Onboarding', category: 'members' },
   { key: 'budget_set', label: 'Budget Set', category: 'members' },
+  { key: 'qr_code', label: 'QR Code', category: 'members' },
   { key: 'simple_function_guide', label: 'Simple Function Guide', category: 'training' },
   { key: 'events_scheduled', label: 'Events Scheduled', category: 'engagement' },
   { key: 'test_announcements', label: 'Test Announcements', category: 'engagement' },
