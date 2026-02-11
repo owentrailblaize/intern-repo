@@ -24,7 +24,8 @@ import {
   CheckCircle,
   Activity,
   Zap,
-  Wallet
+  Wallet,
+  LayoutDashboard
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -379,6 +380,10 @@ export default function Nucleus() {
           </div>
         </div>
         <div className="nucleus-header-user">
+          <Link href="/workspace" className="nucleus-back-to-workspace">
+            <LayoutDashboard size={16} />
+            <span>Back to Workspace</span>
+          </Link>
           {isAdmin && (
             <span className="nucleus-admin-badge">
               <Shield size={14} />

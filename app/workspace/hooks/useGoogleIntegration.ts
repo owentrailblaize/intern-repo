@@ -19,15 +19,22 @@ interface CalendarEvent {
   attendees?: Array<{ email: string; displayName?: string }>;
 }
 
-interface GmailMessage {
+export interface GmailMessage {
   id: string;
   threadId: string;
   subject: string;
   from: string;
   fromEmail: string;
+  to?: string;
+  body?: string;
   date: string;
   snippet: string;
   isUnread: boolean;
+}
+
+export interface ThreadMessage extends GmailMessage {
+  body: string;
+  to: string;
 }
 
 interface SendEmailParams {
@@ -60,9 +67,10 @@ interface UseGoogleIntegrationReturn {
   unreadCount: number;
   gmailLoading: boolean;
   fetchEmails: () => Promise<void>;
+  fetchThread: (threadId: string) => Promise<ThreadMessage[] | null>;
   sendEmail: (params: SendEmailParams) => Promise<{ success: boolean; error?: string }>;
   sendingEmail: boolean;
-  
+
   // Contact Emails
   fetchEmailsForContact: (contactEmail: string) => Promise<ContactEmail[]>;
   
@@ -134,17 +142,17 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
   // Fetch emails
   const fetchEmails = useCallback(async () => {
     if (!employeeId || !status?.connected) return;
-    
+
     setGmailLoading(true);
     try {
-      const response = await fetch(`/api/google/gmail?employee_id=${employeeId}&max=10`);
+      const response = await fetch(`/api/google/gmail?employee_id=${employeeId}&max=50`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setEmails(data.emails || []);
         setUnreadCount(data.unreadCount || 0);
       } else if (data.code === 'NOT_CONNECTED') {
-        setStatus(prev => prev ? { ...prev, connected: false } : null);
+        setStatus(prev => (prev ? { ...prev, connected: false } : null));
       } else {
         throw new Error(data.error);
       }
@@ -155,6 +163,25 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
       setGmailLoading(false);
     }
   }, [employeeId, status?.connected]);
+
+  // Fetch full thread for chat-style view
+  const fetchThread = useCallback(
+    async (threadId: string): Promise<ThreadMessage[] | null> => {
+      if (!employeeId || !status?.connected) return null;
+      try {
+        const response = await fetch(
+          `/api/google/gmail/thread/${threadId}?employee_id=${employeeId}`
+        );
+        const data = await response.json();
+        if (response.ok) return data.messages || [];
+        return null;
+      } catch (err) {
+        console.error('Failed to fetch thread:', err);
+        return null;
+      }
+    },
+    [employeeId, status?.connected]
+  );
 
   // Connect Google account
   const connect = useCallback(() => {
@@ -281,6 +308,7 @@ export function useGoogleIntegration(employeeId: string | undefined): UseGoogleI
     unreadCount,
     gmailLoading,
     fetchEmails,
+    fetchThread,
     sendEmail,
     sendingEmail,
     fetchEmailsForContact,

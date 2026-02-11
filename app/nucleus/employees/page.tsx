@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff, FileText, UserPlus, Clock, CheckCircle, XCircle, Star, ChevronDown, ChevronUp, Mail, Phone, Linkedin, Globe, Play, Image } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink, RefreshCw, Copy, Check, Eye, EyeOff, FileText, UserPlus, Clock, CheckCircle, XCircle, Star, ChevronDown, ChevronUp, Mail, Phone, Linkedin, Globe, Play, Image, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -392,10 +392,16 @@ export default function EmployeesModule() {
       {/* Header */}
       <header className="module-header">
         <div className="module-header-content">
-          <Link href="/nucleus" className="module-back">
-            <ArrowLeft size={20} />
-            Back to Nucleus
-          </Link>
+          <div className="module-back-links">
+            <Link href="/nucleus" className="module-back">
+              <ArrowLeft size={20} />
+              Back to Nucleus
+            </Link>
+            <Link href="/workspace" className="module-back">
+              <LayoutDashboard size={20} />
+              Back to Workspace
+            </Link>
+          </div>
           <div className="module-title-row">
             <div className="module-icon" style={{ backgroundColor: '#3b82f615', color: '#3b82f6' }}>
               <Users size={24} />

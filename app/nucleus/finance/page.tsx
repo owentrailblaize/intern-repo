@@ -28,6 +28,7 @@ import {
   Receipt,
   AlertTriangle,
   Repeat,
+  LayoutDashboard,
 } from 'lucide-react';
 import { supabase, Chapter } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -433,6 +434,9 @@ export default function FinanceModule() {
         <div className="finance-header-left">
           <Link href="/nucleus" className="finance-back-btn">
             <ArrowLeft size={20} />
+          </Link>
+          <Link href="/workspace" className="finance-back-btn" title="Back to Workspace">
+            <LayoutDashboard size={20} />
           </Link>
           <div className="finance-header-icon">
             <DollarSign size={24} />

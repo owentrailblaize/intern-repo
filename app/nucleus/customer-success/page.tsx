@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ArrowLeft, HeartHandshake, Plus, Search, X, Trash2, Edit2, Check, ChevronDown, 
   ChevronRight, CreditCard, Calendar, DollarSign, Clock, MessageSquare, Copy, 
-  ExternalLink, Eye, Undo2, AlertTriangle, Sparkles, Settings, Link as LinkIcon
+  ExternalLink, Eye, Undo2, AlertTriangle, Sparkles, Settings, Link as LinkIcon,
+  LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -666,10 +667,16 @@ export default function CustomerSuccessModule() {
     <div className="module-page">
       <header className="module-header">
         <div className="module-header-content">
-          <Link href="/nucleus" className="module-back">
-            <ArrowLeft size={20} />
-            Back to Nucleus
-          </Link>
+          <div className="module-back-links">
+            <Link href="/nucleus" className="module-back">
+              <ArrowLeft size={20} />
+              Back to Nucleus
+            </Link>
+            <Link href="/workspace" className="module-back">
+              <LayoutDashboard size={20} />
+              Back to Workspace
+            </Link>
+          </div>
           <div className="module-title-row">
             <div className="module-icon" style={{ backgroundColor: '#ec489915', color: '#ec4899' }}>
               <HeartHandshake size={24} />

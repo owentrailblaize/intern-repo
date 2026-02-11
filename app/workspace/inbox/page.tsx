@@ -1,21 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
 import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
+import { isAutomatedEmail } from '@/lib/email-classify';
+import type { GmailMessage } from '../hooks/useGoogleIntegration';
 import {
   Inbox,
   Send,
-  Star,
-  Trash2,
-  Archive,
   Search,
   Mail,
-  MailOpen,
-  Clock,
-  ChevronRight,
   Reply,
+  ReplyAll,
   Forward,
   X,
   ExternalLink,
@@ -23,17 +20,62 @@ import {
   Link2,
   AlertCircle,
   Loader2,
-  Paperclip,
-  Check
+  Check,
+  MessageCircle,
+  Inbox as InboxIcon,
+  Bot,
+  Trash2,
+  ArrowRight,
 } from 'lucide-react';
+
+const STORAGE_MOVED = 'inbox_moved_threads';
+const STORAGE_DISMISSED = 'inbox_dismissed_threads';
+
+function getMovedThreads(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const s = localStorage.getItem(STORAGE_MOVED);
+    return new Set(s ? JSON.parse(s) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function setMovedThreads(threadIds: Set<string>) {
+  localStorage.setItem(STORAGE_MOVED, JSON.stringify([...threadIds]));
+}
+
+function getDismissedThreads(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const s = localStorage.getItem(STORAGE_DISMISSED);
+    return new Set(s ? JSON.parse(s) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function setDismissedThreads(threadIds: Set<string>) {
+  localStorage.setItem(STORAGE_DISMISSED, JSON.stringify([...threadIds]));
+}
 
 export default function InboxPage() {
   const { user } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
-  
+  const [activeTab, setActiveTab] = useState<'conversations' | 'new' | 'automated'>('conversations');
+
+  // Selection state
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<Array<GmailMessage & { body: string; to: string }>>([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+
+  // localStorage state (persisted)
+  const [movedThreads, setMovedThreadsState] = useState<Set<string>>(new Set());
+  const [dismissedThreads, setDismissedThreadsState] = useState<Set<string>>(new Set());
+
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
   const [composeTo, setComposeTo] = useState('');
@@ -42,33 +84,20 @@ export default function InboxPage() {
   const [composeCc, setComposeCc] = useState('');
   const [composeBcc, setComposeBcc] = useState('');
   const [showCcBcc, setShowCcBcc] = useState(false);
+  const [composeThreadId, setComposeThreadId] = useState<string | undefined>();
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  // Google Integration
   const google = useGoogleIntegration(currentEmployee?.id);
 
   const fetchEmployee = useCallback(async () => {
     if (!supabase || !user) return;
-
-    const { data } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('email', user.email)
-      .single();
-
-    if (data) {
-      setCurrentEmployee(data);
-    } else {
-      const { data: fallback } = await supabase
-        .from('employees')
-        .select('*')
-        .eq('status', 'active')
-        .limit(1)
-        .single();
+    const { data } = await supabase.from('employees').select('*').eq('email', user.email).single();
+    if (data) setCurrentEmployee(data);
+    else {
+      const { data: fallback } = await supabase.from('employees').select('*').eq('status', 'active').limit(1).single();
       if (fallback) setCurrentEmployee(fallback);
     }
-    
     setLoading(false);
   }, [user]);
 
@@ -76,34 +105,136 @@ export default function InboxPage() {
     fetchEmployee();
   }, [fetchEmployee]);
 
-  // Filter emails by search
-  const filteredEmails = google.emails.filter(email => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      email.subject.toLowerCase().includes(query) ||
-      email.from.toLowerCase().includes(query) ||
-      email.snippet.toLowerCase().includes(query)
-    );
-  });
+  useEffect(() => {
+    setMovedThreadsState(getMovedThreads());
+    setDismissedThreadsState(getDismissedThreads());
+  }, []);
 
-  // Get selected email details
-  const selectedEmailData = google.emails.find(e => e.id === selectedEmail);
+  const moveToConversations = useCallback((threadId: string) => {
+    const next = new Set(movedThreads);
+    next.add(threadId);
+    setMovedThreadsState(next);
+    setMovedThreads(next);
+    setActiveTab('conversations');
+    setSelectedThreadId(threadId);
+  }, [movedThreads]);
 
-  // Handle send email
+  const dismissFromNew = useCallback((threadId: string) => {
+    const next = new Set(dismissedThreads);
+    next.add(threadId);
+    setDismissedThreadsState(next);
+    setDismissedThreads(next);
+    setSelectedEmailId(null);
+  }, [dismissedThreads]);
+
+  // Group emails by thread - latest message per thread
+  const threadsByThreadId = useMemo(() => {
+    const map = new Map<string, GmailMessage>();
+    for (const e of google.emails) {
+      const existing = map.get(e.threadId);
+      if (!existing || new Date(e.date) > new Date(existing.date)) {
+        map.set(e.threadId, e);
+      }
+    }
+    return map;
+  }, [google.emails]);
+
+  // Classify and split
+  // Conversations = ALL human email threads (your existing inbox)
+  // New = human threads needing triage (not yet moved or dismissed)
+  // Automated = verification codes, notifications, etc.
+  const { conversationThreads, newThreads, automatedThreads } = useMemo(() => {
+    const moved = movedThreads;
+    const dismissed = dismissedThreads;
+    const conv: GmailMessage[] = [];
+    const newList: GmailMessage[] = [];
+    const auto: GmailMessage[] = [];
+
+    threadsByThreadId.forEach((latest, threadId) => {
+      const automated = isAutomatedEmail(latest);
+      if (automated) {
+        auto.push(latest);
+      } else {
+        conv.push(latest); // All human threads go to Conversations
+        if (!moved.has(threadId) && !dismissed.has(threadId)) {
+          newList.push(latest); // New = needs triage (move or dismiss)
+        }
+      }
+    });
+
+    conv.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    newList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    auto.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return {
+      conversationThreads: conv,
+      newThreads: newList,
+      automatedThreads: auto,
+    };
+  }, [threadsByThreadId, movedThreads, dismissedThreads]);
+
+  const filterBySearch = useCallback(
+    (list: GmailMessage[]) => {
+      if (!searchQuery) return list;
+      const q = searchQuery.toLowerCase();
+      return list.filter(
+        (e) =>
+          e.subject.toLowerCase().includes(q) ||
+          e.from.toLowerCase().includes(q) ||
+          e.snippet.toLowerCase().includes(q)
+      );
+    },
+    [searchQuery]
+  );
+
+  const filteredConversations = filterBySearch(conversationThreads);
+  const filteredNew = filterBySearch(newThreads);
+  const filteredAutomated = filterBySearch(automatedThreads);
+
+  const selectedConversation = selectedThreadId
+    ? conversationThreads.find((t) => t.threadId === selectedThreadId)
+    : null;
+  const selectedNewEmail = selectedEmailId ? google.emails.find((e) => e.id === selectedEmailId) : null;
+  const selectedAutomatedEmail = selectedEmailId && activeTab === 'automated'
+    ? google.emails.find((e) => e.id === selectedEmailId)
+    : null;
+
+  const openThread = useCallback(
+    async (threadId: string) => {
+      setSelectedThreadId(threadId);
+      setSelectedEmailId(null);
+      setThreadLoading(true);
+      const messages = await google.fetchThread(threadId);
+      setThreadMessages(messages || []);
+      setThreadLoading(false);
+    },
+    [google.fetchThread]
+  );
+
   const handleSendEmail = async () => {
     if (!composeTo || !composeSubject) return;
-    
     setSendError(null);
+
+    // Filter out placeholder values - never send to example.com
+    const to = composeTo.trim();
+    const cc = (composeCc || '').trim();
+    const bcc = (composeBcc || '').trim();
+    if (!to || to.includes('example.com')) {
+      setSendError('Please enter a valid recipient email address.');
+      return;
+    }
+
     const result = await google.sendEmail({
-      to: composeTo,
-      subject: composeSubject,
-      body: composeBody.replace(/\n/g, '<br>'),
-      cc: composeCc || undefined,
-      bcc: composeBcc || undefined,
+      to,
+      subject: composeSubject.trim(),
+      body: (composeBody || '').replace(/\n/g, '<br>') || '<p></p>',
+      cc: cc && !cc.includes('example.com') ? cc : undefined,
+      bcc: bcc && !bcc.includes('example.com') ? bcc : undefined,
+      threadId: composeThreadId,
     });
 
     if (result.success) {
+      if (composeThreadId) moveToConversations(composeThreadId);
       setSendSuccess(true);
       setTimeout(() => {
         setShowCompose(false);
@@ -113,44 +244,44 @@ export default function InboxPage() {
         setComposeCc('');
         setComposeBcc('');
         setShowCcBcc(false);
+        setComposeThreadId(undefined);
         setSendSuccess(false);
+        google.fetchEmails();
+        if (composeThreadId) openThread(composeThreadId);
       }, 1500);
     } else {
       setSendError(result.error || 'Failed to send email');
     }
   };
 
-  // Format date for display
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    } else if (days === 1) {
-      return 'Yesterday';
-    } else if (days < 7) {
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
-    }
+    if (days === 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Get avatar color based on email
   const getAvatarColor = (email: string) => {
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#84cc16'];
     let hash = 0;
-    for (let i = 0; i < email.length; i++) {
-      hash = email.charCodeAt(i) + ((hash << 5) - hash);
-    }
+    for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
   };
 
-  // Get initials from name
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-  };
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+
+  const isOurEmail = (fromEmail: string) =>
+    currentEmployee?.email && fromEmail.toLowerCase().includes(currentEmployee.email.toLowerCase());
 
   if (loading) {
     return (
@@ -163,7 +294,6 @@ export default function InboxPage() {
 
   return (
     <div className="ws-gmail-page">
-      {/* Header */}
       <header className="ws-gmail-header">
         <div className="ws-gmail-header-left">
           <h1>
@@ -176,19 +306,17 @@ export default function InboxPage() {
         </div>
         <div className="ws-gmail-header-right">
           {google.status?.connected && (
-            <a
-              href="https://mail.google.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ws-gmail-open-btn"
-            >
+            <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" className="ws-gmail-open-btn">
               <ExternalLink size={16} />
               Open Gmail
             </a>
           )}
           <button
             className="ws-gmail-compose-btn"
-            onClick={() => setShowCompose(true)}
+            onClick={() => {
+              setComposeThreadId(undefined);
+              setShowCompose(true);
+            }}
             disabled={!google.status?.connected}
           >
             <Send size={18} />
@@ -197,14 +325,15 @@ export default function InboxPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       {!google.status?.connected ? (
-        /* Connect Gmail Prompt */
         <div className="ws-gmail-connect-container">
           <div className="ws-gmail-connect-card">
             <div className="ws-gmail-connect-icon">
               <svg width="64" height="64" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+                <path
+                  fill="#EA4335"
+                  d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
+                />
               </svg>
             </div>
             <h2>Connect Your Gmail</h2>
@@ -227,7 +356,6 @@ export default function InboxPage() {
           </div>
         </div>
       ) : google.error ? (
-        /* Error State */
         <div className="ws-gmail-connect-container">
           <div className="ws-gmail-connect-card ws-gmail-error-card">
             <AlertCircle size={48} className="ws-gmail-error-icon" />
@@ -240,9 +368,44 @@ export default function InboxPage() {
           </div>
         </div>
       ) : (
-        /* Gmail Interface */
         <div className="ws-gmail-interface">
-          {/* Toolbar */}
+          {/* Tabs */}
+          <nav className="ws-inbox-tabs" role="tablist" aria-label="Inbox categories">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'conversations'}
+              className={`ws-inbox-tab ${activeTab === 'conversations' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('conversations'); setSelectedThreadId(null); setSelectedEmailId(null); }}
+            >
+              <MessageCircle size={18} aria-hidden />
+              <span>Conversations</span>
+              <span className="ws-inbox-tab-count">{filteredConversations.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'new'}
+              className={`ws-inbox-tab ${activeTab === 'new' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('new'); setSelectedThreadId(null); setSelectedEmailId(null); }}
+            >
+              <InboxIcon size={18} aria-hidden />
+              <span>New</span>
+              <span className="ws-inbox-tab-count">{filteredNew.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'automated'}
+              className={`ws-inbox-tab ${activeTab === 'automated' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('automated'); setSelectedThreadId(null); setSelectedEmailId(null); }}
+            >
+              <Bot size={18} aria-hidden />
+              <span>Automated</span>
+              <span className="ws-inbox-tab-count">{filteredAutomated.length}</span>
+            </button>
+          </nav>
+
           <div className="ws-gmail-toolbar">
             <div className="ws-gmail-search">
               <Search size={18} />
@@ -255,7 +418,7 @@ export default function InboxPage() {
             </div>
             <div className="ws-gmail-toolbar-actions">
               <span className="ws-gmail-count-label">
-                {filteredEmails.length} emails • {google.unreadCount} unread
+                {google.unreadCount} unread
               </span>
               <button
                 className={`ws-gmail-refresh-btn ${google.gmailLoading ? 'loading' : ''}`}
@@ -268,94 +431,235 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {/* Email List & Detail */}
           <div className="ws-gmail-content">
-            {/* Email List */}
-            <div className={`ws-gmail-list ${selectedEmail ? 'has-selection' : ''}`}>
+            {/* List panel */}
+            <div className={`ws-gmail-list ${selectedThreadId || selectedEmailId ? 'has-selection' : ''}`}>
               {google.gmailLoading && google.emails.length === 0 ? (
                 <div className="ws-gmail-loading-state">
                   <Loader2 size={32} className="spin" />
                   <p>Loading emails...</p>
                 </div>
-              ) : filteredEmails.length === 0 ? (
-                <div className="ws-gmail-empty-state">
-                  <Inbox size={48} />
-                  <h3>{searchQuery ? 'No matching emails' : 'Your inbox is empty'}</h3>
-                  <p>{searchQuery ? 'Try a different search term' : 'Emails you receive will appear here'}</p>
-                </div>
               ) : (
-                filteredEmails.map(email => (
-                  <div
-                    key={email.id}
-                    className={`ws-gmail-list-item ${email.isUnread ? 'unread' : ''} ${selectedEmail === email.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedEmail(email.id)}
-                  >
-                    <div 
-                      className="ws-gmail-list-avatar"
-                      style={{ backgroundColor: getAvatarColor(email.fromEmail) }}
-                    >
-                      {getInitials(email.from)}
-                    </div>
-                    <div className="ws-gmail-list-content">
-                      <div className="ws-gmail-list-header">
-                        <span className="ws-gmail-list-from">{email.from}</span>
-                        <span className="ws-gmail-list-date">{formatDate(email.date)}</span>
+                <>
+                  {activeTab === 'conversations' && (
+                    filteredConversations.length === 0 ? (
+                      <div className="ws-gmail-empty-state">
+                        <MessageCircle size={48} />
+                        <h3>No conversations yet</h3>
+                        <p>Your human email threads will appear here</p>
                       </div>
-                      <span className="ws-gmail-list-subject">{email.subject || '(No subject)'}</span>
-                      <span className="ws-gmail-list-snippet">{email.snippet}</span>
-                    </div>
-                    {email.isUnread && <div className="ws-gmail-unread-dot" />}
-                  </div>
-                ))
+                    ) : (
+                      filteredConversations.map((email) => (
+                        <div
+                          key={email.threadId}
+                          className={`ws-gmail-list-item ${selectedThreadId === email.threadId ? 'selected' : ''} ${email.isUnread ? 'unread' : ''}`}
+                          onClick={() => openThread(email.threadId)}
+                        >
+                          <div className="ws-gmail-list-avatar" style={{ backgroundColor: getAvatarColor(email.fromEmail) }}>
+                            {getInitials(email.from)}
+                          </div>
+                          <div className="ws-gmail-list-content">
+                            <div className="ws-gmail-list-header">
+                              <span className="ws-gmail-list-from">{email.from}</span>
+                              <span className="ws-gmail-list-date">{formatDate(email.date)}</span>
+                            </div>
+                            <span className="ws-gmail-list-subject">{email.subject || '(No subject)'}</span>
+                            <span className="ws-gmail-list-snippet">{email.snippet}</span>
+                          </div>
+                          {email.isUnread && <div className="ws-gmail-unread-dot" />}
+                        </div>
+                      ))
+                    )
+                  )}
+                  {activeTab === 'new' && (
+                    filteredNew.length === 0 ? (
+                      <div className="ws-gmail-empty-state">
+                        <InboxIcon size={48} />
+                        <h3>No new emails</h3>
+                        <p>Human emails will appear here. Move to Conversations or dismiss.</p>
+                      </div>
+                    ) : (
+                      filteredNew.map((email) => (
+                        <div
+                          key={email.id}
+                          className={`ws-gmail-list-item ${selectedEmailId === email.id ? 'selected' : ''} ${email.isUnread ? 'unread' : ''}`}
+                          onClick={() => { setSelectedEmailId(email.id); setSelectedThreadId(null); }}
+                        >
+                          <div className="ws-gmail-list-avatar" style={{ backgroundColor: getAvatarColor(email.fromEmail) }}>
+                            {getInitials(email.from)}
+                          </div>
+                          <div className="ws-gmail-list-content">
+                            <div className="ws-gmail-list-header">
+                              <span className="ws-gmail-list-from">{email.from}</span>
+                              <span className="ws-gmail-list-date">{formatDate(email.date)}</span>
+                            </div>
+                            <span className="ws-gmail-list-subject">{email.subject || '(No subject)'}</span>
+                            <span className="ws-gmail-list-snippet">{email.snippet}</span>
+                          </div>
+                          {email.isUnread && <div className="ws-gmail-unread-dot" />}
+                        </div>
+                      ))
+                    )
+                  )}
+                  {activeTab === 'automated' && (
+                    filteredAutomated.length === 0 ? (
+                      <div className="ws-gmail-empty-state">
+                        <Bot size={48} />
+                        <h3>No automated emails</h3>
+                        <p>Verification codes, notifications, and promotions go here</p>
+                      </div>
+                    ) : (
+                      filteredAutomated.map((email) => (
+                        <div
+                          key={email.id}
+                          className={`ws-gmail-list-item ${selectedEmailId === email.id ? 'selected' : ''} ${email.isUnread ? 'unread' : ''}`}
+                          onClick={() => { setSelectedEmailId(email.id); setSelectedThreadId(null); }}
+                        >
+                          <div className="ws-gmail-list-avatar ws-gmail-list-avatar-auto" style={{ backgroundColor: '#94a3b8' }}>
+                            <Bot size={14} />
+                          </div>
+                          <div className="ws-gmail-list-content">
+                            <div className="ws-gmail-list-header">
+                              <span className="ws-gmail-list-from">{email.from}</span>
+                              <span className="ws-gmail-list-date">{formatDate(email.date)}</span>
+                            </div>
+                            <span className="ws-gmail-list-subject">{email.subject || '(No subject)'}</span>
+                            <span className="ws-gmail-list-snippet">{email.snippet}</span>
+                          </div>
+                          {email.isUnread && <div className="ws-gmail-unread-dot" />}
+                        </div>
+                      ))
+                    )
+                  )}
+                </>
               )}
             </div>
 
-            {/* Email Detail */}
-            {selectedEmail && selectedEmailData && (
-              <div className="ws-gmail-detail">
+            {/* Detail panel - Conversations: chat style */}
+            {activeTab === 'conversations' && selectedThreadId && (
+              <div className="ws-gmail-detail ws-gmail-detail-chat">
                 <div className="ws-gmail-detail-header">
-                  <button 
-                    className="ws-gmail-back-btn"
-                    onClick={() => setSelectedEmail(null)}
-                  >
+                  <button className="ws-gmail-back-btn" onClick={() => { setSelectedThreadId(null); setThreadMessages([]); }}>
                     <X size={18} />
                   </button>
-                  <div className="ws-gmail-detail-actions">
-                    <a
-                      href={`https://mail.google.com/mail/u/0/#inbox/${selectedEmailData.threadId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ws-gmail-detail-action"
-                      title="Open in Gmail"
-                    >
-                      <ExternalLink size={16} />
-                    </a>
-                  </div>
+                  <span className="ws-gmail-detail-title">
+                    {selectedConversation?.subject || '(No subject)'}
+                  </span>
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#inbox/${selectedThreadId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ws-gmail-detail-action"
+                    title="Open in Gmail"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
                 </div>
+                <div className="ws-gmail-chat-messages">
+                  {threadLoading ? (
+                    <div className="ws-gmail-chat-loading">
+                      <Loader2 size={24} className="spin" />
+                      <p>Loading thread...</p>
+                    </div>
+                  ) : (
+                    threadMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`ws-gmail-chat-bubble ${isOurEmail(msg.fromEmail) ? 'ours' : 'theirs'}`}
+                      >
+                        {!isOurEmail(msg.fromEmail) && (
+                          <div className="ws-gmail-chat-avatar" style={{ backgroundColor: getAvatarColor(msg.fromEmail) }}>
+                            {getInitials(msg.from)}
+                          </div>
+                        )}
+                        <div className="ws-gmail-chat-bubble-content">
+                          <div className="ws-gmail-chat-meta">
+                            <span className="ws-gmail-chat-from">{msg.from}</span>
+                            <span className="ws-gmail-chat-date">{new Date(msg.date).toLocaleString()}</span>
+                          </div>
+                          <div className="ws-gmail-chat-body">
+                            {(msg.body || msg.snippet)?.replace(/<[^>]+>/g, ' ').slice(0, 800)}
+                            {(msg.body || msg.snippet)?.length > 800 && '...'}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="ws-gmail-detail-footer">
+                  <button
+                    className="ws-gmail-reply-btn"
+                    onClick={() => {
+                      const last = threadMessages[threadMessages.length - 1];
+                      if (last) {
+                        setComposeTo(last.fromEmail);
+                        setComposeSubject(last.subject.startsWith('Re:') ? last.subject : `Re: ${last.subject}`);
+                        setComposeThreadId(selectedThreadId);
+                        setShowCompose(true);
+                      }
+                    }}
+                  >
+                    <Reply size={16} />
+                    Reply
+                  </button>
+                  <button
+                    className="ws-gmail-reply-all-btn"
+                    onClick={() => {
+                      const last = threadMessages[threadMessages.length - 1];
+                      if (last) {
+                        const to = last.to || '';
+                        const allRecipients = [last.fromEmail, ...to.split(/[,;]/).map((e) => e.trim()).filter(Boolean)];
+                        const unique = [...new Set(allRecipients)].filter((e) => e && !isOurEmail(e));
+                        setComposeTo(unique.join(', '));
+                        setComposeSubject(last.subject.startsWith('Re:') ? last.subject : `Re: ${last.subject}`);
+                        setComposeThreadId(selectedThreadId);
+                        setShowCompose(true);
+                      }
+                    }}
+                  >
+                    <ReplyAll size={16} />
+                    Reply All
+                  </button>
+                </div>
+              </div>
+            )}
 
+            {/* Detail panel - New: single email + Move / Delete */}
+            {activeTab === 'new' && selectedNewEmail && (
+              <div className="ws-gmail-detail">
+                <div className="ws-gmail-detail-header">
+                  <button className="ws-gmail-back-btn" onClick={() => setSelectedEmailId(null)}>
+                    <X size={18} />
+                  </button>
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#inbox/${selectedNewEmail.threadId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ws-gmail-detail-action"
+                    title="Open in Gmail"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                </div>
                 <div className="ws-gmail-detail-content">
-                  <h2 className="ws-gmail-detail-subject">{selectedEmailData.subject || '(No subject)'}</h2>
-                  
+                  <h2 className="ws-gmail-detail-subject">{selectedNewEmail.subject || '(No subject)'}</h2>
                   <div className="ws-gmail-detail-meta">
-                    <div 
+                    <div
                       className="ws-gmail-detail-avatar"
-                      style={{ backgroundColor: getAvatarColor(selectedEmailData.fromEmail) }}
+                      style={{ backgroundColor: getAvatarColor(selectedNewEmail.fromEmail) }}
                     >
-                      {getInitials(selectedEmailData.from)}
+                      {getInitials(selectedNewEmail.from)}
                     </div>
                     <div className="ws-gmail-detail-sender">
-                      <span className="ws-gmail-detail-name">{selectedEmailData.from}</span>
-                      <span className="ws-gmail-detail-email">{selectedEmailData.fromEmail}</span>
+                      <span className="ws-gmail-detail-name">{selectedNewEmail.from}</span>
+                      <span className="ws-gmail-detail-email">{selectedNewEmail.fromEmail}</span>
                     </div>
-                    <span className="ws-gmail-detail-date">
-                      {new Date(selectedEmailData.date).toLocaleString()}
-                    </span>
+                    <span className="ws-gmail-detail-date">{new Date(selectedNewEmail.date).toLocaleString()}</span>
                   </div>
-
                   <div className="ws-gmail-detail-body">
-                    <p>{selectedEmailData.snippet}</p>
+                    <p>{selectedNewEmail.snippet}</p>
                     <a
-                      href={`https://mail.google.com/mail/u/0/#inbox/${selectedEmailData.threadId}`}
+                      href={`https://mail.google.com/mail/u/0/#inbox/${selectedNewEmail.threadId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ws-gmail-read-more"
@@ -364,30 +668,82 @@ export default function InboxPage() {
                       <ExternalLink size={14} />
                     </a>
                   </div>
-
-                  <div className="ws-gmail-detail-footer">
-                    <button 
+                  <div className="ws-gmail-detail-footer ws-gmail-detail-footer-actions">
+                    <button
+                      className="ws-gmail-move-btn"
+                      onClick={() => {
+                        moveToConversations(selectedNewEmail.threadId);
+                        setSelectedEmailId(null);
+                      }}
+                    >
+                      <ArrowRight size={16} />
+                      Move to Conversations
+                    </button>
+                    <button
+                      className="ws-gmail-delete-btn"
+                      onClick={() => dismissFromNew(selectedNewEmail.threadId)}
+                    >
+                      <Trash2 size={16} />
+                      Dismiss
+                    </button>
+                    <button
                       className="ws-gmail-reply-btn"
                       onClick={() => {
-                        setComposeTo(selectedEmailData.fromEmail);
-                        setComposeSubject(`Re: ${selectedEmailData.subject}`);
+                        setComposeTo(selectedNewEmail.fromEmail);
+                        setComposeSubject(selectedNewEmail.subject.startsWith('Re:') ? selectedNewEmail.subject : `Re: ${selectedNewEmail.subject}`);
+                        setComposeThreadId(selectedNewEmail.threadId);
                         setShowCompose(true);
+                        moveToConversations(selectedNewEmail.threadId);
                       }}
                     >
                       <Reply size={16} />
                       Reply
                     </button>
-                    <button 
-                      className="ws-gmail-forward-btn"
-                      onClick={() => {
-                        setComposeSubject(`Fwd: ${selectedEmailData.subject}`);
-                        setComposeBody(`\n\n---------- Forwarded message ----------\nFrom: ${selectedEmailData.from}\nDate: ${new Date(selectedEmailData.date).toLocaleString()}\nSubject: ${selectedEmailData.subject}\n\n${selectedEmailData.snippet}`);
-                        setShowCompose(true);
-                      }}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Detail panel - Automated: read-only */}
+            {activeTab === 'automated' && selectedAutomatedEmail && (
+              <div className="ws-gmail-detail">
+                <div className="ws-gmail-detail-header">
+                  <button className="ws-gmail-back-btn" onClick={() => setSelectedEmailId(null)}>
+                    <X size={18} />
+                  </button>
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#inbox/${selectedAutomatedEmail.threadId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ws-gmail-detail-action"
+                    title="Open in Gmail"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                </div>
+                <div className="ws-gmail-detail-content">
+                  <h2 className="ws-gmail-detail-subject">{selectedAutomatedEmail.subject || '(No subject)'}</h2>
+                  <div className="ws-gmail-detail-meta">
+                    <div className="ws-gmail-detail-avatar ws-gmail-detail-avatar-auto">
+                      <Bot size={18} />
+                    </div>
+                    <div className="ws-gmail-detail-sender">
+                      <span className="ws-gmail-detail-name">{selectedAutomatedEmail.from}</span>
+                      <span className="ws-gmail-detail-email">{selectedAutomatedEmail.fromEmail}</span>
+                    </div>
+                    <span className="ws-gmail-detail-date">{new Date(selectedAutomatedEmail.date).toLocaleString()}</span>
+                  </div>
+                  <div className="ws-gmail-detail-body">
+                    <p>{selectedAutomatedEmail.snippet}</p>
+                    <a
+                      href={`https://mail.google.com/mail/u/0/#inbox/${selectedAutomatedEmail.threadId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ws-gmail-read-more"
                     >
-                      <Forward size={16} />
-                      Forward
-                    </button>
+                      Read full email in Gmail
+                      <ExternalLink size={14} />
+                    </a>
                   </div>
                 </div>
               </div>
@@ -401,16 +757,11 @@ export default function InboxPage() {
         <div className="ws-gmail-compose-overlay" onClick={() => !google.sendingEmail && setShowCompose(false)}>
           <div className="ws-gmail-compose-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ws-gmail-compose-header">
-              <h3>New Message</h3>
-              <button 
-                className="ws-gmail-compose-close"
-                onClick={() => setShowCompose(false)}
-                disabled={google.sendingEmail}
-              >
+              <h3>{composeThreadId ? 'Reply' : 'New Message'}</h3>
+              <button className="ws-gmail-compose-close" onClick={() => setShowCompose(false)} disabled={google.sendingEmail}>
                 <X size={20} />
               </button>
             </div>
-
             {sendSuccess ? (
               <div className="ws-gmail-send-success">
                 <Check size={48} />
@@ -420,51 +771,65 @@ export default function InboxPage() {
             ) : (
               <>
                 <div className="ws-gmail-compose-body">
+                  {/* Recipient confirmation - always visible so user can verify */}
+                  <div className="ws-gmail-compose-recipients">
+                    <div className="ws-gmail-compose-recipient-row">
+                      <span className="ws-gmail-compose-recipient-label">To:</span>
+                      <span className="ws-gmail-compose-recipient-value">{composeTo || '—'}</span>
+                    </div>
+                    {showCcBcc && composeCc && (
+                      <div className="ws-gmail-compose-recipient-row">
+                        <span className="ws-gmail-compose-recipient-label">Cc:</span>
+                        <span className="ws-gmail-compose-recipient-value">{composeCc}</span>
+                      </div>
+                    )}
+                    {showCcBcc && composeBcc && (
+                      <div className="ws-gmail-compose-recipient-row">
+                        <span className="ws-gmail-compose-recipient-label">Bcc:</span>
+                        <span className="ws-gmail-compose-recipient-value">{composeBcc}</span>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="ws-gmail-compose-field">
                     <label>To</label>
                     <input
-                      type="email"
+                      type="text"
                       value={composeTo}
                       onChange={(e) => setComposeTo(e.target.value)}
                       placeholder="recipient@example.com"
                       disabled={google.sendingEmail}
                     />
                   </div>
-
                   {showCcBcc && (
                     <>
                       <div className="ws-gmail-compose-field">
                         <label>Cc</label>
                         <input
-                          type="email"
+                          type="text"
                           value={composeCc}
                           onChange={(e) => setComposeCc(e.target.value)}
-                          placeholder="cc@example.com"
+                          placeholder="cc@example.com (optional)"
                           disabled={google.sendingEmail}
                         />
                       </div>
                       <div className="ws-gmail-compose-field">
                         <label>Bcc</label>
                         <input
-                          type="email"
+                          type="text"
                           value={composeBcc}
                           onChange={(e) => setComposeBcc(e.target.value)}
-                          placeholder="bcc@example.com"
+                          placeholder="bcc@example.com (optional)"
                           disabled={google.sendingEmail}
                         />
                       </div>
                     </>
                   )}
-
                   {!showCcBcc && (
-                    <button 
-                      className="ws-gmail-cc-toggle"
-                      onClick={() => setShowCcBcc(true)}
-                    >
+                    <button className="ws-gmail-cc-toggle" onClick={() => setShowCcBcc(true)}>
                       Cc/Bcc
                     </button>
                   )}
-
                   <div className="ws-gmail-compose-field">
                     <label>Subject</label>
                     <input
@@ -475,27 +840,39 @@ export default function InboxPage() {
                       disabled={google.sendingEmail}
                     />
                   </div>
-
                   <div className="ws-gmail-compose-field ws-gmail-compose-message">
                     <textarea
                       value={composeBody}
                       onChange={(e) => setComposeBody(e.target.value)}
                       placeholder="Write your message..."
-                      rows={12}
+                      rows={8}
                       disabled={google.sendingEmail}
                     />
                   </div>
-
                   {sendError && (
                     <div className="ws-gmail-send-error">
                       <AlertCircle size={16} />
-                      {sendError}
+                      <div className="ws-gmail-send-error-content">
+                        <span>{sendError}</span>
+                        {sendError.toLowerCase().includes('insufficient') && sendError.toLowerCase().includes('scope') && (
+                          <button
+                            type="button"
+                            className="ws-gmail-send-error-reconnect"
+                            onClick={() => {
+                              setShowCompose(false);
+                              setSendError(null);
+                              google.connect();
+                            }}
+                          >
+                            Reconnect Gmail to enable sending
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
-
                 <div className="ws-gmail-compose-footer">
-                  <button 
+                  <button
                     className="ws-gmail-send-btn"
                     onClick={handleSendEmail}
                     disabled={!composeTo || !composeSubject || google.sendingEmail}
@@ -512,11 +889,7 @@ export default function InboxPage() {
                       </>
                     )}
                   </button>
-                  <button 
-                    className="ws-gmail-discard-btn"
-                    onClick={() => setShowCompose(false)}
-                    disabled={google.sendingEmail}
-                  >
+                  <button className="ws-gmail-discard-btn" onClick={() => setShowCompose(false)} disabled={google.sendingEmail}>
                     Discard
                   </button>
                 </div>

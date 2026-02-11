@@ -85,6 +85,16 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
         </div>
 
         <nav className="ws-nav">
+          {canAccessNucleus && (
+            <Link
+              href="/nucleus"
+              className={`ws-nav-item ${pathname.startsWith('/nucleus') ? 'active' : ''}`}
+              onClick={() => setMobileOpen(false)}
+            >
+              <Zap size={20} />
+              {!collapsed && <span>Nucleus Admin</span>}
+            </Link>
+          )}
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || LayoutDashboard;
             return (
@@ -112,19 +122,6 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
         </nav>
 
         <div className="ws-sidebar-divider" />
-
-        {/* Quick Access */}
-        {!collapsed && (
-          <div className="ws-quick-access">
-            <span className="ws-quick-label">Quick Access</span>
-            {canAccessNucleus && (
-              <Link href="/nucleus" className="ws-nucleus-link">
-                <Zap size={16} />
-                <span>Nucleus Admin</span>
-              </Link>
-            )}
-          </div>
-        )}
 
         {/* User Section */}
         <div className="ws-sidebar-footer">

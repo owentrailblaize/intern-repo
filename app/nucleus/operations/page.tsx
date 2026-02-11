@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckSquare, Plus, Search, Filter, X, Trash2, Edit2, Check } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Plus, Search, Filter, X, Trash2, Edit2, Check, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Task } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -171,10 +171,16 @@ export default function OperationsModule() {
       {/* Header */}
       <header className="module-header">
         <div className="module-header-content">
-          <Link href="/nucleus" className="module-back">
-            <ArrowLeft size={20} />
-            Back to Nucleus
-          </Link>
+          <div className="module-back-links">
+            <Link href="/nucleus" className="module-back">
+              <ArrowLeft size={20} />
+              Back to Nucleus
+            </Link>
+            <Link href="/workspace" className="module-back">
+              <LayoutDashboard size={20} />
+              Back to Workspace
+            </Link>
+          </div>
           <div className="module-title-row">
             <div className="module-icon" style={{ backgroundColor: '#8b5cf615', color: '#8b5cf6' }}>
               <CheckSquare size={24} />

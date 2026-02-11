@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
     // Fetch message list
     const messageList = await fetchGmailMessages(accessToken, maxResults, labelIds, query);
 
-    // Fetch full details for each message (in parallel, limited to first 10)
-    const messagesToFetch = (messageList.messages || []).slice(0, 10);
+    // Fetch full details for each message (in parallel)
+    const messagesToFetch = (messageList.messages || []).slice(0, Math.min(maxResults, 50));
     const fullMessages = await Promise.all(
       messagesToFetch.map(msg => 
         fetchGmailMessage(accessToken, msg.id, 'full')

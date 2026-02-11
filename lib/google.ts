@@ -251,6 +251,28 @@ export async function fetchGmailMessage(
   return response.json();
 }
 
+export async function fetchGmailThread(
+  accessToken: string,
+  threadId: string,
+  format: 'minimal' | 'full' | 'metadata' = 'full'
+): Promise<GmailThread> {
+  const response = await fetch(
+    `https://www.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=${format}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Failed to fetch thread');
+  }
+
+  return response.json();
+}
+
 export async function fetchGmailLabels(accessToken: string): Promise<{ labels: Array<{ id: string; name: string; type: string }> }> {
   const response = await fetch(
     'https://www.googleapis.com/gmail/v1/users/me/labels',
@@ -405,8 +427,14 @@ export async function sendGmailMessage(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to send email');
+    let message = 'Failed to send email';
+    try {
+      const err = await response.json();
+      message = err.error?.message || err.message || message;
+    } catch {
+      message = `Send failed (${response.status})`;
+    }
+    throw new Error(message);
   }
 
   return response.json();
