@@ -726,6 +726,12 @@ input:focus {
    NUCLEUS - Founder Dashboard
    ========================================== */
 
+/* Nucleus content area - remove ws-content padding so nucleus controls its own layout */
+.ws-content.nucleus-content {
+  padding: 0;
+  max-width: none;
+}
+
 .nucleus {
   min-height: 100vh;
   background: #f8f9fa;
@@ -11300,6 +11306,21 @@ input:focus {
 
 .ws-nav-item.emphasized {
   font-weight: 500;
+}
+
+.ws-nav-nucleus-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-sm);
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--color-pearl);
+  margin-left: var(--space-md);
+}
+
+.ws-nav-item.ws-nav-sub {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.8125rem;
 }
 
 .ws-nav-badge {

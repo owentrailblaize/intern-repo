@@ -20,7 +20,12 @@ import {
   Menu,
   X,
   MessageCircle,
-  LucideIcon
+  LucideIcon,
+  TrendingUp,
+  HeartHandshake,
+  Wallet,
+  Building2,
+  Rocket
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -50,6 +55,18 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
     if (href === '/workspace') return pathname === '/workspace';
     return pathname.startsWith(href);
   };
+
+  const inNucleus = pathname.startsWith('/nucleus');
+  const nucleusModules = [
+    { name: 'Dashboard', href: '/nucleus', icon: Zap },
+    { name: 'Sales Pipeline', href: '/nucleus/pipeline', icon: TrendingUp },
+    { name: 'Customer Success', href: '/nucleus/customer-success', icon: HeartHandshake },
+    { name: 'Finance', href: '/nucleus/finance', icon: Wallet },
+    { name: 'Operations', href: '/nucleus/operations', icon: CheckSquare },
+    { name: 'Enterprise', href: '/nucleus/enterprise', icon: Building2 },
+    { name: 'Fundraising', href: '/nucleus/fundraising', icon: Rocket },
+    { name: 'Employees', href: '/nucleus/employees', icon: Users },
+  ];
 
   return (
     <>
@@ -94,6 +111,21 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
               <Zap size={20} />
               {!collapsed && <span>Nucleus Admin</span>}
             </Link>
+          )}
+          {inNucleus && canAccessNucleus && !collapsed && (
+            <div className="ws-nav-nucleus-modules">
+              {nucleusModules.map((m) => (
+                <Link
+                  key={m.href}
+                  href={m.href}
+                  className={`ws-nav-item ws-nav-sub ${pathname === m.href || (m.href !== '/nucleus' && pathname.startsWith(m.href)) ? 'active' : ''}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <m.icon size={18} />
+                  <span>{m.name}</span>
+                </Link>
+              ))}
+            </div>
           )}
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || LayoutDashboard;
