@@ -190,7 +190,7 @@ export default function PipelineTreeView({
         </div>
         <div className="pipeline-tree-stat-card">
           <span className="pipeline-tree-stat-value">{stats.closeRate}%</span>
-          <span className="pipeline-tree-stat-label">Close rate</span>
+          <span className="pipeline-tree-stat-label">Close Rate</span>
         </div>
       </div>
 
@@ -236,22 +236,23 @@ export default function PipelineTreeView({
                           const schoolStatus = getSchoolPipelineStatus(school.deals);
                           const schoolArr = school.deals.filter(d => d.stage === 'closed_won').reduce((s, d) => s + (Number(d.value) || 0), 0);
 
+                          const isSchoolActive = schoolStatus === 'Active Client';
                           return (
                             <div key={schoolId} className="pipeline-tree-branch pipeline-tree-branch-school">
                               <button
                                 type="button"
-                                className="pipeline-tree-node pipeline-tree-node-school"
+                                className={`pipeline-tree-node pipeline-tree-node-school ${isSchoolActive ? 'pipeline-tree-node-school-active' : ''}`}
                                 onClick={() => toggle(schoolId)}
                               >
                                 <span className="pipeline-tree-chevron">{isSchoolOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</span>
                                 <span className="pipeline-tree-node-main">
                                   <span className="pipeline-tree-node-label">{school.name}</span>
                                   <span className={`pipeline-tree-status pipeline-tree-status-${schoolStatus.replace(/\s+/g, '-').toLowerCase()}`}>
-                                    {schoolStatus}
+                                    {schoolStatus.toUpperCase().replace(/\s+/g, ' ')}
                                   </span>
-                                  <span className="pipeline-tree-node-meta">
-                                    {school.chapters.size} chapters · {formatCurrency(schoolArr)} ARR
-                                  </span>
+                                  {schoolArr > 0 && (
+                                    <span className="pipeline-tree-node-value">{formatCurrency(schoolArr)} ARR</span>
+                                  )}
                                 </span>
                               </button>
                               {isSchoolOpen && (
@@ -265,22 +266,23 @@ export default function PipelineTreeView({
                                       const stage = primaryDeal?.stage ?? 'lead';
                                       const color = getTreeStageColor(stage);
                                       const value = chapter.deals.reduce((s, d) => s + (Number(d.value) || 0), 0);
+                                      const isClosed = stage === 'closed_won';
 
                                       return (
                                         <div key={chapterId} className="pipeline-tree-branch pipeline-tree-branch-chapter">
                                           <button
                                             type="button"
-                                            className="pipeline-tree-node pipeline-tree-node-chapter"
+                                            className={`pipeline-tree-node pipeline-tree-node-chapter ${isClosed ? 'pipeline-tree-node-chapter-closed' : ''}`}
                                             style={{ ['--stage-color' as string]: color }}
                                             onClick={() => toggle(chapterId)}
                                           >
                                             <span className="pipeline-tree-chevron">{isChapterOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
                                             <span className="pipeline-tree-node-main">
                                               <span className="pipeline-tree-node-label">{chapter.name}</span>
-                                              <span className="pipeline-tree-stage-badge" style={{ backgroundColor: `${color}20`, color }}>
+                                              <span className="pipeline-tree-stage-badge" style={!isClosed ? { backgroundColor: `${color}20`, color } : undefined}>
                                                 {STAGE_CONFIG[stage]?.label ?? stage}
                                               </span>
-                                              <span className="pipeline-tree-node-value">{formatCurrency(value)}</span>
+                                              {value > 0 && <span className="pipeline-tree-node-value">{formatCurrency(value)}</span>}
                                             </span>
                                           </button>
                                           {isChapterOpen && (
@@ -295,8 +297,17 @@ export default function PipelineTreeView({
                                                   <span className="pipeline-tree-node-main">
                                                     <User size={14} className="pipeline-tree-contact-icon" />
                                                     <span className="pipeline-tree-node-label">{deal.contact_name || deal.name}</span>
-                                                    <span className="pipeline-tree-stage-dot" style={{ backgroundColor: getTreeStageColor(deal.stage) }} />
-                                                    <span className="pipeline-tree-node-meta">{STAGE_CONFIG[deal.stage]?.label ?? deal.stage}</span>
+                                                    {deal.expected_close && (
+                                                      <span className="pipeline-tree-stage-badge pipeline-tree-stage-badge-date">
+                                                        Estimated Close: {deal.expected_close}
+                                                      </span>
+                                                    )}
+                                                    <span className="pipeline-tree-stage-badge" style={{
+                                                      backgroundColor: deal.stage === 'closed_won' ? '#10b981' : `${getTreeStageColor(deal.stage)}30`,
+                                                      color: deal.stage === 'closed_won' ? 'white' : getTreeStageColor(deal.stage),
+                                                    }}>
+                                                      {STAGE_CONFIG[deal.stage]?.label ?? deal.stage}
+                                                    </span>
                                                     <button
                                                       type="button"
                                                       className="pipeline-tree-edit-btn"
