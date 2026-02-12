@@ -8,12 +8,9 @@ import { isAutomatedEmail } from '@/lib/email-classify';
 import type { GmailMessage } from '../hooks/useGoogleIntegration';
 import {
   Inbox,
-  Send,
   Search,
   Mail,
   Reply,
-  ReplyAll,
-  Forward,
   X,
   ExternalLink,
   RefreshCw,
@@ -75,18 +72,6 @@ export default function InboxPage() {
   // localStorage state (persisted)
   const [movedThreads, setMovedThreadsState] = useState<Set<string>>(new Set());
   const [dismissedThreads, setDismissedThreadsState] = useState<Set<string>>(new Set());
-
-  // Compose state
-  const [showCompose, setShowCompose] = useState(false);
-  const [composeTo, setComposeTo] = useState('');
-  const [composeSubject, setComposeSubject] = useState('');
-  const [composeBody, setComposeBody] = useState('');
-  const [composeCc, setComposeCc] = useState('');
-  const [composeBcc, setComposeBcc] = useState('');
-  const [showCcBcc, setShowCcBcc] = useState(false);
-  const [composeThreadId, setComposeThreadId] = useState<string | undefined>();
-  const [sendSuccess, setSendSuccess] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
 
   const google = useGoogleIntegration(currentEmployee?.id);
 
@@ -211,49 +196,6 @@ export default function InboxPage() {
     [google.fetchThread]
   );
 
-  const handleSendEmail = async () => {
-    if (!composeTo || !composeSubject) return;
-    setSendError(null);
-
-    // Filter out placeholder values - never send to example.com
-    const to = composeTo.trim();
-    const cc = (composeCc || '').trim();
-    const bcc = (composeBcc || '').trim();
-    if (!to || to.includes('example.com')) {
-      setSendError('Please enter a valid recipient email address.');
-      return;
-    }
-
-    const result = await google.sendEmail({
-      to,
-      subject: composeSubject.trim(),
-      body: (composeBody || '').replace(/\n/g, '<br>') || '<p></p>',
-      cc: cc && !cc.includes('example.com') ? cc : undefined,
-      bcc: bcc && !bcc.includes('example.com') ? bcc : undefined,
-      threadId: composeThreadId,
-    });
-
-    if (result.success) {
-      if (composeThreadId) moveToConversations(composeThreadId);
-      setSendSuccess(true);
-      setTimeout(() => {
-        setShowCompose(false);
-        setComposeTo('');
-        setComposeSubject('');
-        setComposeBody('');
-        setComposeCc('');
-        setComposeBcc('');
-        setShowCcBcc(false);
-        setComposeThreadId(undefined);
-        setSendSuccess(false);
-        google.fetchEmails();
-        if (composeThreadId) openThread(composeThreadId);
-      }, 1500);
-    } else {
-      setSendError(result.error || 'Failed to send email');
-    }
-  };
-
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -306,22 +248,17 @@ export default function InboxPage() {
         </div>
         <div className="ws-gmail-header-right">
           {google.status?.connected && (
-            <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" className="ws-gmail-open-btn">
-              <ExternalLink size={16} />
-              Open Gmail
-            </a>
+            <>
+              <a href="https://mail.google.com/mail/?view=cm&fs=1" target="_blank" rel="noopener noreferrer" className="ws-gmail-compose-btn">
+                <ExternalLink size={18} />
+                Compose
+              </a>
+              <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" className="ws-gmail-open-btn">
+                <ExternalLink size={16} />
+                Open Gmail
+              </a>
+            </>
           )}
-          <button
-            className="ws-gmail-compose-btn"
-            onClick={() => {
-              setComposeThreadId(undefined);
-              setShowCompose(true);
-            }}
-            disabled={!google.status?.connected}
-          >
-            <Send size={18} />
-            Compose
-          </button>
         </div>
       </header>
 
@@ -337,10 +274,10 @@ export default function InboxPage() {
               </svg>
             </div>
             <h2>Connect Your Gmail</h2>
-            <p>Send and receive emails directly from Trailblaize. Your emails stay synced with Gmail.</p>
+            <p>Read and manage your inbox directly from Trailblaize. Reply and compose in Gmail.</p>
             <ul className="ws-gmail-features">
               <li><Check size={16} /> Read and manage your inbox</li>
-              <li><Check size={16} /> Compose and send emails</li>
+              <li><Check size={16} /> Quick reply via Gmail redirect</li>
               <li><Check size={16} /> Secure OAuth 2.0 connection</li>
               <li><Check size={16} /> Real-time sync with Gmail</li>
             </ul>
@@ -587,39 +524,15 @@ export default function InboxPage() {
                   )}
                 </div>
                 <div className="ws-gmail-detail-footer">
-                  <button
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#inbox/${selectedThreadId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="ws-gmail-reply-btn"
-                    onClick={() => {
-                      const last = threadMessages[threadMessages.length - 1];
-                      if (last) {
-                        setComposeTo(last.fromEmail);
-                        setComposeSubject(last.subject.startsWith('Re:') ? last.subject : `Re: ${last.subject}`);
-                        setComposeThreadId(selectedThreadId);
-                        setShowCompose(true);
-                      }
-                    }}
                   >
                     <Reply size={16} />
-                    Reply
-                  </button>
-                  <button
-                    className="ws-gmail-reply-all-btn"
-                    onClick={() => {
-                      const last = threadMessages[threadMessages.length - 1];
-                      if (last) {
-                        const to = last.to || '';
-                        const allRecipients = [last.fromEmail, ...to.split(/[,;]/).map((e) => e.trim()).filter(Boolean)];
-                        const unique = [...new Set(allRecipients)].filter((e) => e && !isOurEmail(e));
-                        setComposeTo(unique.join(', '));
-                        setComposeSubject(last.subject.startsWith('Re:') ? last.subject : `Re: ${last.subject}`);
-                        setComposeThreadId(selectedThreadId);
-                        setShowCompose(true);
-                      }
-                    }}
-                  >
-                    <ReplyAll size={16} />
-                    Reply All
-                  </button>
+                    Reply in Gmail
+                  </a>
                 </div>
               </div>
             )}
@@ -686,19 +599,16 @@ export default function InboxPage() {
                       <Trash2 size={16} />
                       Dismiss
                     </button>
-                    <button
+                    <a
+                      href={`https://mail.google.com/mail/u/0/#inbox/${selectedNewEmail.threadId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="ws-gmail-reply-btn"
-                      onClick={() => {
-                        setComposeTo(selectedNewEmail.fromEmail);
-                        setComposeSubject(selectedNewEmail.subject.startsWith('Re:') ? selectedNewEmail.subject : `Re: ${selectedNewEmail.subject}`);
-                        setComposeThreadId(selectedNewEmail.threadId);
-                        setShowCompose(true);
-                        moveToConversations(selectedNewEmail.threadId);
-                      }}
+                      onClick={() => moveToConversations(selectedNewEmail.threadId)}
                     >
                       <Reply size={16} />
-                      Reply
-                    </button>
+                      Reply in Gmail
+                    </a>
                   </div>
                 </div>
               </div>
@@ -752,152 +662,6 @@ export default function InboxPage() {
         </div>
       )}
 
-      {/* Compose Modal */}
-      {showCompose && (
-        <div className="ws-gmail-compose-overlay" onClick={() => !google.sendingEmail && setShowCompose(false)}>
-          <div className="ws-gmail-compose-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ws-gmail-compose-header">
-              <h3>{composeThreadId ? 'Reply' : 'New Message'}</h3>
-              <button className="ws-gmail-compose-close" onClick={() => setShowCompose(false)} disabled={google.sendingEmail}>
-                <X size={20} />
-              </button>
-            </div>
-            {sendSuccess ? (
-              <div className="ws-gmail-send-success">
-                <Check size={48} />
-                <h4>Email Sent!</h4>
-                <p>Your message has been sent successfully.</p>
-              </div>
-            ) : (
-              <>
-                <div className="ws-gmail-compose-body">
-                  {/* Recipient confirmation - always visible so user can verify */}
-                  <div className="ws-gmail-compose-recipients">
-                    <div className="ws-gmail-compose-recipient-row">
-                      <span className="ws-gmail-compose-recipient-label">To:</span>
-                      <span className="ws-gmail-compose-recipient-value">{composeTo || '—'}</span>
-                    </div>
-                    {showCcBcc && composeCc && (
-                      <div className="ws-gmail-compose-recipient-row">
-                        <span className="ws-gmail-compose-recipient-label">Cc:</span>
-                        <span className="ws-gmail-compose-recipient-value">{composeCc}</span>
-                      </div>
-                    )}
-                    {showCcBcc && composeBcc && (
-                      <div className="ws-gmail-compose-recipient-row">
-                        <span className="ws-gmail-compose-recipient-label">Bcc:</span>
-                        <span className="ws-gmail-compose-recipient-value">{composeBcc}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="ws-gmail-compose-field">
-                    <label>To</label>
-                    <input
-                      type="text"
-                      value={composeTo}
-                      onChange={(e) => setComposeTo(e.target.value)}
-                      placeholder="recipient@example.com"
-                      disabled={google.sendingEmail}
-                    />
-                  </div>
-                  {showCcBcc && (
-                    <>
-                      <div className="ws-gmail-compose-field">
-                        <label>Cc</label>
-                        <input
-                          type="text"
-                          value={composeCc}
-                          onChange={(e) => setComposeCc(e.target.value)}
-                          placeholder="cc@example.com (optional)"
-                          disabled={google.sendingEmail}
-                        />
-                      </div>
-                      <div className="ws-gmail-compose-field">
-                        <label>Bcc</label>
-                        <input
-                          type="text"
-                          value={composeBcc}
-                          onChange={(e) => setComposeBcc(e.target.value)}
-                          placeholder="bcc@example.com (optional)"
-                          disabled={google.sendingEmail}
-                        />
-                      </div>
-                    </>
-                  )}
-                  {!showCcBcc && (
-                    <button className="ws-gmail-cc-toggle" onClick={() => setShowCcBcc(true)}>
-                      Cc/Bcc
-                    </button>
-                  )}
-                  <div className="ws-gmail-compose-field">
-                    <label>Subject</label>
-                    <input
-                      type="text"
-                      value={composeSubject}
-                      onChange={(e) => setComposeSubject(e.target.value)}
-                      placeholder="Email subject"
-                      disabled={google.sendingEmail}
-                    />
-                  </div>
-                  <div className="ws-gmail-compose-field ws-gmail-compose-message">
-                    <textarea
-                      value={composeBody}
-                      onChange={(e) => setComposeBody(e.target.value)}
-                      placeholder="Write your message..."
-                      rows={8}
-                      disabled={google.sendingEmail}
-                    />
-                  </div>
-                  {sendError && (
-                    <div className="ws-gmail-send-error">
-                      <AlertCircle size={16} />
-                      <div className="ws-gmail-send-error-content">
-                        <span>{sendError}</span>
-                        {sendError.toLowerCase().includes('insufficient') && sendError.toLowerCase().includes('scope') && (
-                          <button
-                            type="button"
-                            className="ws-gmail-send-error-reconnect"
-                            onClick={() => {
-                              setShowCompose(false);
-                              setSendError(null);
-                              google.connect();
-                            }}
-                          >
-                            Reconnect Gmail to enable sending
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="ws-gmail-compose-footer">
-                  <button
-                    className="ws-gmail-send-btn"
-                    onClick={handleSendEmail}
-                    disabled={!composeTo || !composeSubject || google.sendingEmail}
-                  >
-                    {google.sendingEmail ? (
-                      <>
-                        <Loader2 size={16} className="spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} />
-                        Send
-                      </>
-                    )}
-                  </button>
-                  <button className="ws-gmail-discard-btn" onClick={() => setShowCompose(false)} disabled={google.sendingEmail}>
-                    Discard
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
