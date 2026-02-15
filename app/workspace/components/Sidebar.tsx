@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -25,7 +25,9 @@ import {
   HeartHandshake,
   Wallet,
   Building2,
-  Rocket
+  Rocket,
+  Bell,
+  MoreHorizontal,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -45,9 +47,9 @@ const iconMap: Record<string, LucideIcon> = {
 export function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
-  const { role, roleLabel, canAccessNucleus, features } = useUserRole();
+  const { role, roleLabel, canAccessNucleus } = useUserRole();
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   const navItems = getNavigationItems(role, unreadCount);
 
@@ -68,25 +70,63 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
     { name: 'Employees', href: '/nucleus/employees', icon: Users },
   ];
 
+  // Bottom tab items — first 4 nav items + More
+  const bottomTabItems = navItems.slice(0, 4);
+
+  // Remaining items for the More sheet
+  const moreNavItems = navItems.slice(4);
+
+  const closeMoreSheet = useCallback(() => {
+    setMoreSheetOpen(false);
+  }, []);
+
+  // Close more sheet on navigation
+  useEffect(() => {
+    setMoreSheetOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when more sheet is open
+  useEffect(() => {
+    if (moreSheetOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [moreSheetOpen]);
+
+  // Get the page title from the current path
+  const getPageTitle = () => {
+    if (inNucleus) {
+      const nucleusItem = nucleusModules.find(m => 
+        m.href === pathname || (m.href !== '/nucleus' && pathname.startsWith(m.href))
+      );
+      return nucleusItem?.name || 'Nucleus';
+    }
+    const activeItem = navItems.find(item => isActive(item.href));
+    return activeItem?.name || 'Workspace';
+  };
+
   return (
     <>
-      {/* Mobile Header */}
+      {/* Mobile Header — compact, 56px */}
       <header className="ws-mobile-header">
-        <button 
-          className="ws-mobile-menu-btn"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
         <div className="ws-mobile-logo">
           <img src="/logo-icon.svg" alt="Trailblaize" />
-          <span>Workspace</span>
         </div>
+        <span className="ws-mobile-page-title">{getPageTitle()}</span>
+        <button 
+          className="ws-mobile-menu-btn"
+          aria-label="Notifications"
+        >
+          <Bell size={20} />
+        </button>
       </header>
 
-      {/* Sidebar */}
-      <aside className={`ws-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+      {/* Desktop Sidebar */}
+      <aside className={`ws-sidebar ${collapsed ? 'collapsed' : ''}`}>
         <div className="ws-sidebar-header">
           <Link href="/workspace" className="ws-logo">
             <img src="/logo-icon.svg" alt="Trailblaize" className="ws-logo-icon" />
@@ -106,7 +146,6 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
             <Link
               href="/nucleus"
               className={`ws-nav-item ${pathname.startsWith('/nucleus') ? 'active' : ''}`}
-              onClick={() => setMobileOpen(false)}
             >
               <Zap size={20} />
               {!collapsed && <span>Nucleus Admin</span>}
@@ -119,7 +158,6 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
                   key={m.href}
                   href={m.href}
                   className={`ws-nav-item ws-nav-sub ${pathname === m.href || (m.href !== '/nucleus' && pathname.startsWith(m.href)) ? 'active' : ''}`}
-                  onClick={() => setMobileOpen(false)}
                 >
                   <m.icon size={18} />
                   <span>{m.name}</span>
@@ -134,7 +172,6 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 className={`ws-nav-item ${isActive(item.href) ? 'active' : ''} ${item.emphasized ? 'emphasized' : ''}`}
-                onClick={() => setMobileOpen(false)}
               >
                 <Icon size={20} />
                 {!collapsed && (
@@ -178,13 +215,126 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div 
-          className="ws-mobile-overlay"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      {/* Bottom Tab Bar — Mobile only (visibility controlled via CSS) */}
+      <nav className="ws-bottom-tabs" aria-label="Main navigation">
+        {bottomTabItems.map((item) => {
+          const Icon = iconMap[item.icon] || LayoutDashboard;
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`ws-bottom-tab ${active ? 'active' : ''}`}
+            >
+              <span className="ws-bottom-tab-icon">
+                <Icon size={22} />
+              </span>
+              <span className="ws-bottom-tab-label">{item.name}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          className={`ws-bottom-tab ${moreSheetOpen ? 'active' : ''}`}
+          onClick={() => setMoreSheetOpen(!moreSheetOpen)}
+          aria-label="More navigation"
+        >
+          <span className="ws-bottom-tab-icon">
+            <MoreHorizontal size={22} />
+          </span>
+          <span className="ws-bottom-tab-label">More</span>
+        </button>
+      </nav>
+
+      {/* More Sheet — Slide-up overlay (Mobile only) */}
+      <div
+        className={`ws-more-sheet-backdrop ${moreSheetOpen ? 'open' : ''}`}
+        onClick={closeMoreSheet}
+      />
+      <div className={`ws-more-sheet ${moreSheetOpen ? 'open' : ''}`}>
+        <div className="ws-more-sheet-handle" />
+        <div className="ws-more-sheet-header">
+          <span className="ws-more-sheet-title">Navigation</span>
+          <button
+            type="button"
+            className="ws-more-sheet-close"
+            onClick={closeMoreSheet}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="ws-more-sheet-content">
+          {/* Remaining workspace nav items */}
+          {moreNavItems.length > 0 && (
+            <div className="ws-more-sheet-section">
+              <div className="ws-more-sheet-section-label">Workspace</div>
+              {moreNavItems.map((item) => {
+                const Icon = iconMap[item.icon] || LayoutDashboard;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`ws-more-sheet-item ${isActive(item.href) ? 'active' : ''}`}
+                    onClick={closeMoreSheet}
+                  >
+                    <span className="ws-more-sheet-item-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span>{item.name}</span>
+                    {item.badge && item.badge > 0 && (
+                      <span className="ws-nav-badge">{item.badge}</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Nucleus modules — only if user can access */}
+          {canAccessNucleus && (
+            <div className="ws-more-sheet-section">
+              <div className="ws-more-sheet-section-label">Nucleus</div>
+              {nucleusModules.map((m) => {
+                const isModActive = pathname === m.href || (m.href !== '/nucleus' && pathname.startsWith(m.href));
+                return (
+                  <Link
+                    key={m.href}
+                    href={m.href}
+                    className={`ws-more-sheet-item ${isModActive ? 'active' : ''}`}
+                    onClick={closeMoreSheet}
+                  >
+                    <span className="ws-more-sheet-item-icon">
+                      <m.icon size={18} />
+                    </span>
+                    <span>{m.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="ws-more-sheet-divider" />
+
+          {/* User info + sign out */}
+          <div className="ws-more-sheet-user">
+            <div className="ws-more-sheet-user-avatar">
+              {profile?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="ws-more-sheet-user-info">
+              <div className="ws-more-sheet-user-name">{profile?.name}</div>
+              <div className="ws-more-sheet-user-email">{roleLabel}</div>
+            </div>
+            <button 
+              className="ws-logout-btn"
+              onClick={() => { signOut(); closeMoreSheet(); }}
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
