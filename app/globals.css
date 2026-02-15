@@ -13352,85 +13352,6 @@ input:focus {
   }
 }
 
-@media (max-width: 1023px) {
-  .ws-mobile-header {
-    display: flex;
-    height: 56px;
-  }
-
-  .ws-sidebar {
-    display: none;
-  }
-
-  .ws-mobile-overlay {
-    display: block;
-  }
-
-  .ws-main {
-    margin-left: 0;
-    margin-top: 56px;
-    margin-bottom: 64px; /* space for bottom tab bar */
-    height: calc(100dvh - 56px - 64px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .ws-topbar {
-    display: none;
-  }
-
-  .ws-content {
-    padding: 1rem;
-  }
-
-  .ws-bottom-tabs {
-    display: flex;
-  }
-
-  .ws-welcome {
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1.25rem;
-  }
-
-  .ws-welcome-date {
-    align-self: flex-start;
-  }
-
-  .ws-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .ws-col-side {
-    grid-template-columns: 1fr;
-  }
-
-  .ws-focus-card {
-    grid-column: span 1;
-  }
-
-  .ws-quick-actions-bar {
-    flex-wrap: wrap;
-  }
-
-  .ws-quick-actions-buttons {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .ws-keyboard-hint {
-    display: none;
-  }
-
-  .ws-team-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .ws-team-switcher {
-    flex-wrap: wrap;
-  }
-}
-
 /* ============================================
    BOTTOM TAB BAR (Mobile only)
    ============================================ */
@@ -13690,6 +13611,86 @@ input:focus {
 .ws-more-sheet-user-email {
   font-size: 0.75rem;
   color: var(--color-mist);
+}
+
+/* Mobile layout overrides */
+@media (max-width: 1023px) {
+  .ws-mobile-header {
+    display: flex;
+    height: 56px;
+  }
+
+  .ws-sidebar {
+    display: none;
+  }
+
+  .ws-mobile-overlay {
+    display: block;
+  }
+
+  .ws-main {
+    margin-left: 0;
+    margin-top: 56px;
+    margin-bottom: 64px; /* space for bottom tab bar */
+    height: calc(100dvh - 56px - 64px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ws-topbar {
+    display: none;
+  }
+
+  .ws-content {
+    padding: 1rem;
+  }
+
+  .ws-bottom-tabs {
+    display: flex;
+  }
+
+  .ws-welcome {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .ws-welcome-date {
+    align-self: flex-start;
+  }
+
+  .ws-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ws-col-side {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-focus-card {
+    grid-column: span 1;
+  }
+
+  .ws-quick-actions-bar {
+    flex-wrap: wrap;
+  }
+
+  .ws-quick-actions-buttons {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .ws-keyboard-hint {
+    display: none;
+  }
+
+  .ws-team-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-team-switcher {
+    flex-wrap: wrap;
+  }
 }
 
 /* ============================================
