@@ -965,6 +965,11 @@ export default function PipelineModule() {
                           </div>
                           <div className="pipeline-mobile-card-actions">
                             {deal.phone && (
+                              <a href={`tel:${deal.phone}`} className="action-btn followup-btn" title="Call">
+                                <Phone size={14} />
+                              </a>
+                            )}
+                            {deal.phone && (
                               <a href={`sms:${deal.phone}`} className="action-btn text-btn" title="Text">
                                 <MessageSquare size={14} />
                               </a>

@@ -3075,7 +3075,8 @@ input:focus {
 
   .module-search {
     max-width: 100%;
-    padding: 0.6rem 0.75rem;
+    padding: 0 0.75rem;
+    height: 44px;
     border-radius: 10px;
   }
 
@@ -3141,8 +3142,8 @@ input:focus {
   }
 
   .pipeline-mobile-card-body {
-    padding: 0.6rem 0.75rem;
-    gap: 0.2rem;
+    padding: 0.5rem 0.65rem;
+    gap: 0.15rem;
   }
 
   .pipeline-mobile-card-mid {
@@ -3199,6 +3200,11 @@ input:focus {
   .pipeline-tree-stat-card {
     min-width: 0;
     padding: 0.5rem 0.6rem;
+  }
+
+  /* Hide Close Rate on mobile — keeps 4 stats in clean 2x2 grid */
+  .pipeline-tree-stat-card-closerate {
+    display: none;
   }
 
   .pipeline-tree-stat-value {

@@ -228,7 +228,7 @@ export default function PipelineTreeView({
     });
   }, []);
 
-  const conferenceNames = useMemo(() => Array.from(tree.keys()).sort(), [tree]);
+  const conferenceNames = useMemo(() => Array.from(tree.keys()).sort().reverse(), [tree]);
   const hasExpandedDefault = useRef(false);
   useEffect(() => {
     if (conferenceNames.length > 0 && !hasExpandedDefault.current) {
@@ -265,7 +265,7 @@ export default function PipelineTreeView({
           <span className="pipeline-tree-stat-value">{formatCurrency(stats.closedArr)}</span>
           <span className="pipeline-tree-stat-label">Closed ARR</span>
         </div>
-        <div className="pipeline-tree-stat-card">
+        <div className="pipeline-tree-stat-card pipeline-tree-stat-card-closerate">
           <span className="pipeline-tree-stat-value">{stats.closeRate}%</span>
           <span className="pipeline-tree-stat-label">Close Rate</span>
         </div>
