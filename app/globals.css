@@ -26231,3 +26231,365 @@ body { background: #FAFAFA; }
 @media (max-width: 1023px) {
   .cc-breadcrumb { display: none; }
 }
+
+/* ================================================================
+   PHASE 4 PATCH: Calendar B&W + Dashboard condensed
+   ================================================================ */
+
+/* ---- Calendar → B&W with colored events ---- */
+.tb-cal {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  border-radius: 10px !important;
+}
+
+.tb-cal-header {
+  border-bottom: 1px solid #E5E5E5 !important;
+}
+
+.tb-cal-today {
+  border-color: #D1D5DB !important;
+  color: #111111 !important;
+  background: #F3F4F6 !important;
+  font-weight: 600 !important;
+}
+
+.tb-cal-today:hover {
+  background: #E5E5E5 !important;
+}
+
+.tb-cal-arrow {
+  border-color: #E5E5E5 !important;
+  color: #6B7280 !important;
+}
+
+.tb-cal-arrow:hover {
+  background: #F3F4F6 !important;
+  color: #111111 !important;
+}
+
+.tb-cal-title {
+  color: #111111 !important;
+}
+
+.tb-cal-views {
+  background: #F3F4F6 !important;
+  border-radius: 6px !important;
+}
+
+.tb-cal-views button {
+  color: #6B7280 !important;
+}
+
+.tb-cal-views button:hover {
+  color: #111111 !important;
+}
+
+.tb-cal-views button.active {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+.tb-cal-refresh {
+  border-color: #E5E5E5 !important;
+  color: #6B7280 !important;
+}
+
+.tb-cal-refresh:hover {
+  color: #111111 !important;
+  background: #F3F4F6 !important;
+}
+
+/* Week view */
+.tb-cal-week-dayname {
+  color: #9CA3AF !important;
+}
+
+.tb-cal-week-daynum {
+  color: #111111 !important;
+}
+
+.tb-cal-week-daynum.today {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+.tb-cal-week-day.today .tb-cal-week-dayname {
+  color: #111111 !important;
+}
+
+.tb-cal-week-col {
+  background: #FAFAFA !important;
+  border-radius: 6px !important;
+}
+
+.tb-cal-week-col.today {
+  background: #F3F4F6 !important;
+}
+
+/* Events keep their color — style the event cards to be light */
+.tb-cal-week-event {
+  background: #FFFFFF !important;
+  border-left-width: 3px !important;
+}
+
+.tb-cal-week-event:hover {
+  background: #F3F4F6 !important;
+}
+
+.tb-cal-week-event-time {
+  color: #6B7280 !important;
+}
+
+.tb-cal-week-event-title {
+  color: #111111 !important;
+}
+
+.tb-cal-week-more {
+  color: #6B7280 !important;
+}
+
+/* Day view agenda */
+.tb-cal-event-item {
+  background: #F9FAFB !important;
+  border: 1px solid #F3F4F6;
+}
+
+.tb-cal-event-item:hover {
+  background: #F3F4F6 !important;
+}
+
+.tb-cal-event-info .tb-cal-event-title {
+  color: #111111 !important;
+}
+
+.tb-cal-event-info .tb-cal-event-time {
+  color: #6B7280 !important;
+}
+
+.tb-cal-event-info .tb-cal-event-loc {
+  color: #9CA3AF !important;
+}
+
+.tb-cal-event-link {
+  background: #F3F4F6 !important;
+  color: #3B82F6 !important;
+}
+
+.tb-cal-event-link:hover {
+  background: #E5E5E5 !important;
+}
+
+.tb-cal-empty-day {
+  color: #9CA3AF !important;
+}
+
+.tb-cal-empty-day svg {
+  color: #D1D5DB !important;
+}
+
+/* Month view */
+.tb-cal-month-header > div {
+  color: #9CA3AF !important;
+}
+
+.tb-cal-month-day > span {
+  color: #374151 !important;
+}
+
+.tb-cal-month-day > span.today {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+.tb-cal-month-day.today {
+  background: #F3F4F6 !important;
+}
+
+.tb-cal-month-day:hover {
+  background: #F3F4F6 !important;
+}
+
+.tb-cal-month-day.other {
+  opacity: 0.3 !important;
+}
+
+/* Loading overlay */
+.tb-cal-loading {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #6B7280 !important;
+}
+
+/* Modal */
+.tb-cal-modal {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+}
+
+.tb-cal-modal-head {
+  border-bottom: 1px solid #E5E5E5 !important;
+}
+
+.tb-cal-modal-head h4 {
+  color: #111111 !important;
+}
+
+.tb-cal-modal-head button {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+
+.tb-cal-modal-head button:hover {
+  background: #E5E5E5 !important;
+  color: #111111 !important;
+}
+
+.tb-cal-modal-row {
+  color: #374151 !important;
+}
+
+.tb-cal-modal-row svg {
+  color: #6B7280 !important;
+}
+
+.tb-cal-modal-link {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+.tb-cal-modal-link:hover {
+  background: #374151 !important;
+}
+
+/* Connect prompt B&W */
+.tb-cal-connect {
+  color: #6B7280 !important;
+}
+
+.tb-cal-connect svg {
+  color: #9CA3AF !important;
+}
+
+.tb-cal-connect h3 {
+  color: #111111 !important;
+}
+
+.tb-cal-connect button {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+.tb-cal-connect button:hover {
+  background: #374151 !important;
+}
+
+/* ---- Dashboard condensed — tighter spacing ---- */
+.cc-dashboard {
+  gap: 16px !important;
+}
+
+.cc-greeting-text {
+  font-size: 1.2rem !important;
+}
+
+.cc-section-title {
+  font-size: 0.85rem !important;
+  margin-bottom: 8px !important;
+}
+
+.cc-priorities {
+  gap: 12px !important;
+}
+
+.cc-priority-card {
+  padding: 12px !important;
+  min-height: 160px !important;
+}
+
+.cc-priority-header {
+  margin-bottom: 8px !important;
+}
+
+.cc-priority-row {
+  padding: 6px 0 !important;
+}
+
+.cc-pipeline {
+  padding: 12px !important;
+}
+
+.cc-stats-row {
+  margin-bottom: 12px !important;
+}
+
+.cc-stat {
+  padding: 10px 12px !important;
+}
+
+.cc-stat-number {
+  font-size: 1.1rem !important;
+}
+
+.cc-bottom-grid {
+  gap: 12px !important;
+}
+
+.cc-activity-card,
+.cc-upcoming-card {
+  padding: 12px !important;
+}
+
+/* Calendar inside dashboard — constrain height */
+.cc-activity-card .tb-cal {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.cc-activity-card .tb-cal-content {
+  min-height: 140px !important;
+}
+
+.cc-activity-card .tb-cal-week-body {
+  min-height: 90px !important;
+}
+
+.cc-activity-card .tb-cal-week-col {
+  min-height: 80px !important;
+}
+
+@media (max-width: 1023px) {
+  .cc-dashboard {
+    gap: 12px !important;
+  }
+
+  .cc-greeting-text {
+    font-size: 1.1rem !important;
+  }
+
+  .cc-priority-card {
+    min-height: auto !important;
+    padding: 10px !important;
+  }
+
+  .cc-pipeline {
+    padding: 10px !important;
+  }
+
+  .cc-stat {
+    padding: 8px 10px !important;
+  }
+
+  .cc-stat-number {
+    font-size: 1rem !important;
+  }
+
+  .cc-stat-label {
+    font-size: 0.6rem !important;
+  }
+
+  .cc-activity-card,
+  .cc-upcoming-card {
+    padding: 10px !important;
+  }
+}
