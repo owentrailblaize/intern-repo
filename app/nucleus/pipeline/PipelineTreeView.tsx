@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Edit2, User } from 'lucide-react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronRight, Edit2, User, AlertTriangle } from 'lucide-react';
 import { Deal, DealStage, STAGE_CONFIG } from '@/lib/supabase';
 import { getConferenceForDeal } from '@/lib/conference-map';
 
@@ -31,6 +31,20 @@ function getSchoolPipelineStatus(deals: Deal[]): SchoolPipelineStatus {
   if (hasContractOrClosed) return 'Pipeline';
   if (hasDemoStages) return 'IFC Pipeline';
   return 'New Target';
+}
+
+/** Abbreviated stage labels for mobile */
+const MOBILE_STAGE_LABELS: Partial<Record<string, string>> = {
+  'Pipeline': 'PIPE',
+  'IFC Pipeline': 'IFC',
+  'New Target': 'NEW',
+  'Active Client': 'ACTIVE',
+};
+
+/** Check if any deal in a set has an overdue follow-up */
+function hasOverdueFollowups(deals: Deal[]): boolean {
+  const now = new Date();
+  return deals.some(d => d.next_followup && new Date(d.next_followup) < now);
 }
 
 interface TreeChapter {
@@ -84,6 +98,19 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 }
 
+/** Detect mobile viewport for accordion behavior */
+function useIsMobile(breakpoint = 1024): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 interface PipelineTreeViewProps {
   deals: Deal[];
   onEditDeal: (deal: Deal) => void;
@@ -104,6 +131,7 @@ export default function PipelineTreeView({
   searchQuery,
 }: PipelineTreeViewProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const isMobile = useIsMobile();
 
   const filteredDeals = useMemo(() => {
     let list = deals.filter(d => d.stage !== 'closed_lost');
@@ -147,14 +175,58 @@ export default function PipelineTreeView({
     };
   }, [filteredDeals]);
 
-  const toggle = (id: string) => {
+  /** Toggle with accordion behavior on mobile for conferences */
+  const toggleConference = useCallback((confId: string) => {
     setExpanded(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(confId)) {
+        // Collapse this conference and all its children
+        next.delete(confId);
+        // Remove all school/chapter keys under this conference
+        for (const key of prev) {
+          if (key.startsWith('school-') || key.startsWith('chapter-')) {
+            // We need to check if the school/chapter belongs to this conference
+            // For simplicity, just keep them — they won't render since parent is collapsed
+          }
+        }
+      } else {
+        if (isMobile) {
+          // Accordion: collapse all other conferences first
+          for (const key of prev) {
+            if (key.startsWith('conf-')) {
+              next.delete(key);
+            }
+          }
+        }
+        next.add(confId);
+      }
       return next;
     });
-  };
+  }, [isMobile]);
+
+  const toggleSchool = useCallback((schoolId: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(schoolId)) {
+        next.delete(schoolId);
+      } else {
+        next.add(schoolId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleChapter = useCallback((chapterId: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(chapterId)) {
+        next.delete(chapterId);
+      } else {
+        next.add(chapterId);
+      }
+      return next;
+    });
+  }, []);
 
   const conferenceNames = useMemo(() => Array.from(tree.keys()).sort(), [tree]);
   const hasExpandedDefault = useRef(false);
@@ -163,11 +235,16 @@ export default function PipelineTreeView({
       hasExpandedDefault.current = true;
       setExpanded(prev => {
         const next = new Set(prev);
-        conferenceNames.forEach(c => next.add(`conf-${c}`));
+        if (isMobile) {
+          // On mobile, expand only the first conference by default
+          next.add(`conf-${conferenceNames[0]}`);
+        } else {
+          conferenceNames.forEach(c => next.add(`conf-${c}`));
+        }
         return next;
       });
     }
-  }, [conferenceNames]);
+  }, [conferenceNames, isMobile]);
 
   return (
     <div className="pipeline-tree-view">
@@ -208,21 +285,29 @@ export default function PipelineTreeView({
               const schoolCount = conf.schools.size;
               const totalChapters = Array.from(conf.schools.values()).reduce((s, sch) => s + sch.chapters.size, 0);
               const confArr = conf.deals.filter(d => d.stage === 'closed_won').reduce((s, d) => s + (Number(d.value) || 0), 0);
+              const confOverdue = hasOverdueFollowups(conf.deals);
 
               return (
                 <div key={confId} className="pipeline-tree-branch pipeline-tree-branch-conference">
                   <button
                     type="button"
                     className="pipeline-tree-node pipeline-tree-node-conference"
-                    onClick={() => toggle(confId)}
+                    onClick={() => toggleConference(confId)}
                   >
-                    <span className="pipeline-tree-chevron">{isConfOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>
+                    <span className={`pipeline-tree-chevron ${isConfOpen ? 'rotated' : ''}`}>
+                      <ChevronRight size={18} />
+                    </span>
                     <span className="pipeline-tree-node-main">
                       <span className="pipeline-tree-node-label">{conf.name}</span>
                       <span className="pipeline-tree-node-badges">
                         <span className="pipeline-tree-badge">{schoolCount} schools</span>
                         <span className="pipeline-tree-badge">{totalChapters} chapters</span>
                         <span className="pipeline-tree-badge pipeline-tree-badge-arr">{formatCurrency(confArr)} ARR</span>
+                        {confOverdue && (
+                          <span className="pipeline-tree-badge pipeline-tree-badge-warning" title="Has overdue follow-ups">
+                            <AlertTriangle size={11} />
+                          </span>
+                        )}
                       </span>
                     </span>
                   </button>
@@ -230,36 +315,42 @@ export default function PipelineTreeView({
                     <div className="pipeline-tree-children pipeline-tree-children-school">
                       {Array.from(conf.schools.entries())
                         .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([schoolName, school]) => {
+                        .map(([, school]) => {
                           const schoolId = school.key;
                           const isSchoolOpen = expanded.has(schoolId);
                           const schoolStatus = getSchoolPipelineStatus(school.deals);
                           const schoolArr = school.deals.filter(d => d.stage === 'closed_won').reduce((s, d) => s + (Number(d.value) || 0), 0);
-
                           const isSchoolActive = schoolStatus === 'Active Client';
+                          const statusLabel = isMobile
+                            ? (MOBILE_STAGE_LABELS[schoolStatus] ?? schoolStatus.toUpperCase())
+                            : schoolStatus.toUpperCase();
+
                           return (
                             <div key={schoolId} className="pipeline-tree-branch pipeline-tree-branch-school">
                               <button
                                 type="button"
                                 className={`pipeline-tree-node pipeline-tree-node-school ${isSchoolActive ? 'pipeline-tree-node-school-active' : ''}`}
-                                onClick={() => toggle(schoolId)}
+                                onClick={() => toggleSchool(schoolId)}
                               >
-                                <span className="pipeline-tree-chevron">{isSchoolOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</span>
+                                <span className={`pipeline-tree-chevron ${isSchoolOpen ? 'rotated' : ''}`}>
+                                  <ChevronRight size={16} />
+                                </span>
                                 <span className="pipeline-tree-node-main">
                                   <span className="pipeline-tree-node-label">{school.name}</span>
                                   <span className={`pipeline-tree-status pipeline-tree-status-${schoolStatus.replace(/\s+/g, '-').toLowerCase()}`}>
-                                    {schoolStatus.toUpperCase().replace(/\s+/g, ' ')}
+                                    {statusLabel}
                                   </span>
                                   {schoolArr > 0 && (
                                     <span className="pipeline-tree-node-value">{formatCurrency(schoolArr)} ARR</span>
                                   )}
+                                  <span className="pipeline-tree-badge pipeline-tree-badge-count">{school.chapters.size} ch</span>
                                 </span>
                               </button>
                               {isSchoolOpen && (
                                 <div className="pipeline-tree-children pipeline-tree-children-chapter">
                                   {Array.from(school.chapters.entries())
                                     .sort(([a], [b]) => a.localeCompare(b))
-                                    .map(([chapterName, chapter]) => {
+                                    .map(([, chapter]) => {
                                       const chapterId = chapter.key;
                                       const isChapterOpen = expanded.has(chapterId);
                                       const primaryDeal = chapter.deals[0];
@@ -274,15 +365,18 @@ export default function PipelineTreeView({
                                             type="button"
                                             className={`pipeline-tree-node pipeline-tree-node-chapter ${isClosed ? 'pipeline-tree-node-chapter-closed' : ''}`}
                                             style={{ ['--stage-color' as string]: color }}
-                                            onClick={() => toggle(chapterId)}
+                                            onClick={() => toggleChapter(chapterId)}
                                           >
-                                            <span className="pipeline-tree-chevron">{isChapterOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+                                            <span className={`pipeline-tree-chevron ${isChapterOpen ? 'rotated' : ''}`}>
+                                              <ChevronRight size={14} />
+                                            </span>
                                             <span className="pipeline-tree-node-main">
                                               <span className="pipeline-tree-node-label">{chapter.name}</span>
                                               <span className="pipeline-tree-stage-badge" style={!isClosed ? { backgroundColor: `${color}20`, color } : undefined}>
                                                 {STAGE_CONFIG[stage]?.label ?? stage}
                                               </span>
                                               {value > 0 && <span className="pipeline-tree-node-value">{formatCurrency(value)}</span>}
+                                              <span className="pipeline-tree-badge pipeline-tree-badge-count">{chapter.deals.length} leads</span>
                                             </span>
                                           </button>
                                           {isChapterOpen && (
@@ -311,7 +405,7 @@ export default function PipelineTreeView({
                                                     <button
                                                       type="button"
                                                       className="pipeline-tree-edit-btn"
-                                                      onClick={() => onEditDeal(deal)}
+                                                      onClick={(e) => { e.stopPropagation(); onEditDeal(deal); }}
                                                       title="Edit in CRM"
                                                     >
                                                       <Edit2 size={14} />

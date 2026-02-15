@@ -45,6 +45,7 @@ export default function PipelineModule() {
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
   const [filterConference, setFilterConference] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -516,6 +517,21 @@ export default function PipelineModule() {
 
   const stageOrder: DealStage[] = ['lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won'];
 
+  // Active filter count for mobile badge
+  const activeFilterCount = [
+    filterStage !== 'all' ? 1 : 0,
+    filterSchool ? 1 : 0,
+    filterConference ? 1 : 0,
+    filterDateFrom ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  function clearAllFilters() {
+    setFilterStage('all');
+    setFilterSchool('');
+    setFilterConference('');
+    setFilterDateFrom('');
+  }
+
   function formatCurrency(value: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   }
@@ -642,6 +658,16 @@ export default function PipelineModule() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                className="module-search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="module-actions">
             <div className="pipeline-view-toggle">
@@ -660,47 +686,63 @@ export default function PipelineModule() {
                 Tree View
               </button>
             </div>
-            <select 
-              className="stage-filter"
-              value={filterStage}
-              onChange={(e) => setFilterStage(e.target.value as DealStage | 'all')}
+
+            {/* Desktop filters (hidden on mobile via CSS) */}
+            <div className="pipeline-desktop-filters">
+              <select 
+                className="stage-filter"
+                value={filterStage}
+                onChange={(e) => setFilterStage(e.target.value as DealStage | 'all')}
+              >
+                <option value="all">All Stages</option>
+                {fullStageOrder.map(stage => (
+                  <option key={stage} value={stage}>{STAGE_CONFIG[stage].emoji} {STAGE_CONFIG[stage].label}</option>
+                ))}
+              </select>
+              <select
+                className="stage-filter pipeline-filter-school"
+                value={filterSchool}
+                onChange={(e) => setFilterSchool(e.target.value)}
+              >
+                <option value="">All Schools</option>
+                {uniqueSchools.map(school => (
+                  <option key={school} value={school || ''}>{school}</option>
+                ))}
+              </select>
+              {viewMode === 'tree' && (
+                <>
+                  <select
+                    className="stage-filter pipeline-filter-school"
+                    value={filterConference}
+                    onChange={(e) => setFilterConference(e.target.value)}
+                  >
+                    <option value="">All Conferences</option>
+                    {uniqueConferences.map(conf => (
+                      <option key={conf} value={conf}>{conf}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    className="stage-filter pipeline-filter-date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    title="Date added from"
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Mobile filter button (shown on mobile via CSS) */}
+            <button
+              type="button"
+              className="module-secondary-btn pipeline-filters-btn"
+              onClick={() => setShowFilterSheet(true)}
             >
-              <option value="all">All Stages</option>
-              {fullStageOrder.map(stage => (
-                <option key={stage} value={stage}>{STAGE_CONFIG[stage].emoji} {STAGE_CONFIG[stage].label}</option>
-              ))}
-            </select>
-            <select
-              className="stage-filter pipeline-filter-school"
-              value={filterSchool}
-              onChange={(e) => setFilterSchool(e.target.value)}
-            >
-              <option value="">All Schools</option>
-              {uniqueSchools.map(school => (
-                <option key={school} value={school || ''}>{school}</option>
-              ))}
-            </select>
-            {viewMode === 'tree' && (
-              <>
-                <select
-                  className="stage-filter pipeline-filter-school"
-                  value={filterConference}
-                  onChange={(e) => setFilterConference(e.target.value)}
-                >
-                  <option value="">All Conferences</option>
-                  {uniqueConferences.map(conf => (
-                    <option key={conf} value={conf}>{conf}</option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  className="stage-filter pipeline-filter-date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  title="Date added from"
-                />
-              </>
-            )}
+              <Filter size={16} />
+              Filters
+              {activeFilterCount > 0 && <span className="pipeline-filters-badge">{activeFilterCount}</span>}
+            </button>
+
             <button className="module-secondary-btn" onClick={() => setShowImportModal(true)}>
               <Upload size={16} />
               Import
@@ -708,6 +750,92 @@ export default function PipelineModule() {
             <button className="module-primary-btn" onClick={() => setShowModal(true)}>
               <Plus size={18} />
               Add Lead
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Filter Sheet */}
+        <div
+          className={`pipeline-filter-sheet-backdrop ${showFilterSheet ? 'open' : ''}`}
+          onClick={() => setShowFilterSheet(false)}
+        />
+        <div className={`pipeline-filter-sheet ${showFilterSheet ? 'open' : ''}`}>
+          <div className="pipeline-filter-sheet-handle" />
+          <div className="pipeline-filter-sheet-header">
+            <span className="pipeline-filter-sheet-title">Filters</span>
+            <button
+              type="button"
+              className="module-search-clear"
+              onClick={() => setShowFilterSheet(false)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="pipeline-filter-sheet-body">
+            <div className="pipeline-filter-sheet-group">
+              <label>Stage</label>
+              <select
+                value={filterStage}
+                onChange={(e) => setFilterStage(e.target.value as DealStage | 'all')}
+              >
+                <option value="all">All Stages</option>
+                {fullStageOrder.map(stage => (
+                  <option key={stage} value={stage}>{STAGE_CONFIG[stage].emoji} {STAGE_CONFIG[stage].label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="pipeline-filter-sheet-group">
+              <label>School</label>
+              <select
+                value={filterSchool}
+                onChange={(e) => setFilterSchool(e.target.value)}
+              >
+                <option value="">All Schools</option>
+                {uniqueSchools.map(school => (
+                  <option key={school} value={school || ''}>{school}</option>
+                ))}
+              </select>
+            </div>
+            {viewMode === 'tree' && (
+              <>
+                <div className="pipeline-filter-sheet-group">
+                  <label>Conference</label>
+                  <select
+                    value={filterConference}
+                    onChange={(e) => setFilterConference(e.target.value)}
+                  >
+                    <option value="">All Conferences</option>
+                    {uniqueConferences.map(conf => (
+                      <option key={conf} value={conf}>{conf}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pipeline-filter-sheet-group">
+                  <label>Date From</label>
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: '10px', fontSize: '0.9rem' }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="pipeline-filter-sheet-footer">
+            <button
+              type="button"
+              className="pipeline-filter-sheet-clear"
+              onClick={() => { clearAllFilters(); setShowFilterSheet(false); }}
+            >
+              Clear All
+            </button>
+            <button
+              type="button"
+              className="pipeline-filter-sheet-apply"
+              onClick={() => setShowFilterSheet(false)}
+            >
+              Apply
             </button>
           </div>
         </div>
@@ -743,7 +871,7 @@ export default function PipelineModule() {
                         </td>
                         <td>
                           <div className="pipeline-table-contact">
-                            <span className="pipeline-card-name">{deal.contact_name || deal.name}</span>
+                            <span className="pipeline-card-name" onClick={() => openEditModal(deal)} role="button" tabIndex={0}>{deal.contact_name || deal.name}</span>
                             <span className={`temp-badge ${deal.temperature}`}>
                               {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
                             </span>
@@ -820,38 +948,27 @@ export default function PipelineModule() {
                     <div key={deal.id} className="pipeline-mobile-card">
                       <div className="pipeline-mobile-card-accent" style={{ background: stageColor }} />
                       <div className="pipeline-mobile-card-body">
+                        {/* Row 1: Name + Value */}
                         <div className="pipeline-mobile-card-top">
-                          <span className="pipeline-mobile-card-name">{deal.contact_name || deal.name}</span>
+                          <span className="pipeline-mobile-card-name" onClick={() => openEditModal(deal)}>{deal.contact_name || deal.name}</span>
                           <span className="pipeline-mobile-card-value">{formatCurrency(deal.value)}</span>
                         </div>
-                        <div className="pipeline-mobile-card-mid">
-                          {deal.organization && <span className="pipeline-mobile-card-org">{deal.organization}</span>}
-                          {deal.fraternity && <span className="pipeline-mobile-card-frat">{deal.fraternity}</span>}
-                          <span className="pipeline-mobile-card-stage">
-                            {STAGE_CONFIG[deal.stage]?.emoji} {STAGE_CONFIG[deal.stage]?.label}
-                          </span>
-                          <span className="pipeline-mobile-card-temp">
-                            {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
-                          </span>
-                        </div>
+                        {/* Row 2: Meta + Actions */}
                         <div className="pipeline-mobile-card-bottom">
-                          {deal.next_followup ? (
-                            <span className={`pipeline-mobile-card-followup ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
-                              <Clock size={11} />
-                              {getDaysUntil(deal.next_followup)}
+                          <div className="pipeline-mobile-card-mid">
+                            {deal.organization && <span className="pipeline-mobile-card-org">{deal.organization}</span>}
+                            {deal.organization && deal.fraternity && <span className="pipeline-mobile-card-dot">·</span>}
+                            {deal.fraternity && <span className="pipeline-mobile-card-frat">{deal.fraternity}</span>}
+                            <span className="pipeline-mobile-card-stage" style={{ backgroundColor: `${stageColor}15`, color: stageColor }}>
+                              {STAGE_CONFIG[deal.stage]?.label}
                             </span>
-                          ) : (
-                            <span />
-                          )}
+                          </div>
                           <div className="pipeline-mobile-card-actions">
                             {deal.phone && (
                               <a href={`sms:${deal.phone}`} className="action-btn text-btn" title="Text">
                                 <MessageSquare size={14} />
                               </a>
                             )}
-                            <button className="action-btn followup-btn" onClick={() => logFollowup(deal)} title="Log Follow-up">
-                              <Phone size={14} />
-                            </button>
                             {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
                               <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
                                 <ChevronRight size={14} />
