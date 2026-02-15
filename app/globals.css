@@ -26592,4 +26592,123 @@ body { background: #FAFAFA; }
   .cc-upcoming-card {
     padding: 10px !important;
   }
+
+  /* Calendar mobile: full-width, no overflow */
+  .cc-activity-card {
+    overflow: hidden !important;
+  }
+
+  .cc-activity-card .tb-cal {
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .cc-activity-card .tb-cal-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+
+  .cc-activity-card .tb-cal-nav {
+    justify-content: space-between !important;
+  }
+
+  .cc-activity-card .tb-cal-actions {
+    justify-content: flex-end !important;
+  }
+
+  .cc-activity-card .tb-cal-title {
+    font-size: 0.8rem !important;
+    flex: 1 !important;
+    margin-left: 4px !important;
+  }
+
+  /* Week view — make columns fit within the card */
+  .cc-activity-card .tb-cal-week {
+    padding: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .cc-activity-card .tb-cal-week-header {
+    gap: 1px !important;
+  }
+
+  .cc-activity-card .tb-cal-week-day {
+    padding: 2px 0 !important;
+  }
+
+  .cc-activity-card .tb-cal-week-dayname {
+    font-size: 0.55rem !important;
+  }
+
+  .cc-activity-card .tb-cal-week-daynum {
+    font-size: 0.8rem !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .cc-activity-card .tb-cal-week-body {
+    gap: 1px !important;
+    min-height: auto !important;
+  }
+
+  .cc-activity-card .tb-cal-week-col {
+    padding: 2px !important;
+    min-height: 70px !important;
+  }
+
+  .cc-activity-card .tb-cal-week-event {
+    padding: 2px 3px !important;
+  }
+
+  .cc-activity-card .tb-cal-week-event-time {
+    font-size: 0.5rem !important;
+  }
+
+  .cc-activity-card .tb-cal-week-event-title {
+    font-size: 0.55rem !important;
+  }
+
+  .cc-activity-card .tb-cal-week-more {
+    font-size: 0.5rem !important;
+  }
+
+  .cc-activity-card .tb-cal-content {
+    min-height: auto !important;
+  }
+
+  /* Day view — fits fine, just tighten */
+  .cc-activity-card .tb-cal-agenda {
+    padding: 6px !important;
+  }
+
+  /* Month view — tighten grid */
+  .cc-activity-card .tb-cal-month {
+    padding: 4px !important;
+  }
+
+  .cc-activity-card .tb-cal-month-day {
+    padding: 2px !important;
+  }
+
+  /* Upcoming follow-ups card — ensure full width */
+  .cc-upcoming-card {
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .cc-upcoming-row {
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+    padding: 8px 0 !important;
+  }
+
+  .cc-upcoming-name {
+    font-size: 0.8rem !important;
+  }
+
+  .cc-upcoming-school {
+    font-size: 0.7rem !important;
+  }
 }
