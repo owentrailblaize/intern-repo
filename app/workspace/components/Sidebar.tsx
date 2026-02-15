@@ -42,6 +42,8 @@ const iconMap: Record<string, LucideIcon> = {
   Target,
   Users,
   MessageCircle,
+  Zap,
+  TrendingUp,
 };
 
 export function Sidebar({ unreadCount = 0 }: SidebarProps) {
@@ -70,11 +72,17 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
     { name: 'Employees', href: '/nucleus/employees', icon: Users },
   ];
 
-  // Bottom tab items — first 4 nav items + More
-  const bottomTabItems = navItems.slice(0, 4);
+  // Bottom tab items for mobile
+  const bottomTabItems = canAccessNucleus
+    ? [
+        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard' },
+        { name: 'Nucleus', href: '/nucleus', icon: 'Zap' },
+        { name: 'Pipeline', href: '/nucleus/pipeline', icon: 'TrendingUp' },
+      ]
+    : navItems.slice(0, 4);
 
-  // Remaining items for the More sheet
-  const moreNavItems = navItems.slice(4);
+  // Remaining items for the More sheet (non-admin only)
+  const moreNavItems = canAccessNucleus ? [] : navItems.slice(4);
 
   const closeMoreSheet = useCallback(() => {
     setMoreSheetOpen(false);
@@ -219,7 +227,11 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
       <nav className="ws-bottom-tabs" aria-label="Main navigation">
         {bottomTabItems.map((item) => {
           const Icon = iconMap[item.icon] || LayoutDashboard;
-          const active = isActive(item.href);
+          const active = item.href === '/workspace'
+            ? pathname === '/workspace'
+            : item.href === '/nucleus'
+              ? pathname === '/nucleus'
+              : pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
@@ -233,17 +245,19 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
             </Link>
           );
         })}
-        <button
-          type="button"
-          className={`ws-bottom-tab ${moreSheetOpen ? 'active' : ''}`}
-          onClick={() => setMoreSheetOpen(!moreSheetOpen)}
-          aria-label="More navigation"
-        >
-          <span className="ws-bottom-tab-icon">
-            <MoreHorizontal size={22} />
-          </span>
-          <span className="ws-bottom-tab-label">More</span>
-        </button>
+        {!canAccessNucleus && (
+          <button
+            type="button"
+            className={`ws-bottom-tab ${moreSheetOpen ? 'active' : ''}`}
+            onClick={() => setMoreSheetOpen(!moreSheetOpen)}
+            aria-label="More navigation"
+          >
+            <span className="ws-bottom-tab-icon">
+              <MoreHorizontal size={22} />
+            </span>
+            <span className="ws-bottom-tab-label">More</span>
+          </button>
+        )}
       </nav>
 
       {/* More Sheet — Slide-up overlay (Mobile only) */}
