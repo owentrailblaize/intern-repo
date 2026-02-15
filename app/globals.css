@@ -24352,3 +24352,856 @@ input:focus {
     min-width: auto;
   }
 }
+
+/* ================================================================
+   PHASE 3: Lead Detail Panel, Toast, Follow-Up, Stage Advancement
+   ================================================================ */
+
+/* ====== CRM Toast Notification System ====== */
+.crm-toast {
+  position: fixed;
+  z-index: 9999;
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: #1e293b;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  pointer-events: none;
+  /* Desktop: top-right */
+  top: 24px;
+  right: 24px;
+  transform: translateX(120%);
+  transition: transform 0.2s ease-out;
+}
+
+.crm-toast-enter {
+  transform: translateX(0);
+}
+
+.crm-toast-success {
+  border-left: 3px solid #10b981;
+}
+
+.crm-toast-error {
+  border-left: 3px solid #ef4444;
+}
+
+.crm-toast-info {
+  border-left: 3px solid #3b82f6;
+}
+
+@media (max-width: 1023px) {
+  .crm-toast {
+    top: auto;
+    right: auto;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+  }
+  .crm-toast-enter {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ====== Lead Detail Panel (desktop slide-over + mobile sheet) ====== */
+.ldp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 150;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+}
+
+.ldp-overlay-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Desktop panel */
+.ldp-panel-desktop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  max-width: 100vw;
+  background: white;
+  z-index: 151;
+  transform: translateX(100%);
+  transition: transform 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.ldp-panel-desktop.ldp-panel-visible {
+  transform: translateX(0);
+}
+
+/* Mobile full-screen sheet */
+.ldp-panel-mobile {
+  position: fixed;
+  top: 24px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  z-index: 151;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.ldp-panel-mobile.ldp-panel-visible {
+  transform: translateY(0);
+}
+
+/* Drag handle */
+.ldp-drag-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+  cursor: grab;
+}
+
+.ldp-drag-bar {
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* Close button */
+.ldp-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 10px;
+  z-index: 5;
+}
+
+.ldp-close:hover {
+  background: #f3f4f6;
+}
+
+/* Header */
+.ldp-header {
+  padding: 20px 20px 0;
+  flex-shrink: 0;
+}
+
+.ldp-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ldp-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a2744;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ldp-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.ldp-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  flex-wrap: wrap;
+}
+
+.ldp-meta-dot {
+  color: #9ca3af;
+}
+
+.ldp-stage-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Quick Action Bar */
+.ldp-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.ldp-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ldp-action-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.ldp-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ldp-action-primary {
+  background: #1a2744;
+  color: white;
+  border-color: #1a2744;
+}
+
+.ldp-action-primary:hover:not(:disabled) {
+  background: #0f172a;
+}
+
+@media (max-width: 1023px) {
+  .ldp-action-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    flex: 0 0 auto;
+    border-radius: 12px;
+  }
+  .ldp-actions {
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 20px;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 2;
+  }
+}
+
+/* Tabs */
+.ldp-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.ldp-tab {
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ldp-tab:hover {
+  color: #374151;
+}
+
+.ldp-tab-active {
+  color: #1a2744;
+  border-bottom-color: #1a2744;
+}
+
+/* Body */
+.ldp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Details tab */
+.ldp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ldp-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 12px;
+}
+
+.ldp-field-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+
+.ldp-field-value {
+  font-size: 0.875rem;
+  color: #1a2744;
+  text-align: right;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.ldp-field-value:hover .ldp-field-pencil {
+  opacity: 1;
+}
+
+.ldp-field-pencil {
+  opacity: 0;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.ldp-field-check {
+  color: #10b981;
+  flex-shrink: 0;
+  animation: ldpCheckPop 0.3s ease-out;
+}
+
+@keyframes ldpCheckPop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.ldp-field-saved {
+  color: #10b981;
+}
+
+.ldp-field-clickable {
+  color: #3b82f6;
+}
+
+.ldp-field-readonly {
+  cursor: default;
+  color: #6b7280;
+}
+
+.ldp-field-edit {
+  flex: 1;
+  text-align: right;
+}
+
+.ldp-field-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1a2744;
+  outline: none;
+  text-align: right;
+}
+
+.ldp-stage-select {
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: white;
+  cursor: pointer;
+}
+
+/* Notes tab */
+.ldp-notes {
+  position: relative;
+}
+
+.ldp-notes-textarea {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 200px;
+  color: #1a2744;
+  outline: none;
+  font-family: inherit;
+}
+
+.ldp-notes-textarea:focus {
+  border-color: #3b82f6;
+}
+
+.ldp-notes-saved {
+  position: absolute;
+  top: -4px;
+  right: 8px;
+  font-size: 0.75rem;
+  color: #10b981;
+  font-weight: 500;
+  animation: ldpFadeIn 0.3s ease-out;
+}
+
+@keyframes ldpFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Activity tab */
+.ldp-activity-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.ldp-activity-placeholder p {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0;
+}
+
+.ldp-activity-placeholder span {
+  font-size: 0.8rem;
+}
+
+/* Footer */
+.ldp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+.ldp-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+}
+
+.ldp-archive-btn {
+  color: #6b7280;
+}
+
+.ldp-archive-btn:hover {
+  background: #f3f4f6;
+}
+
+.ldp-delete-btn {
+  color: #ef4444;
+}
+
+.ldp-delete-btn:hover {
+  background: #fef2f2;
+}
+
+@media (max-width: 1023px) {
+  .ldp-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ldp-footer-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+  }
+  .ldp-delete-btn {
+    border-color: #fecaca;
+  }
+}
+
+/* Confirm mini-modal */
+.ldp-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.ldp-confirm {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 320px;
+  width: calc(100% - 40px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.ldp-confirm h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a2744;
+  margin: 0 0 8px;
+}
+
+.ldp-confirm p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.ldp-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.ldp-confirm-cancel {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ldp-confirm-ok {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #1a2744;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ldp-confirm-danger {
+  background: #dc2626;
+}
+
+/* ====== Follow-Up Picker ====== */
+/* Desktop popover */
+.fup-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fup-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a2744;
+}
+
+.fup-preset {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fup-preset:hover {
+  background: #f3f4f6;
+}
+
+.fup-preset-custom {
+  color: #3b82f6;
+}
+
+.fup-preset-clear {
+  color: #ef4444;
+}
+
+.fup-custom-row {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+}
+
+.fup-date-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.fup-custom-ok {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1a2744;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Mobile follow-up sheet */
+.fup-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+}
+
+.fup-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  z-index: 201;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.fup-sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+
+.fup-sheet-bar {
+  width: 36px;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+}
+
+.fup-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 20px 12px;
+}
+
+.fup-sheet-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a2744;
+}
+
+.fup-sheet-close {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.fup-sheet-body {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fup-sheet-body .fup-preset {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+/* ====== Overdue row / card styling ====== */
+.pipeline-table tbody tr.row-overdue {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.pipeline-table tbody tr.row-overdue:hover {
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.followup-clickable {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: background 0.15s;
+}
+
+.followup-clickable:hover {
+  background: #f3f4f6;
+}
+
+.followup-reminder.overdue span,
+.followup-clickable.overdue span {
+  color: #dc2626;
+}
+
+.followup-clickable.today span {
+  color: #d97706;
+}
+
+/* Mobile overdue accent override */
+.pipeline-mobile-card.mobile-card-overdue .pipeline-mobile-card-accent {
+  width: 3px;
+  background: #ef4444 !important;
+}
+
+/* ====== Advance button success state ====== */
+.action-btn.advance-success {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+  color: white !important;
+  transition: all 0.2s;
+}
+
+/* ====== Tree view: stage dropdown ====== */
+.tree-stage-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tree-stage-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.8rem;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-stage-option:hover {
+  background: #f3f4f6;
+}
+
+.tree-stage-option.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  .tree-stage-dropdown {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px 16px 0 0;
+    padding: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 200;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  }
+  .tree-stage-option {
+    padding: 14px 16px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+}
+
+/* ====== Tree view: call button on contacts ====== */
+.pipeline-tree-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  background: white;
+  color: #059669;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.pipeline-tree-call-btn:hover {
+  background: #ecfdf5;
+}

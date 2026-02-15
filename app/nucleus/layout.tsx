@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { ReactNode } from 'react';
 import { Sidebar } from '@/app/workspace/components/Sidebar';
+import { ToastProvider } from '@/components/Toast';
 
 function NucleusLayoutInner({ children }: { children: ReactNode }) {
   return (
@@ -22,7 +23,9 @@ export default function NucleusLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <NucleusLayoutInner>{children}</NucleusLayoutInner>
+        <ToastProvider>
+          <NucleusLayoutInner>{children}</NucleusLayoutInner>
+        </ToastProvider>
       </ProtectedRoute>
     </AuthProvider>
   );

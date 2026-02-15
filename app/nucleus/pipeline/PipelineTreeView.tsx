@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, Edit2, User, AlertTriangle } from 'lucide-react';
-import { Deal, DealStage, STAGE_CONFIG } from '@/lib/supabase';
+import { ChevronRight, Edit2, User, AlertTriangle, Phone } from 'lucide-react';
+import { Deal, DealStage, STAGE_CONFIG, supabase } from '@/lib/supabase';
 import { getConferenceForDeal } from '@/lib/conference-map';
+import { useToast } from '@/components/Toast';
 
 /** Tree color by stage (family tree spec) */
 const TREE_STAGE_COLORS: Partial<Record<DealStage, string>> = {
@@ -114,6 +115,8 @@ function useIsMobile(breakpoint = 1024): boolean {
 interface PipelineTreeViewProps {
   deals: Deal[];
   onEditDeal: (deal: Deal) => void;
+  onCallDeal?: (deal: Deal) => void;
+  onStageChanged?: () => void;
   filterStage: DealStage | 'all';
   filterConference: string;
   filterSchool: string;
@@ -124,13 +127,17 @@ interface PipelineTreeViewProps {
 export default function PipelineTreeView({
   deals,
   onEditDeal,
+  onCallDeal,
+  onStageChanged,
   filterStage,
   filterConference,
   filterSchool,
   filterDateFrom,
   searchQuery,
 }: PipelineTreeViewProps) {
+  const { showToast } = useToast();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [stageDropdownDeal, setStageDropdownDeal] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   const filteredDeals = useMemo(() => {
@@ -227,6 +234,22 @@ export default function PipelineTreeView({
       return next;
     });
   }, []);
+
+  async function changeStageInline(dealId: string, newStage: DealStage) {
+    if (!supabase) return;
+    setStageDropdownDeal(null);
+    const { error } = await supabase
+      .from('deals')
+      .update({ stage: newStage })
+      .eq('id', dealId);
+
+    if (error) {
+      showToast('Failed to update stage. Please try again.', 'error');
+    } else {
+      showToast(`Stage updated to ${STAGE_CONFIG[newStage]?.label}`, 'success');
+      onStageChanged?.();
+    }
+  }
 
   const conferenceNames = useMemo(() => Array.from(tree.keys()).sort().reverse(), [tree]);
   const hasExpandedDefault = useRef(false);
@@ -396,12 +419,44 @@ export default function PipelineTreeView({
                                                         Estimated Close: {deal.expected_close}
                                                       </span>
                                                     )}
-                                                    <span className="pipeline-tree-stage-badge" style={{
-                                                      backgroundColor: deal.stage === 'closed_won' ? '#10b981' : `${getTreeStageColor(deal.stage)}30`,
-                                                      color: deal.stage === 'closed_won' ? 'white' : getTreeStageColor(deal.stage),
-                                                    }}>
+                                                    <span
+                                                      className="pipeline-tree-stage-badge pipeline-tree-stage-badge-clickable"
+                                                      style={{
+                                                        backgroundColor: deal.stage === 'closed_won' ? '#10b981' : `${getTreeStageColor(deal.stage)}30`,
+                                                        color: deal.stage === 'closed_won' ? 'white' : getTreeStageColor(deal.stage),
+                                                        cursor: 'pointer',
+                                                        position: 'relative',
+                                                      }}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setStageDropdownDeal(stageDropdownDeal === deal.id ? null : deal.id);
+                                                      }}
+                                                    >
                                                       {STAGE_CONFIG[deal.stage]?.label ?? deal.stage}
                                                     </span>
+                                                    {stageDropdownDeal === deal.id && (
+                                                      <div className="tree-stage-dropdown" onClick={e => e.stopPropagation()}>
+                                                        {Object.entries(STAGE_CONFIG).map(([key, cfg]) => (
+                                                          <button
+                                                            key={key}
+                                                            className={`tree-stage-option ${key === deal.stage ? 'active' : ''}`}
+                                                            onClick={() => changeStageInline(deal.id, key as DealStage)}
+                                                          >
+                                                            {cfg.emoji} {cfg.label}
+                                                          </button>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                    {deal.phone && (
+                                                      <button
+                                                        type="button"
+                                                        className="pipeline-tree-call-btn"
+                                                        onClick={(e) => { e.stopPropagation(); onCallDeal?.(deal); }}
+                                                        title="Call"
+                                                      >
+                                                        <Phone size={12} />
+                                                      </button>
+                                                    )}
                                                     <button
                                                       type="button"
                                                       className="pipeline-tree-edit-btn"

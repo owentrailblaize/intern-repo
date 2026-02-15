@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock, LayoutDashboard } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock, LayoutDashboard, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Deal, DealStage, STAGE_CONFIG, MRR_LEVEL_THRESHOLDS, MRR_LEVEL_TITLES } from '@/lib/supabase';
 import { getConferenceForDeal } from '@/lib/conference-map';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useToast } from '@/components/Toast';
 import PipelineTreeView from './PipelineTreeView';
+import LeadDetailPanel from './LeadDetailPanel';
+import FollowUpPicker from './FollowUpPicker';
 
 interface ParsedDeal {
   name: string;
@@ -32,6 +35,7 @@ interface SalesStats {
 }
 
 export default function PipelineModule() {
+  const { showToast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,6 +50,15 @@ export default function PipelineModule() {
   const [filterConference, setFilterConference] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+
+  // Lead detail panel
+  const [detailDeal, setDetailDeal] = useState<Deal | null>(null);
+  // Inline follow-up picker
+  const [followUpDealId, setFollowUpDealId] = useState<string | null>(null);
+  // Advancing stage — track which deal ID is showing success state
+  const [advancingId, setAdvancingId] = useState<string | null>(null);
+  // Mobile detection for call behavior
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -81,6 +94,15 @@ export default function PipelineModule() {
   const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
   const [importSuccess, setImportSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile for call behavior
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    setIsMobileDevice(mq.matches);
+    const h = (e: MediaQueryListEvent) => setIsMobileDevice(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
 
   // Fetch deals and calculate stats
   useEffect(() => {
@@ -140,7 +162,7 @@ export default function PipelineModule() {
     return { level, title: MRR_LEVEL_TITLES[level] ?? 'GOAT', progress, nextThreshold };
   }
 
-  // Stage advancement with celebration
+  // Stage advancement with optimistic UI + toast
   async function advanceStage(deal: Deal) {
     if (!supabase) return;
     
@@ -150,6 +172,11 @@ export default function PipelineModule() {
     
     const nextStage = stageOrder[currentIndex + 1];
     const today = new Date().toISOString().split('T')[0];
+
+    // Optimistic update
+    setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, stage: nextStage } : d));
+    setAdvancingId(deal.id);
+    setTimeout(() => setAdvancingId(null), 1500);
     
     const { error } = await supabase
       .from('deals')
@@ -160,16 +187,16 @@ export default function PipelineModule() {
       })
       .eq('id', deal.id);
 
-    if (!error) {
-      // Celebration for closing
+    if (error) {
+      // Revert optimistic update
+      setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, stage: deal.stage } : d));
+      showToast('Failed to update stage. Please try again.', 'error');
+    } else {
+      showToast(`Stage updated to ${STAGE_CONFIG[nextStage]?.label}`, 'success');
       if (nextStage === 'closed_won') {
         setCelebrationMessage(`🏆 DEAL CLOSED! +${STAGE_CONFIG.closed_won.points} points!`);
         setShowCelebration(true);
         setTimeout(() => setShowCelebration(false), 3000);
-      } else {
-        setCelebrationMessage(`${STAGE_CONFIG[nextStage].emoji} ${STAGE_CONFIG[nextStage].label}! +${STAGE_CONFIG[nextStage].points} pts`);
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 2000);
       }
       fetchDeals();
     }
@@ -542,7 +569,49 @@ export default function PipelineModule() {
     if (diff < 0) return `${Math.abs(diff)}d overdue`;
     if (diff === 0) return 'Today';
     if (diff === 1) return 'Tomorrow';
-    return `${diff}d`;
+    return `in ${diff}d`;
+  }
+
+  function getFollowUpStatus(date: string): 'overdue' | 'today' | 'future' | 'none' {
+    if (!date) return 'none';
+    const diff = Math.ceil((new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'overdue';
+    if (diff === 0) return 'today';
+    return 'future';
+  }
+
+  // Set follow-up from inline picker
+  async function setFollowUpDate(dealId: string, date: string | null) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('deals')
+      .update({ next_followup: date })
+      .eq('id', dealId);
+
+    setFollowUpDealId(null);
+    if (error) {
+      showToast('Failed to save. Please try again.', 'error');
+    } else {
+      showToast(date ? `Follow-up set for ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Follow-up cleared', date ? 'success' : 'info');
+      fetchDeals();
+    }
+  }
+
+  // Open detail panel
+  function openDetail(deal: Deal) {
+    setDetailDeal(deal);
+  }
+
+  // Call handler — tel: on mobile, copy on desktop
+  function handleCallClick(deal: Deal) {
+    if (!deal.phone) return;
+    if (isMobileDevice) {
+      window.location.href = `tel:${deal.phone}`;
+    } else {
+      navigator.clipboard.writeText(deal.phone).then(() => {
+        showToast(`Copied: ${deal.phone}`, 'info');
+      });
+    }
   }
 
   return (
@@ -861,8 +930,11 @@ export default function PipelineModule() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedDeals.map((deal) => (
-                      <tr key={deal.id} className={`stage-${deal.stage}`}>
+                    {sortedDeals.map((deal) => {
+                      const fupStatus = getFollowUpStatus(deal.next_followup);
+                      const isAdvancing = advancingId === deal.id;
+                      return (
+                      <tr key={deal.id} className={`stage-${deal.stage} ${fupStatus === 'overdue' ? 'row-overdue' : ''}`}>
                         <td>
                           <div className="pipeline-table-stage">
                             <span className="stage-emoji">{STAGE_CONFIG[deal.stage]?.emoji}</span>
@@ -871,7 +943,7 @@ export default function PipelineModule() {
                         </td>
                         <td>
                           <div className="pipeline-table-contact">
-                            <span className="pipeline-card-name" onClick={() => openEditModal(deal)} role="button" tabIndex={0}>{deal.contact_name || deal.name}</span>
+                            <span className="pipeline-card-name" onClick={() => openDetail(deal)} role="button" tabIndex={0}>{deal.contact_name || deal.name}</span>
                             <span className={`temp-badge ${deal.temperature}`}>
                               {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
                             </span>
@@ -890,30 +962,59 @@ export default function PipelineModule() {
                         <td className="pipeline-table-value">
                           <span className="pipeline-card-value">{formatCurrency(deal.value)}</span>
                         </td>
-                        <td>
-                          {deal.next_followup ? (
-                            <div className={`followup-reminder ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
-                              <Clock size={12} />
-                              <span>{getDaysUntil(deal.next_followup)}</span>
-                            </div>
-                          ) : (
-                            <span className="detail-org">—</span>
+                        <td style={{ position: 'relative' }}>
+                          <div
+                            className={`followup-reminder followup-clickable ${fupStatus}`}
+                            onClick={() => setFollowUpDealId(followUpDealId === deal.id ? null : deal.id)}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            {deal.next_followup ? (
+                              <>
+                                <Clock size={12} />
+                                <span>{getDaysUntil(deal.next_followup)}</span>
+                              </>
+                            ) : (
+                              <span className="detail-org">—</span>
+                            )}
+                          </div>
+                          {followUpDealId === deal.id && (
+                            <FollowUpPicker
+                              currentDate={deal.next_followup}
+                              onSelect={(date) => setFollowUpDate(deal.id, date)}
+                              onClose={() => setFollowUpDealId(null)}
+                              isMobile={false}
+                            />
                           )}
                         </td>
                         <td className="pipeline-table-actions">
                           <div className="pipeline-card-actions">
+                            <button
+                              className={`action-btn ${deal.phone ? 'followup' : ''}`}
+                              onClick={() => handleCallClick(deal)}
+                              title={deal.phone ? 'Call' : 'No phone number'}
+                              disabled={!deal.phone}
+                            >
+                              <Phone size={16} />
+                            </button>
                             {deal.phone && (
                               <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
                                 <MessageSquare size={16} />
                               </a>
                             )}
-                            <button className="action-btn followup" onClick={() => logFollowup(deal)} title="Log Follow-up">
-                              <Phone size={16} />
-                            </button>
-                            {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
-                              <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
-                                <ChevronRight size={16} />
-                                <span>Next</span>
+                            {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) ? (
+                              <button
+                                className={`action-btn advance ${isAdvancing ? 'advance-success' : ''}`}
+                                onClick={() => advanceStage(deal)}
+                                title="Advance Stage"
+                              >
+                                {isAdvancing ? <Check size={16} /> : <ChevronRight size={16} />}
+                                <span>{isAdvancing ? 'Done' : 'Next'}</span>
+                              </button>
+                            ) : (
+                              <button className="action-btn" disabled title="Final stage">
+                                <Check size={16} />
+                                <span>Won</span>
                               </button>
                             )}
                             <button className="action-btn edit" onClick={() => openEditModal(deal)}>
@@ -925,7 +1026,8 @@ export default function PipelineModule() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (
@@ -944,13 +1046,15 @@ export default function PipelineModule() {
               ) : sortedDeals.length > 0 ? (
                 sortedDeals.map((deal) => {
                   const stageColor = STAGE_CONFIG[deal.stage]?.color || '#6b7280';
+                  const fupStatus = getFollowUpStatus(deal.next_followup);
+                  const isAdvancing = advancingId === deal.id;
                   return (
-                    <div key={deal.id} className="pipeline-mobile-card">
-                      <div className="pipeline-mobile-card-accent" style={{ background: stageColor }} />
+                    <div key={deal.id} className={`pipeline-mobile-card ${fupStatus === 'overdue' ? 'mobile-card-overdue' : ''}`}>
+                      <div className="pipeline-mobile-card-accent" style={{ background: fupStatus === 'overdue' ? '#ef4444' : stageColor }} />
                       <div className="pipeline-mobile-card-body">
                         {/* Row 1: Name + Value */}
                         <div className="pipeline-mobile-card-top">
-                          <span className="pipeline-mobile-card-name" onClick={() => openEditModal(deal)}>{deal.contact_name || deal.name}</span>
+                          <span className="pipeline-mobile-card-name" onClick={() => openDetail(deal)}>{deal.contact_name || deal.name}</span>
                           <span className="pipeline-mobile-card-value">{formatCurrency(deal.value)}</span>
                         </div>
                         {/* Row 2: Meta + Actions */}
@@ -975,8 +1079,12 @@ export default function PipelineModule() {
                               </a>
                             )}
                             {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
-                              <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
-                                <ChevronRight size={14} />
+                              <button
+                                className={`action-btn advance ${isAdvancing ? 'advance-success' : ''}`}
+                                onClick={() => advanceStage(deal)}
+                                title="Advance Stage"
+                              >
+                                {isAdvancing ? <Check size={14} /> : <ChevronRight size={14} />}
                               </button>
                             )}
                             <button className="action-btn" onClick={() => openEditModal(deal)} title="Edit">
@@ -1003,6 +1111,8 @@ export default function PipelineModule() {
           <PipelineTreeView
             deals={deals}
             onEditDeal={openEditModal}
+            onCallDeal={handleCallClick}
+            onStageChanged={fetchDeals}
             filterStage={filterStage}
             filterConference={filterConference}
             filterSchool={filterSchool}
@@ -1382,6 +1492,24 @@ export default function PipelineModule() {
         onConfirm={() => deleteConfirm.id && deleteDeal(deleteConfirm.id)}
         onCancel={() => setDeleteConfirm({ show: false, id: null })}
       />
+
+      {/* Lead Detail Panel (desktop slide-over / mobile full-screen sheet) */}
+      {detailDeal && (
+        <LeadDetailPanel
+          deal={detailDeal}
+          onClose={() => setDetailDeal(null)}
+          onUpdated={() => {
+            fetchDeals();
+            // Refresh the detail deal with latest data
+            if (detailDeal) {
+              supabase?.from('deals').select('*').eq('id', detailDeal.id).single().then(({ data }) => {
+                if (data) setDetailDeal(data);
+              });
+            }
+          }}
+          onDelete={(id) => { deleteDeal(id); setDetailDeal(null); }}
+        />
+      )}
     </div>
   );
 }
