@@ -1049,12 +1049,12 @@ export default function PipelineModule() {
                   const fupStatus = getFollowUpStatus(deal.next_followup);
                   const isAdvancing = advancingId === deal.id;
                   return (
-                    <div key={deal.id} className={`pipeline-mobile-card ${fupStatus === 'overdue' ? 'mobile-card-overdue' : ''}`}>
+                    <div key={deal.id} className={`pipeline-mobile-card ${fupStatus === 'overdue' ? 'mobile-card-overdue' : ''}`} onClick={() => openDetail(deal)}>
                       <div className="pipeline-mobile-card-accent" style={{ background: fupStatus === 'overdue' ? '#ef4444' : stageColor }} />
                       <div className="pipeline-mobile-card-body">
                         {/* Row 1: Name + Value */}
                         <div className="pipeline-mobile-card-top">
-                          <span className="pipeline-mobile-card-name" onClick={() => openDetail(deal)}>{deal.contact_name || deal.name}</span>
+                          <span className="pipeline-mobile-card-name">{deal.contact_name || deal.name}</span>
                           <span className="pipeline-mobile-card-value">{formatCurrency(deal.value)}</span>
                         </div>
                         {/* Row 2: Meta + Actions */}
@@ -1067,29 +1067,21 @@ export default function PipelineModule() {
                               {STAGE_CONFIG[deal.stage]?.label}
                             </span>
                           </div>
-                          <div className="pipeline-mobile-card-actions">
+                          <div className="pipeline-mobile-card-actions" onClick={e => e.stopPropagation()}>
                             {deal.phone && (
-                              <a href={`tel:${deal.phone}`} className="action-btn followup-btn" title="Call">
+                              <a href={`tel:${deal.phone}`} className="action-btn followup-btn" title="Call" onClick={e => e.stopPropagation()}>
                                 <Phone size={14} />
-                              </a>
-                            )}
-                            {deal.phone && (
-                              <a href={`sms:${deal.phone}`} className="action-btn text-btn" title="Text">
-                                <MessageSquare size={14} />
                               </a>
                             )}
                             {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
                               <button
                                 className={`action-btn advance ${isAdvancing ? 'advance-success' : ''}`}
-                                onClick={() => advanceStage(deal)}
+                                onClick={(e) => { e.stopPropagation(); advanceStage(deal); }}
                                 title="Advance Stage"
                               >
                                 {isAdvancing ? <Check size={14} /> : <ChevronRight size={14} />}
                               </button>
                             )}
-                            <button className="action-btn" onClick={() => openEditModal(deal)} title="Edit">
-                              <Edit2 size={13} />
-                            </button>
                           </div>
                         </div>
                       </div>
