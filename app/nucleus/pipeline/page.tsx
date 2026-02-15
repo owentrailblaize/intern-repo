@@ -712,100 +712,169 @@ export default function PipelineModule() {
           </div>
         </div>
 
-        {/* Pipeline Table or Tree */}
+        {/* Pipeline Table (desktop) or Mobile Cards */}
         {viewMode === 'list' && (
-        <div className="pipeline-table-wrap">
-          {loading ? (
-            <div className="module-loading">Loading...</div>
-          ) : sortedDeals.length > 0 ? (
-            <table className="pipeline-table">
-              <thead>
-                <tr>
-                  <th>Stage</th>
-                  <th>Contact</th>
-                  <th>School / Org</th>
-                  <th>Fraternity</th>
-                  <th className="pipeline-table-value">Value</th>
-                  <th>Follow-up</th>
-                  <th className="pipeline-table-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedDeals.map((deal) => (
-                  <tr key={deal.id} className={`stage-${deal.stage}`}>
-                    <td>
-                      <div className="pipeline-table-stage">
-                        <span className="stage-emoji">{STAGE_CONFIG[deal.stage]?.emoji}</span>
-                        <span className="stage-label">{STAGE_CONFIG[deal.stage]?.label}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="pipeline-table-contact">
-                        <span className="pipeline-card-name">{deal.contact_name || deal.name}</span>
-                        <span className={`temp-badge ${deal.temperature}`}>
-                          {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="detail-org">{deal.organization || '—'}</span>
-                    </td>
-                    <td>
-                      {deal.fraternity ? (
-                        <span className="detail-frat">{deal.fraternity}</span>
-                      ) : (
-                        <span className="detail-org">—</span>
-                      )}
-                    </td>
-                    <td className="pipeline-table-value">
-                      <span className="pipeline-card-value">{formatCurrency(deal.value)}</span>
-                    </td>
-                    <td>
-                      {deal.next_followup ? (
-                        <div className={`followup-reminder ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
-                          <Clock size={12} />
-                          <span>{getDaysUntil(deal.next_followup)}</span>
-                        </div>
-                      ) : (
-                        <span className="detail-org">—</span>
-                      )}
-                    </td>
-                    <td className="pipeline-table-actions">
-                      <div className="pipeline-card-actions">
-                        {deal.phone && (
-                          <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
-                            <MessageSquare size={16} />
-                          </a>
-                        )}
-                        <button className="action-btn followup" onClick={() => logFollowup(deal)} title="Log Follow-up">
-                          <Phone size={16} />
-                        </button>
-                        {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
-                          <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
-                            <ChevronRight size={16} />
-                            <span>Next</span>
-                          </button>
-                        )}
-                        <button className="action-btn edit" onClick={() => openEditModal(deal)}>
-                          <Edit2 size={14} />
-                        </button>
-                        <button className="action-btn delete" onClick={() => setDeleteConfirm({ show: true, id: deal.id })}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="module-empty-state">
-              <TrendingUp size={48} />
-              <h3>No leads yet</h3>
-              <p>Add your first lead to start tracking</p>
+          <>
+            {/* Desktop table — hidden on mobile via CSS */}
+            <div className="pipeline-table-wrap">
+              {loading ? (
+                <div className="module-loading">Loading...</div>
+              ) : sortedDeals.length > 0 ? (
+                <table className="pipeline-table">
+                  <thead>
+                    <tr>
+                      <th>Stage</th>
+                      <th>Contact</th>
+                      <th>School / Org</th>
+                      <th>Fraternity</th>
+                      <th className="pipeline-table-value">Value</th>
+                      <th>Follow-up</th>
+                      <th className="pipeline-table-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedDeals.map((deal) => (
+                      <tr key={deal.id} className={`stage-${deal.stage}`}>
+                        <td>
+                          <div className="pipeline-table-stage">
+                            <span className="stage-emoji">{STAGE_CONFIG[deal.stage]?.emoji}</span>
+                            <span className="stage-label">{STAGE_CONFIG[deal.stage]?.label}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="pipeline-table-contact">
+                            <span className="pipeline-card-name">{deal.contact_name || deal.name}</span>
+                            <span className={`temp-badge ${deal.temperature}`}>
+                              {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="detail-org">{deal.organization || '—'}</span>
+                        </td>
+                        <td>
+                          {deal.fraternity ? (
+                            <span className="detail-frat">{deal.fraternity}</span>
+                          ) : (
+                            <span className="detail-org">—</span>
+                          )}
+                        </td>
+                        <td className="pipeline-table-value">
+                          <span className="pipeline-card-value">{formatCurrency(deal.value)}</span>
+                        </td>
+                        <td>
+                          {deal.next_followup ? (
+                            <div className={`followup-reminder ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
+                              <Clock size={12} />
+                              <span>{getDaysUntil(deal.next_followup)}</span>
+                            </div>
+                          ) : (
+                            <span className="detail-org">—</span>
+                          )}
+                        </td>
+                        <td className="pipeline-table-actions">
+                          <div className="pipeline-card-actions">
+                            {deal.phone && (
+                              <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
+                                <MessageSquare size={16} />
+                              </a>
+                            )}
+                            <button className="action-btn followup" onClick={() => logFollowup(deal)} title="Log Follow-up">
+                              <Phone size={16} />
+                            </button>
+                            {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
+                              <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
+                                <ChevronRight size={16} />
+                                <span>Next</span>
+                              </button>
+                            )}
+                            <button className="action-btn edit" onClick={() => openEditModal(deal)}>
+                              <Edit2 size={14} />
+                            </button>
+                            <button className="action-btn delete" onClick={() => setDeleteConfirm({ show: true, id: deal.id })}>
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="module-empty-state">
+                  <TrendingUp size={48} />
+                  <h3>No leads yet</h3>
+                  <p>Add your first lead to start tracking</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            {/* Mobile card list — shown on mobile via CSS */}
+            <div className="pipeline-mobile-list">
+              {loading ? (
+                <div className="module-loading">Loading...</div>
+              ) : sortedDeals.length > 0 ? (
+                sortedDeals.map((deal) => {
+                  const stageColor = STAGE_CONFIG[deal.stage]?.color || '#6b7280';
+                  return (
+                    <div key={deal.id} className="pipeline-mobile-card">
+                      <div className="pipeline-mobile-card-accent" style={{ background: stageColor }} />
+                      <div className="pipeline-mobile-card-body">
+                        <div className="pipeline-mobile-card-top">
+                          <span className="pipeline-mobile-card-name">{deal.contact_name || deal.name}</span>
+                          <span className="pipeline-mobile-card-value">{formatCurrency(deal.value)}</span>
+                        </div>
+                        <div className="pipeline-mobile-card-mid">
+                          {deal.organization && <span className="pipeline-mobile-card-org">{deal.organization}</span>}
+                          {deal.fraternity && <span className="pipeline-mobile-card-frat">{deal.fraternity}</span>}
+                          <span className="pipeline-mobile-card-stage">
+                            {STAGE_CONFIG[deal.stage]?.emoji} {STAGE_CONFIG[deal.stage]?.label}
+                          </span>
+                          <span className="pipeline-mobile-card-temp">
+                            {deal.temperature === 'hot' ? '🔥' : deal.temperature === 'warm' ? '☀️' : '❄️'}
+                          </span>
+                        </div>
+                        <div className="pipeline-mobile-card-bottom">
+                          {deal.next_followup ? (
+                            <span className={`pipeline-mobile-card-followup ${new Date(deal.next_followup) <= new Date() ? 'overdue' : ''}`}>
+                              <Clock size={11} />
+                              {getDaysUntil(deal.next_followup)}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          <div className="pipeline-mobile-card-actions">
+                            {deal.phone && (
+                              <a href={`sms:${deal.phone}`} className="action-btn text-btn" title="Text">
+                                <MessageSquare size={14} />
+                              </a>
+                            )}
+                            <button className="action-btn followup-btn" onClick={() => logFollowup(deal)} title="Log Follow-up">
+                              <Phone size={14} />
+                            </button>
+                            {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
+                              <button className="action-btn advance" onClick={() => advanceStage(deal)} title="Advance Stage">
+                                <ChevronRight size={14} />
+                              </button>
+                            )}
+                            <button className="action-btn" onClick={() => openEditModal(deal)} title="Edit">
+                              <Edit2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="module-empty-state">
+                  <TrendingUp size={48} />
+                  <h3>No leads yet</h3>
+                  <p>Add your first lead to start tracking</p>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {viewMode === 'tree' && (

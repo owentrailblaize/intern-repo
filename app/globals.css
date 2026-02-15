@@ -2552,97 +2552,188 @@ input:focus {
     min-height: 0;
   }
 
+  /* Hide verbose header on mobile — page title already in top bar */
   .module-header {
-    padding: 0.75rem 0;
-  }
-
-  .module-header-content {
-    padding: 0 1rem;
+    display: none;
   }
 
   .module-main {
     padding: 0.75rem;
+    gap: 0.75rem;
   }
 
-  .module-title-row h1 {
-    font-size: 1.25rem;
-  }
-
-  /* Pipeline dashboard: stack metrics vertically */
+  /* Pipeline dashboard: compact horizontal scroll strip */
   .pipeline-dashboard {
-    flex-direction: column;
-    padding: 0.5rem;
-    gap: 0.5rem;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    gap: 0;
+    padding: 0;
+    margin: 0 -0.75rem;
+    padding: 0 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    scrollbar-width: none;
+  }
+
+  .pipeline-dashboard::-webkit-scrollbar {
+    display: none;
   }
 
   .pipeline-dashboard-metrics {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.35rem;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .pipeline-metric {
     min-width: 0;
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+    scroll-snap-align: start;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: white;
   }
 
+  .pipeline-metric-value {
+    font-size: 1rem !important;
+    line-height: 1.2;
+  }
+
+  .pipeline-metric-label {
+    font-size: 0.6rem !important;
+  }
+
+  /* Hide level card and quick stats on mobile — they clutter */
   .pipeline-level-card {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .pipeline-dashboard .pipeline-level-card {
-    min-width: 0;
+    display: none;
   }
 
   .pipeline-quick-stats,
   .pipeline-dashboard .pipeline-quick-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.35rem;
-    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .quick-stat {
     min-width: 0;
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+    gap: 0.4rem;
+    scroll-snap-align: start;
   }
 
   .pipeline-dashboard .quick-stat {
     min-width: 0;
+    padding: 0.5rem 0.6rem;
   }
 
-  /* Actions bar: full width, stacked */
+  .pipeline-dashboard .quick-stat .stat-value {
+    font-size: 0.95rem !important;
+  }
+
+  .pipeline-dashboard .quick-stat .stat-label {
+    font-size: 0.55rem !important;
+  }
+
+  .pipeline-dashboard .quick-stat .stat-icon {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* Actions bar: clean layout */
   .module-actions-bar {
     flex-direction: column;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
   }
 
   .module-search {
     max-width: 100%;
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
   }
 
   .module-actions {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
   }
 
+  .module-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* View toggle: clean pill style */
+  .pipeline-view-toggle {
+    flex-shrink: 0;
+    display: flex;
+  }
+
+  .pipeline-view-toggle .module-secondary-btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* Filters: inline scroll, compact */
   .module-actions select,
-  .module-actions button {
-    flex: 1;
+  .stage-filter {
+    flex-shrink: 0;
     min-width: 0;
     font-size: 0.8rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    white-space: nowrap;
   }
 
   .pipeline-filter-school,
   .pipeline-filter-date {
     min-width: 0;
-    flex: 1;
+    flex-shrink: 0;
   }
 
-  .pipeline-view-toggle {
+  .module-actions .module-secondary-btn,
+  .module-actions .module-primary-btn {
     flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  /* Hide table on mobile — show mobile cards instead */
+  .pipeline-table-wrap {
+    display: none;
+  }
+
+  .pipeline-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Pipeline cards: single column */
+  .pipeline-cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Pipeline stats bar (legacy) */
+  .pipeline-stats-bar {
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   /* Pipeline tree view */
@@ -2678,7 +2769,6 @@ input:focus {
     overflow-y: auto;
   }
 
-  /* Stack conferences vertically */
   .pipeline-tree-list {
     flex-direction: column;
     gap: 0.75rem;
@@ -2690,7 +2780,6 @@ input:focus {
     width: 100%;
   }
 
-  /* Reduce indentation on mobile to prevent overflow */
   .pipeline-tree-branch-school .pipeline-tree-children-school,
   .pipeline-tree-children-school {
     margin-left: 0.5rem;
@@ -2708,7 +2797,6 @@ input:focus {
     padding-left: 0.3rem;
   }
 
-  /* Nodes: compact and prevent overflow */
   .pipeline-tree-node {
     font-size: 0.8rem;
     padding: 0;
@@ -2793,26 +2881,162 @@ input:focus {
   .pipeline-tree-contact-icon {
     display: none;
   }
+}
 
-  /* Pipeline table: horizontal scroll with min-width */
-  .pipeline-table-wrap {
-    border-radius: 12px;
-  }
+/* Pipeline Mobile Card List (replaces table on mobile) */
+.pipeline-mobile-list {
+  display: none; /* shown via media query */
+}
 
-  .pipeline-table {
-    min-width: 700px;
-  }
+.pipeline-mobile-card {
+  display: flex;
+  align-items: stretch;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
 
-  /* Pipeline cards: single column */
-  .pipeline-cards {
-    grid-template-columns: 1fr;
-  }
+.pipeline-mobile-card:active {
+  background: #fafafa;
+}
 
-  /* Pipeline stats bar (legacy) */
-  .pipeline-stats-bar {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+.pipeline-mobile-card-accent {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.pipeline-mobile-card-body {
+  flex: 1;
+  padding: 0.75rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pipeline-mobile-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pipeline-mobile-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a2744;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipeline-mobile-card-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.pipeline-mobile-card-mid {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pipeline-mobile-card-org {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.pipeline-mobile-card-frat {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7c3aed;
+  background: #f3e8ff;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.pipeline-mobile-card-stage {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.pipeline-mobile-card-temp {
+  font-size: 0.75rem;
+}
+
+.pipeline-mobile-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.pipeline-mobile-card-followup {
+  font-size: 0.7rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pipeline-mobile-card-followup.overdue {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.pipeline-mobile-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pipeline-mobile-card-actions .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+  transition: all 0.15s;
+}
+
+.pipeline-mobile-card-actions .action-btn:active {
+  background: #f3f4f6;
+}
+
+.pipeline-mobile-card-actions .action-btn.advance {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  color: white;
+  padding: 0.35rem 0.6rem;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pipeline-mobile-card-actions .action-btn.followup-btn {
+  border-color: #a7f3d0;
+  color: #059669;
+}
+
+.pipeline-mobile-card-actions .action-btn.text-btn {
+  border-color: #bfdbfe;
+  color: #3b82f6;
 }
 
 /* Pipeline Cards */
