@@ -25257,3 +25257,977 @@ input:focus {
 .pipeline-tree-call-btn:hover {
   background: #ecfdf5;
 }
+
+/* ================================================================
+   PHASE 4: BLACK & WHITE THEME OVERHAUL
+   Color reserved for actions & status only.
+   ================================================================ */
+
+/* ---- CSS variable overrides ---- */
+:root {
+  --ws-bg: #FAFAFA;
+  --ws-surface: #FFFFFF;
+  --ws-border: #E5E5E5;
+  --ws-border-subtle: #F3F4F6;
+  --ws-text: #111111;
+  --ws-text-secondary: #6B7280;
+  --ws-text-muted: #9CA3AF;
+}
+
+/* ---- Global surfaces ---- */
+body { background: #FAFAFA; }
+
+.ws-layout { background: #FAFAFA; }
+
+.ws-main { background: #FAFAFA; }
+
+.ws-content { background: transparent; }
+
+/* ---- Sidebar — white, B&W ---- */
+.ws-sidebar {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E5E5E5 !important;
+}
+
+.ws-sidebar-header { color: #111111; }
+
+.ws-sidebar-logo-text { color: #111111 !important; }
+
+.ws-nav-item {
+  color: #6B7280 !important;
+  background: transparent !important;
+}
+
+.ws-nav-item:hover {
+  color: #111111 !important;
+  background: #F9FAFB !important;
+}
+
+.ws-nav-item.active {
+  color: #111111 !important;
+  background: #F3F4F6 !important;
+  border-left: 3px solid #111111;
+  font-weight: 600;
+}
+
+.ws-nav-item .ws-nav-icon {
+  color: inherit !important;
+}
+
+.ws-nav-section-label {
+  color: #9CA3AF !important;
+}
+
+.ws-sidebar-user { border-top: 1px solid #E5E5E5; }
+
+/* ---- Mobile bottom tab bar — white, B&W ---- */
+.ws-bottom-tabs {
+  background: #FFFFFF !important;
+  border-top: 1px solid #E5E5E5 !important;
+  backdrop-filter: none !important;
+}
+
+.ws-bottom-tab {
+  color: #9CA3AF !important;
+}
+
+.ws-bottom-tab.active {
+  color: #111111 !important;
+}
+
+.ws-bottom-tab.active .ws-bottom-tab-icon {
+  background: transparent !important;
+  color: #111111 !important;
+}
+
+/* ---- Mobile header — white, B&W ---- */
+.ws-mobile-header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E5E5E5 !important;
+  backdrop-filter: none !important;
+}
+
+.ws-mobile-page-title { color: #111111 !important; }
+
+/* ---- Stat cards / metrics — white, no color backgrounds ---- */
+.ws-metric-card,
+.ws-focus-card,
+.ws-card,
+.pipeline-tree-stat-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.pipeline-tree-stat-card-highlight {
+  background: #FFFFFF !important;
+}
+
+.ws-metric-value,
+.ws-stat-value,
+.pipeline-tree-stat-value,
+.pipeline-metric-value {
+  color: #111111 !important;
+}
+
+.ws-metric-label,
+.ws-stat-label,
+.pipeline-tree-stat-label,
+.pipeline-metric-label {
+  color: #6B7280 !important;
+}
+
+.pipeline-metric {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+/* ---- Pipeline dashboard — white ---- */
+.pipeline-dashboard {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+}
+
+@media (max-width: 1023px) {
+  .pipeline-dashboard {
+    background: transparent !important;
+    border: none !important;
+  }
+}
+
+/* ---- Level card — outlined badge, not colored ---- */
+.pipeline-level-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.level-badge {
+  background: #FFFFFF !important;
+  border: 1px solid #111111 !important;
+  color: #111111 !important;
+}
+
+.level-badge span,
+.level-number { color: #111111 !important; }
+
+.level-title { color: #111111 !important; }
+
+.level-progress-bar { background: #E5E5E5 !important; }
+
+.level-progress-fill { background: #111111 !important; }
+
+.level-points { color: #6B7280 !important; }
+
+/* ---- Quick stats — white ---- */
+.pipeline-quick-stats {
+  background: transparent !important;
+}
+
+.quick-stat {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.quick-stat .stat-icon { color: #6B7280 !important; }
+.quick-stat .stat-icon.streak { color: #6B7280 !important; }
+.quick-stat .stat-icon.wins { color: #6B7280 !important; }
+.quick-stat .stat-icon.demos { color: #6B7280 !important; }
+
+.quick-stat .stat-value { color: #111111 !important; }
+.quick-stat .stat-label { color: #6B7280 !important; }
+
+.quick-stat.urgent .stat-icon { color: #EF4444 !important; }
+
+/* ---- Table — B&W ---- */
+.pipeline-table-wrap {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.pipeline-table thead th {
+  background: #F9FAFB !important;
+  color: #6B7280 !important;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.pipeline-table tbody tr {
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.pipeline-table tbody tr:hover {
+  background: #F3F4F6 !important;
+}
+
+.pipeline-card-name {
+  color: #111111 !important;
+  font-weight: 600 !important;
+}
+
+.pipeline-table td {
+  color: #374151;
+}
+
+.detail-org { color: #6B7280; }
+.detail-frat { color: #374151; }
+
+/* ---- Stage badges — GRAYSCALE except Active Client ---- */
+.pipeline-table-stage .stage-label { color: #374151 !important; }
+
+.pipeline-tree-status {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+}
+
+.pipeline-tree-status-active-client {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+.pipeline-tree-status-pipeline,
+.pipeline-tree-status-ifc-pipeline {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+}
+
+.pipeline-tree-status-new-target {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+
+/* Mobile card stage badges — grayscale */
+.pipeline-mobile-card-stage {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+}
+
+/* ---- Conference cards — WHITE, not dark navy ---- */
+.pipeline-tree-node-conference {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  color: #111111 !important;
+}
+
+.pipeline-tree-node-conference:hover {
+  background: #F9FAFB !important;
+  box-shadow: none !important;
+}
+
+.pipeline-tree-node-conference .pipeline-tree-node-label {
+  color: #111111 !important;
+}
+
+.pipeline-tree-node-conference .pipeline-tree-chevron {
+  color: #6B7280 !important;
+}
+
+.pipeline-tree-badge {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+
+.pipeline-tree-badge-arr {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+/* School cards — white */
+.pipeline-tree-node-school {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+}
+
+.pipeline-tree-node-school:hover {
+  background: #F9FAFB !important;
+}
+
+.pipeline-tree-node-school-active {
+  border-left: 3px solid #10B981 !important;
+}
+
+.pipeline-tree-node-school .pipeline-tree-node-label { color: #111111 !important; }
+
+/* Chapter cards — white or alternating light */
+.pipeline-tree-node-chapter {
+  background: #FAFAFA !important;
+  border: 1px solid #F3F4F6 !important;
+}
+
+.pipeline-tree-node-chapter:hover {
+  background: #F3F4F6 !important;
+}
+
+.pipeline-tree-node-chapter .pipeline-tree-node-label { color: #111111 !important; }
+
+.pipeline-tree-node-chapter-closed {
+  border-left: 3px solid #10B981 !important;
+}
+
+/* Contact nodes — white */
+.pipeline-tree-node-contact {
+  background: #FFFFFF !important;
+}
+
+.pipeline-tree-node-contact .pipeline-tree-node-label { color: #111111 !important; }
+
+/* ---- Mobile cards — white, no colored accent (except red overdue) ---- */
+.pipeline-mobile-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+}
+
+.pipeline-mobile-card-accent {
+  background: #E5E5E5 !important;
+}
+
+.pipeline-mobile-card.mobile-card-overdue .pipeline-mobile-card-accent {
+  background: #EF4444 !important;
+}
+
+.pipeline-mobile-card-name { color: #111111 !important; }
+.pipeline-mobile-card-org { color: #6B7280 !important; }
+.pipeline-mobile-card-frat { color: #374151 !important; background: transparent !important; }
+.pipeline-mobile-card-dot { color: #9CA3AF !important; }
+
+/* Value stays green */
+.pipeline-mobile-card-value { color: #10B981 !important; }
+.pipeline-card-value { color: #10B981 !important; }
+
+/* ---- Module page header — B&W ---- */
+.module-header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E5E5E5 !important;
+}
+
+.module-header h1 { color: #111111 !important; }
+.module-header p { color: #6B7280 !important; }
+
+.module-icon {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+}
+
+/* ---- Tree view container — B&W ---- */
+.pipeline-tree-view {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.pipeline-tree-nodes {
+  background: #FAFAFA !important;
+}
+
+.pipeline-tree-stats {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E5E5E5 !important;
+}
+
+/* ---- Lead detail panel — B&W ---- */
+.ldp-panel-desktop,
+.ldp-panel-mobile {
+  background: #FFFFFF !important;
+}
+
+.ldp-name { color: #111111 !important; }
+.ldp-header-meta { color: #6B7280 !important; }
+
+.ldp-stage-badge {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+}
+
+.ldp-field-label { color: #6B7280 !important; }
+.ldp-field-value { color: #111111 !important; }
+
+.ldp-tabs { border-bottom: 1px solid #E5E5E5 !important; }
+.ldp-tab { color: #6B7280 !important; }
+.ldp-tab-active { color: #111111 !important; border-bottom-color: #111111 !important; }
+
+.ldp-action-primary {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+  border-color: #111111 !important;
+}
+
+/* ---- Action buttons — color reserved for actions ---- */
+/* Advance = green */
+.action-btn.advance {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+  border-color: #10B981 !important;
+}
+
+/* Call = blue */
+.action-btn.followup,
+.action-btn.followup-btn {
+  color: #3B82F6 !important;
+  border-color: #BFDBFE !important;
+}
+
+/* Text = blue */
+.action-btn.text,
+.action-btn.text-btn {
+  color: #3B82F6 !important;
+  border-color: #BFDBFE !important;
+}
+
+/* Delete = red */
+.action-btn.delete {
+  color: #EF4444 !important;
+}
+
+/* Add Lead = blue primary */
+.module-primary-btn {
+  background: #3B82F6 !important;
+  border-color: #3B82F6 !important;
+  color: #FFFFFF !important;
+}
+
+/* Secondary buttons — grayscale */
+.module-secondary-btn {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  color: #374151 !important;
+}
+
+.module-secondary-btn.active {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+  border-color: #111111 !important;
+}
+
+.module-secondary-btn:hover {
+  background: #F9FAFB !important;
+}
+
+.module-secondary-btn.active:hover {
+  background: #1a1a1a !important;
+}
+
+/* ---- Search bar — B&W ---- */
+.module-search {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+}
+
+/* ---- Filter sheet — B&W ---- */
+.pipeline-filter-sheet { background: #FFFFFF !important; }
+.pipeline-filter-sheet-title { color: #111111 !important; }
+.pipeline-filter-sheet-apply {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+/* ---- Toast — stays dark (intentional contrast) ---- */
+
+/* ---- Welcome header — simplified ---- */
+.ws-welcome {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.ws-welcome h1 { color: #111111 !important; }
+.ws-welcome p { color: #6B7280 !important; }
+.ws-welcome-date { color: #6B7280 !important; }
+.ws-welcome-icon { color: #6B7280 !important; }
+
+/* ---- Celebration toast — stays visible ---- */
+.celebration-toast {
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+/* ---- More sheet — B&W ---- */
+.ws-more-sheet {
+  background: #FFFFFF !important;
+}
+
+.ws-more-sheet-title { color: #111111 !important; }
+.ws-more-sheet-item { color: #374151 !important; }
+.ws-more-sheet-item-icon { color: #6B7280 !important; }
+.ws-more-sheet-section-label { color: #9CA3AF !important; }
+.ws-more-sheet-user-name { color: #111111 !important; }
+.ws-more-sheet-user-email { color: #6B7280 !important; }
+
+/* ---- Mobile tree view overrides for B&W ---- */
+@media (max-width: 1023px) {
+  .pipeline-tree-nodes {
+    background: #FAFAFA !important;
+  }
+  .pipeline-tree-node-conference {
+    background: #FFFFFF !important;
+    border: 1px solid #E5E5E5 !important;
+    border-radius: 0 !important;
+  }
+  .pipeline-tree-node-conference .pipeline-tree-node-label {
+    color: #111111 !important;
+  }
+  .pipeline-tree-node-school {
+    border-left: 3px solid #D1D5DB !important;
+  }
+  .pipeline-tree-node-school-active {
+    border-left-color: #10B981 !important;
+  }
+}
+
+/* ================================================================
+   PHASE 4B: COMMAND CENTER DASHBOARD
+   ================================================================ */
+
+/* ---- Dashboard page container ---- */
+.cc-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- Greeting header — compact ---- */
+.cc-greeting {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cc-greeting-text {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111111;
+}
+
+.cc-greeting-date {
+  font-size: 0.85rem;
+  color: #6B7280;
+}
+
+.cc-greeting-stat {
+  font-size: 0.85rem;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+.cc-greeting-stat strong {
+  color: #111111;
+  font-weight: 600;
+}
+
+/* ---- Section headers ---- */
+.cc-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111111;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cc-section-title-right {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #6B7280;
+}
+
+/* ---- Priority Actions — 3-column grid ---- */
+.cc-priorities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.cc-priority-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.cc-priority-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cc-priority-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #111111;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cc-priority-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #F3F4F6;
+  color: #374151;
+}
+
+.cc-priority-badge.red {
+  background: #FEF2F2;
+  color: #DC2626;
+}
+
+.cc-priority-badge.green {
+  background: #F0FDF4;
+  color: #059669;
+}
+
+.cc-priority-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+.cc-priority-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #F3F4F6;
+  cursor: pointer;
+  transition: background 0.1s;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 6px;
+}
+
+.cc-priority-row:hover {
+  background: #F9FAFB;
+}
+
+.cc-priority-row:last-child {
+  border-bottom: none;
+}
+
+.cc-priority-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+.cc-priority-meta {
+  font-size: 0.75rem;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+
+.cc-priority-meta.overdue {
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.cc-priority-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #10B981;
+  flex-shrink: 0;
+}
+
+.cc-priority-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9CA3AF;
+  font-size: 0.85rem;
+  gap: 6px;
+}
+
+.cc-view-all {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #3B82F6;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+/* ---- Pipeline snapshot ---- */
+.cc-pipeline {
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cc-stats-row {
+  display: flex;
+  gap: 1px;
+  background: #E5E5E5;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.cc-stat {
+  flex: 1;
+  padding: 12px 16px;
+  background: #FFFFFF;
+  text-align: center;
+}
+
+.cc-stat-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111111;
+  line-height: 1.2;
+}
+
+.cc-stat-number.green { color: #10B981; }
+
+.cc-stat-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+/* Funnel bar */
+.cc-funnel {
+  display: flex;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #F3F4F6;
+  margin-bottom: 8px;
+}
+
+.cc-funnel-seg {
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  transition: flex 0.3s ease;
+}
+
+.cc-funnel-labels {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cc-funnel-label {
+  font-size: 0.7rem;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cc-funnel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ---- Activity + calendar ---- */
+.cc-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cc-activity-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cc-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cc-activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.cc-activity-row:last-child { border-bottom: none; }
+
+.cc-activity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D1D5DB;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.cc-activity-text {
+  font-size: 0.8rem;
+  color: #374151;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.cc-activity-text strong {
+  color: #111111;
+  font-weight: 600;
+}
+
+.cc-activity-time {
+  font-size: 0.7rem;
+  color: #9CA3AF;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Upcoming follow-ups */
+.cc-upcoming-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cc-upcoming-day {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.cc-upcoming-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.cc-upcoming-row:hover {
+  background: #F9FAFB;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 6px;
+}
+
+.cc-upcoming-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #111111;
+}
+
+.cc-upcoming-school {
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+/* ---- Mobile responsive ---- */
+@media (max-width: 1023px) {
+  .cc-greeting-text { font-size: 1.25rem; }
+
+  .cc-priorities {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cc-priority-card {
+    min-height: auto;
+  }
+
+  .cc-stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+  }
+
+  .cc-funnel {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .cc-funnel-seg {
+    min-width: auto;
+    min-height: 28px;
+    justify-content: flex-start;
+    padding-left: 12px;
+  }
+
+  .cc-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- View-as dropdown — grayscale ---- */
+.ws-view-as-select {
+  background: #F3F4F6 !important;
+  color: #374151 !important;
+  border: 1px solid #E5E5E5 !important;
+}
+
+/* ---- Module cards (nucleus page) — B&W ---- */
+.nucleus-module-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E5E5 !important;
+  box-shadow: none !important;
+}
+
+.nucleus-module-card:hover {
+  border-color: #D1D5DB !important;
+}
+
+/* ---- Breadcrumb ---- */
+.cc-breadcrumb {
+  font-size: 0.8rem;
+  color: #6B7280;
+  margin-bottom: 4px;
+}
+
+.cc-breadcrumb a {
+  color: #6B7280;
+  text-decoration: none;
+}
+
+.cc-breadcrumb a:hover {
+  color: #111111;
+}
+
+.cc-breadcrumb span {
+  color: #9CA3AF;
+  margin: 0 6px;
+}
+
+@media (max-width: 1023px) {
+  .cc-breadcrumb { display: none; }
+}

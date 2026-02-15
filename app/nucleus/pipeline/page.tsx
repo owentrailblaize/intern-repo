@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock, LayoutDashboard, Mail } from 'lucide-react';
+import { TrendingUp, Plus, Search, Filter, X, Trash2, Edit2, Upload, Image, FileSpreadsheet, Loader2, Check, AlertCircle, Phone, MessageSquare, Calendar, Flame, Trophy, Zap, Star, ChevronRight, Clock, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { supabase, Deal, DealStage, STAGE_CONFIG, MRR_LEVEL_THRESHOLDS, MRR_LEVEL_TITLES } from '@/lib/supabase';
 import { getConferenceForDeal } from '@/lib/conference-map';
@@ -626,23 +626,18 @@ export default function PipelineModule() {
       {/* Header */}
       <header className="module-header">
         <div className="module-header-content">
-          <div className="module-back-links">
-            <Link href="/nucleus" className="module-back">
-              <ArrowLeft size={20} />
-              Back to Nucleus
-            </Link>
-            <Link href="/workspace" className="module-back">
-              <LayoutDashboard size={20} />
-              Back to Workspace
-            </Link>
+          <div className="cc-breadcrumb">
+            <Link href="/workspace">Dashboard</Link>
+            <span>/</span>
+            Sales Pipeline
           </div>
           <div className="module-title-row">
-            <div className="module-icon" style={{ backgroundColor: '#f59e0b15', color: '#f59e0b' }}>
+            <div className="module-icon">
               <TrendingUp size={24} />
             </div>
             <div>
               <h1>Sales Pipeline</h1>
-              <p>Track leads, book demos, close deals. Level up your sales game.</p>
+              <p>Track leads, book demos, close deals.</p>
             </div>
           </div>
         </div>
