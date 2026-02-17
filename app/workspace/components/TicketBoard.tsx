@@ -28,6 +28,9 @@ import {
   Loader2,
   Trash2,
   Ticket,
+  Zap,
+  Target,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
@@ -36,9 +39,9 @@ import { supabase, Employee } from '@/lib/supabase';
 // TYPES
 // ═══════════════════════════════════════════
 
-type TicketStatus = 'open' | 'in_progress' | 'in_review' | 'testing' | 'done';
-type TicketType = 'bug' | 'feature_request' | 'issue';
-type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
+type TicketStatus = 'backlog' | 'todo' | 'open' | 'in_progress' | 'in_review' | 'testing' | 'done' | 'canceled';
+type TicketType = 'bug' | 'feature_request' | 'issue' | 'improvement' | 'task' | 'epic';
+type TicketPriority = 'none' | 'low' | 'medium' | 'high' | 'critical';
 type ViewMode = 'board' | 'list';
 
 interface TicketData {
@@ -52,6 +55,11 @@ interface TicketData {
   creator_id: string | null;
   assignee_id: string | null;
   reviewer_id: string | null;
+  external_id: string | null;
+  labels: string[];
+  project: string | null;
+  story_points: number | null;
+  due_date: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -98,14 +106,18 @@ interface TicketNotification {
 // ═══════════════════════════════════════════
 
 const STATUS_COLUMNS: { key: TicketStatus; label: string; color: string }[] = [
+  { key: 'backlog', label: 'Backlog', color: '#9ca3af' },
+  { key: 'todo', label: 'Todo', color: '#6b7280' },
   { key: 'open', label: 'Open', color: '#6b7280' },
   { key: 'in_progress', label: 'In Progress', color: '#f59e0b' },
   { key: 'in_review', label: 'In Review', color: '#8b5cf6' },
   { key: 'testing', label: 'Testing', color: '#3b82f6' },
   { key: 'done', label: 'Done', color: '#10b981' },
+  { key: 'canceled', label: 'Canceled', color: '#ef4444' },
 ];
 
 const PRIORITY_CONFIG: Record<TicketPriority, { label: string; color: string; icon: string }> = {
+  none: { label: 'None', color: '#d1d5db', icon: '—' },
   low: { label: 'Low', color: '#6b7280', icon: '▽' },
   medium: { label: 'Medium', color: '#3b82f6', icon: '■' },
   high: { label: 'High', color: '#f59e0b', icon: '▲' },
@@ -116,6 +128,9 @@ const TYPE_CONFIG: Record<TicketType, { label: string; icon: typeof Bug; color: 
   bug: { label: 'Bug', icon: Bug, color: '#ef4444' },
   feature_request: { label: 'Feature', icon: Sparkles, color: '#8b5cf6' },
   issue: { label: 'Issue', icon: AlertCircle, color: '#f59e0b' },
+  improvement: { label: 'Improvement', icon: Zap, color: '#10b981' },
+  task: { label: 'Task', icon: Target, color: '#3b82f6' },
+  epic: { label: 'Epic', icon: Layers, color: '#f59e0b' },
 };
 
 // ═══════════════════════════════════════════
@@ -215,11 +230,14 @@ export function TicketBoard() {
 
   const groupedTickets = useMemo(() => {
     const groups: Record<TicketStatus, TicketData[]> = {
+      backlog: [],
+      todo: [],
       open: [],
       in_progress: [],
       in_review: [],
       testing: [],
       done: [],
+      canceled: [],
     };
     tickets.forEach(t => groups[t.status]?.push(t));
     return groups;
@@ -352,10 +370,11 @@ export function TicketBoard() {
             <label>Priority</label>
             <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
               <option value="">Any</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="critical">Critical (P0)</option>
+              <option value="high">High (P1)</option>
+              <option value="medium">Medium (P2)</option>
+              <option value="low">Low (P3)</option>
+              <option value="none">None (P4)</option>
             </select>
           </div>
           <div className="tkt__filter-group">
@@ -365,6 +384,9 @@ export function TicketBoard() {
               <option value="bug">Bug</option>
               <option value="feature_request">Feature</option>
               <option value="issue">Issue</option>
+              <option value="improvement">Improvement</option>
+              <option value="task">Task</option>
+              <option value="epic">Epic</option>
             </select>
           </div>
           {activeFilterCount > 0 && (
@@ -709,11 +731,15 @@ function CreateTicketModal({
                 <option value="bug">Bug</option>
                 <option value="feature_request">Feature Request</option>
                 <option value="issue">Issue</option>
+                <option value="improvement">Improvement</option>
+                <option value="task">Task</option>
+                <option value="epic">Epic</option>
               </select>
             </div>
             <div className="tkt__field">
               <label>Priority</label>
               <select value={priority} onChange={e => setPriority(e.target.value as TicketPriority)}>
+                <option value="none">None</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -910,6 +936,7 @@ function TicketDetailPanel({
                 onChange={e => handleFieldUpdate('priority', e.target.value)}
                 disabled={updating}
               >
+                <option value="none">None</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -918,9 +945,9 @@ function TicketDetailPanel({
             </div>
             <div className="tkt__meta-row">
               <label>Type</label>
-              <span style={{ color: TYPE_CONFIG[ticket.type]?.color, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ color: TYPE_CONFIG[ticket.type]?.color || '#6b7280', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <TypeIcon size={14} />
-                {TYPE_CONFIG[ticket.type]?.label}
+                {TYPE_CONFIG[ticket.type]?.label || ticket.type}
               </span>
             </div>
             <div className="tkt__meta-row">

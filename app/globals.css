@@ -14000,6 +14000,26 @@ input:focus {
   width: 24px;
   height: 24px;
   transition: all var(--transition-fast);
+  position: relative;
+}
+
+.ws-bottom-tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: #10b981;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .ws-bottom-tab-label {
@@ -29226,3 +29246,125 @@ body { background: #FAFAFA; }
 .ws-ticket-summary__bar-seg--p1 { background: #f59e0b; }
 .ws-ticket-summary__bar-seg--p2 { background: #3b82f6; }
 .ws-ticket-summary__bar-seg--p3 { background: #d1d5db; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE — Ticket Views & Dashboard Widget Responsive Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  /* ── Ticket Board: card layout ── */
+  .tkt__kanban { flex-direction: column; }
+  .tkt__kanban-col { min-width: 100%; }
+
+  .tkt__list-header { display: none; }
+
+  .tkt__list-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-pearl, #e5e7eb);
+    margin-bottom: 6px;
+  }
+
+  .tkt__list-row .tkt__list-col--title { 
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tkt__list-row .tkt__list-col--actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .tkt__header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .tkt__header-left,
+  .tkt__header-right {
+    width: 100%;
+  }
+
+  .tkt__search { width: 100%; }
+  .tkt__search input { width: 100%; }
+
+  /* ── Ticket Detail: full-screen slide-over ── */
+  .tkt__detail {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .tkt__detail-header { padding: 12px 16px; }
+  .tkt__detail-body { padding: 12px 16px; }
+  .tkt__detail-comments { padding: 12px 16px; }
+
+  .tkt__field-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tkt__field-group { width: 100%; }
+
+  /* ── Engineer Dashboard Ticket Widget ── */
+  .eng-dash__ticket-row {
+    flex-wrap: wrap;
+    padding: 10px 8px;
+  }
+
+  .eng-dash__ticket-left {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .eng-dash__ticket-right {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 6px;
+  }
+
+  .eng-dash__ticket-actions {
+    opacity: 1;
+    margin-left: auto;
+  }
+
+  .eng-dash__ticket-age { display: none; }
+
+  /* ── Dashboard widgets: stack vertically ── */
+  .ws-quick-stats-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ws-secondary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ws-secondary-widget {
+    min-width: 0;
+  }
+
+  /* ── Founder ticket summary on mobile ── */
+  .ws-ticket-summary__total-num { font-size: 1.5rem; }
+  .ws-ticket-summary__breakdown { gap: 4px; }
+  .ws-ticket-summary__badge { font-size: 0.68rem; padding: 2px 6px; }
+
+  /* ── Add bottom padding for fixed tab bar ── */
+  .ws-content {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+}

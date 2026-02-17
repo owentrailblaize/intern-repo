@@ -24,11 +24,14 @@ function validateStatusTransition(
   reviewerId: string | null
 ): { valid: boolean; message?: string } {
   const VALID_TRANSITIONS: Record<string, string[]> = {
-    open: ['in_progress', 'done'],
-    in_progress: ['in_review', 'open'],
-    in_review: ['testing', 'in_progress'],
-    testing: ['done', 'in_review'],
-    done: ['open'],
+    backlog: ['todo', 'open', 'in_progress', 'canceled'],
+    todo: ['backlog', 'open', 'in_progress', 'canceled'],
+    open: ['in_progress', 'backlog', 'todo', 'done', 'canceled'],
+    in_progress: ['in_review', 'open', 'canceled'],
+    in_review: ['testing', 'in_progress', 'canceled'],
+    testing: ['done', 'in_review', 'canceled'],
+    done: ['open', 'backlog'],
+    canceled: ['open', 'backlog'],
   };
 
   const allowed = VALID_TRANSITIONS[currentStatus];

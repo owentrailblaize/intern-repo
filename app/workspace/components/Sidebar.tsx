@@ -54,8 +54,28 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const { role, roleLabel, canAccessNucleus } = useUserRole();
   const [collapsed, setCollapsed] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const [openTicketCount, setOpenTicketCount] = useState(0);
 
   const navItems = getNavigationItems(role, unreadCount);
+
+  // Fetch open ticket count for badge
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTicketCount() {
+      try {
+        const res = await fetch('/api/tickets?status=active');
+        const { data } = await res.json();
+        if (!cancelled && Array.isArray(data)) {
+          setOpenTicketCount(data.length);
+        }
+      } catch {
+        // Silent fail — badge just shows 0
+      }
+    }
+    fetchTicketCount();
+    const interval = setInterval(fetchTicketCount, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/workspace') return pathname === '/workspace';
@@ -74,17 +94,27 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
     { name: 'Employees', href: '/nucleus/employees', icon: Users },
   ];
 
-  // Bottom tab items for mobile
+  // Mobile bottom tabs: Dashboard | Inbox | Tickets | Messages | More
   const bottomTabItems = canAccessNucleus
     ? [
-        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard' },
-        { name: 'Nucleus', href: '/nucleus', icon: 'Zap' },
-        { name: 'Pipeline', href: '/nucleus/pipeline', icon: 'TrendingUp' },
+        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard', badge: 0 },
+        { name: 'Inbox', href: '/workspace/inbox', icon: 'Inbox', badge: unreadCount },
+        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', badge: openTicketCount },
+        { name: 'Nucleus', href: '/nucleus', icon: 'Zap', badge: 0 },
       ]
-    : navItems.slice(0, 4);
+    : [
+        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard', badge: 0 },
+        { name: 'Inbox', href: '/workspace/inbox', icon: 'Inbox', badge: unreadCount },
+        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', badge: openTicketCount },
+        { name: 'Messages', href: '/workspace/messages', icon: 'MessageCircle', badge: 0 },
+      ];
 
-  // Remaining items for the More sheet (non-admin only)
-  const moreNavItems = canAccessNucleus ? [] : navItems.slice(4);
+  // Remaining items for the More sheet
+  const moreNavItems = canAccessNucleus
+    ? []
+    : navItems.filter(
+        item => !bottomTabItems.some(tab => tab.href === item.href)
+      );
 
   const closeMoreSheet = useCallback(() => {
     setMoreSheetOpen(false);
@@ -242,6 +272,9 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
             >
               <span className="ws-bottom-tab-icon">
                 <Icon size={22} />
+                {item.badge > 0 && (
+                  <span className="ws-bottom-tab-badge">{item.badge > 99 ? '99+' : item.badge}</span>
+                )}
               </span>
               <span className="ws-bottom-tab-label">{item.name}</span>
             </Link>

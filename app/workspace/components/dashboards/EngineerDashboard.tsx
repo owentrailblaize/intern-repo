@@ -87,12 +87,17 @@ interface DashboardTicket {
   number: number;
   title: string;
   description: string | null;
-  type: 'bug' | 'feature_request' | 'issue';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in_progress' | 'in_review' | 'testing' | 'done';
+  type: 'bug' | 'feature_request' | 'issue' | 'improvement' | 'task' | 'epic';
+  priority: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  status: 'backlog' | 'todo' | 'open' | 'in_progress' | 'in_review' | 'testing' | 'done' | 'canceled';
   creator_id: string | null;
   assignee_id: string | null;
   reviewer_id: string | null;
+  external_id: string | null;
+  labels: string[];
+  project: string | null;
+  story_points: number | null;
+  due_date: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -102,11 +107,14 @@ interface DashboardTicket {
 }
 
 const TICKET_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  backlog: { label: 'Backlog', color: '#9ca3af' },
+  todo: { label: 'Todo', color: '#6b7280' },
   open: { label: 'Open', color: '#6b7280' },
   in_progress: { label: 'In Progress', color: '#f59e0b' },
   in_review: { label: 'In Review', color: '#8b5cf6' },
   testing: { label: 'Testing', color: '#3b82f6' },
   done: { label: 'Done', color: '#10b981' },
+  canceled: { label: 'Canceled', color: '#ef4444' },
 };
 
 const TICKET_PRIORITY_CONFIG: Record<string, { label: string; color: string; badge: string }> = {
@@ -114,12 +122,16 @@ const TICKET_PRIORITY_CONFIG: Record<string, { label: string; color: string; bad
   high: { label: 'P1', color: '#f59e0b', badge: 'P1' },
   medium: { label: 'P2', color: '#3b82f6', badge: 'P2' },
   low: { label: 'P3', color: '#6b7280', badge: 'P3' },
+  none: { label: 'P4', color: '#d1d5db', badge: 'P4' },
 };
 
 const TICKET_TYPE_ICONS: Record<string, { icon: typeof Bug; color: string }> = {
   bug: { icon: Bug, color: '#ef4444' },
   feature_request: { icon: Sparkles, color: '#8b5cf6' },
   issue: { icon: AlertTriangle, color: '#f59e0b' },
+  improvement: { icon: Zap, color: '#10b981' },
+  task: { icon: Target, color: '#3b82f6' },
+  epic: { icon: Layers, color: '#f59e0b' },
 };
 
 const STATUS_CONFIG: Record<IssueStatus, { label: string; icon: typeof Circle; color: string }> = {
@@ -322,14 +334,14 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
 
   // Ticket widget derived data
   const myTickets = useMemo(
-    () => tickets.filter(t => t.assignee_id === currentEmployee?.id && t.status !== 'done'),
+    () => tickets.filter(t => t.assignee_id === currentEmployee?.id && t.status !== 'done' && t.status !== 'canceled'),
     [tickets, currentEmployee?.id]
   );
 
   const sortedTickets = useMemo(() => {
-    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
     return [...tickets]
-      .filter(t => t.status !== 'done')
+      .filter(t => t.status !== 'done' && t.status !== 'canceled')
       .sort((a, b) => {
         const pa = priorityOrder[a.priority] ?? 3;
         const pb = priorityOrder[b.priority] ?? 3;
@@ -521,7 +533,7 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
                     <span className="eng-dash__ticket-age">{timeAgo(ticket.created_at)}</span>
                     {/* Inline actions */}
                     <div className="eng-dash__ticket-actions">
-                      {ticket.status === 'open' && (
+                      {(ticket.status === 'open' || ticket.status === 'backlog' || ticket.status === 'todo') && (
                         <button
                           className="eng-dash__tkt-action-btn"
                           onClick={() => updateTicketStatus(ticket.id, 'in_progress')}

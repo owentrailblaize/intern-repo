@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all') {
       if (status === 'active') {
-        query = query.in('status', ['open', 'in_progress', 'in_review', 'testing']);
+        query = query.in('status', ['backlog', 'todo', 'open', 'in_progress', 'in_review', 'testing']);
       } else {
         query = query.eq('status', status);
       }
