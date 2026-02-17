@@ -146,24 +146,27 @@ export function getNavigationItems(role: EmployeeRole, unreadCount?: number): Na
     case 'founder':
       return [
         ...baseItems,
-        { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare', emphasized: true },
+        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', emphasized: true },
+        { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare' },
         { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine' },
-        { name: 'My Leads', href: '/workspace/leads', icon: 'Target', emphasized: true },
+        { name: 'My Leads', href: '/workspace/leads', icon: 'Target' },
         { name: 'Team', href: '/workspace/team', icon: 'Users' },
       ];
     case 'engineer':
       return [
         ...baseItems,
+        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', emphasized: true },
         { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare' },
-        { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine', emphasized: true },
+        { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine' },
         { name: 'Team', href: '/workspace/team', icon: 'Users' },
       ];
     case 'growth_intern':
     default:
       return [
         ...baseItems,
-        { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare', emphasized: true },
-        { name: 'My Leads', href: '/workspace/leads', icon: 'Target', emphasized: true },
+        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', emphasized: true },
+        { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare' },
+        { name: 'My Leads', href: '/workspace/leads', icon: 'Target' },
         { name: 'Team', href: '/workspace/team', icon: 'Users' },
       ];
   }

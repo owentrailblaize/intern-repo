@@ -1,0 +1,256 @@
+import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+function getSupabaseAdmin() {
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+const TICKET_SELECT = `
+  *,
+  creator:employees!tickets_creator_id_fkey(id, name, email, role),
+  assignee:employees!tickets_assignee_id_fkey(id, name, email, role),
+  reviewer:employees!tickets_reviewer_id_fkey(id, name, email, role)
+`;
+
+// Hard gate: "done" requires a reviewer who is NOT the assignee
+function validateStatusTransition(
+  currentStatus: string,
+  newStatus: string,
+  assigneeId: string | null,
+  reviewerId: string | null
+): { valid: boolean; message?: string } {
+  const VALID_TRANSITIONS: Record<string, string[]> = {
+    open: ['in_progress', 'done'],
+    in_progress: ['in_review', 'open'],
+    in_review: ['testing', 'in_progress'],
+    testing: ['done', 'in_review'],
+    done: ['open'],
+  };
+
+  const allowed = VALID_TRANSITIONS[currentStatus];
+  if (!allowed || !allowed.includes(newStatus)) {
+    return { valid: false, message: `Cannot move from "${currentStatus}" to "${newStatus}"` };
+  }
+
+  // QA Gate: moving to "done" requires testing first and a reviewer
+  if (newStatus === 'done' && currentStatus !== 'testing') {
+    return { valid: false, message: 'Tickets must pass through Testing before being marked Done' };
+  }
+
+  if (newStatus === 'done' && !reviewerId) {
+    return { valid: false, message: 'A reviewer must verify the ticket before it can be marked Done' };
+  }
+
+  if (newStatus === 'done' && reviewerId === assigneeId) {
+    return { valid: false, message: 'The reviewer cannot be the same person as the assignee' };
+  }
+
+  return { valid: true };
+}
+
+// GET - Fetch single ticket with comments and activity
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
+    const { id } = await params;
+
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(TICKET_SELECT)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching ticket:', error);
+      return NextResponse.json({ data: null, error: { message: error.message, code: error.code } }, { status: 500 });
+    }
+
+    return NextResponse.json({ data, error: null });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return NextResponse.json({ data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } }, { status: 500 });
+  }
+}
+
+// PATCH - Update ticket (with status transition validation)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const actorId = body.actor_id;
+
+    // Fetch current ticket for transition validation
+    const { data: current, error: fetchError } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !current) {
+      return NextResponse.json({ data: null, error: { message: 'Ticket not found', code: 'NOT_FOUND' } }, { status: 404 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    const allowedFields = ['title', 'description', 'type', 'priority', 'status', 'assignee_id', 'reviewer_id'];
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    }
+
+    // Validate status transition
+    if (body.status && body.status !== current.status) {
+      const reviewerId = body.reviewer_id ?? current.reviewer_id;
+      const assigneeId = body.assignee_id ?? current.assignee_id;
+
+      const validation = validateStatusTransition(current.status, body.status, assigneeId, reviewerId);
+      if (!validation.valid) {
+        return NextResponse.json(
+          { data: null, error: { message: validation.message, code: 'INVALID_TRANSITION' } },
+          { status: 400 }
+        );
+      }
+
+      // Set resolved_at when moving to done
+      if (body.status === 'done') {
+        updateData.resolved_at = new Date().toISOString();
+      }
+      if (body.status !== 'done') {
+        updateData.resolved_at = null;
+      }
+    }
+
+    const { data: updated, error } = await supabase
+      .from('tickets')
+      .update(updateData)
+      .eq('id', id)
+      .select(TICKET_SELECT)
+      .single();
+
+    if (error) {
+      console.error('Error updating ticket:', error);
+      return NextResponse.json({ data: null, error: { message: error.message, code: error.code } }, { status: 500 });
+    }
+
+    // Log activity for significant changes
+    const activityEntries: Array<{
+      ticket_id: string;
+      actor_id: string | null;
+      action: string;
+      from_value: string | null;
+      to_value: string | null;
+    }> = [];
+
+    if (body.status && body.status !== current.status) {
+      activityEntries.push({
+        ticket_id: id,
+        actor_id: actorId || null,
+        action: 'status_changed',
+        from_value: current.status,
+        to_value: body.status,
+      });
+    }
+
+    if (body.assignee_id !== undefined && body.assignee_id !== current.assignee_id) {
+      activityEntries.push({
+        ticket_id: id,
+        actor_id: actorId || null,
+        action: 'assigned',
+        from_value: current.assignee_id,
+        to_value: body.assignee_id,
+      });
+
+      // Notify new assignee
+      if (body.assignee_id && body.assignee_id !== actorId) {
+        const actorName = updated.creator?.name || 'Someone';
+        await supabase.from('ticket_notifications').insert([{
+          recipient_id: body.assignee_id,
+          ticket_id: id,
+          type: 'assigned',
+          message: `${actorName} assigned you ticket #${updated.number}: ${updated.title}`,
+          actor_id: actorId || null,
+        }]);
+      }
+    }
+
+    if (body.priority && body.priority !== current.priority) {
+      activityEntries.push({
+        ticket_id: id,
+        actor_id: actorId || null,
+        action: 'priority_changed',
+        from_value: current.priority,
+        to_value: body.priority,
+      });
+    }
+
+    if (activityEntries.length > 0) {
+      await supabase.from('ticket_activity').insert(activityEntries);
+    }
+
+    // Notify ticket creator on status change
+    if (body.status && body.status !== current.status && current.creator_id && current.creator_id !== actorId) {
+      await supabase.from('ticket_notifications').insert([{
+        recipient_id: current.creator_id,
+        ticket_id: id,
+        type: 'status_changed',
+        message: `Ticket #${updated.number} moved to ${body.status.replace('_', ' ')}`,
+        actor_id: actorId || null,
+      }]);
+    }
+
+    return NextResponse.json({ data: updated, error: null });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return NextResponse.json({ data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } }, { status: 500 });
+  }
+}
+
+// DELETE - Delete ticket
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
+    }
+
+    const { id } = await params;
+
+    const { error } = await supabase
+      .from('tickets')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting ticket:', error);
+      return NextResponse.json({ data: null, error: { message: error.message, code: error.code } }, { status: 500 });
+    }
+
+    return NextResponse.json({ data: { success: true }, error: null });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return NextResponse.json({ data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } }, { status: 500 });
+  }
+}

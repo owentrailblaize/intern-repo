@@ -28,6 +28,7 @@ import {
   Rocket,
   Bell,
   MoreHorizontal,
+  Ticket,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -44,6 +45,7 @@ const iconMap: Record<string, LucideIcon> = {
   MessageCircle,
   Zap,
   TrendingUp,
+  Ticket,
 };
 
 export function Sidebar({ unreadCount = 0 }: SidebarProps) {
