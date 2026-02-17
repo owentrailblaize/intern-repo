@@ -29368,3 +29368,105 @@ body { background: #FAFAFA; }
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px);
   }
 }
+
+/* ============================================
+   WHITEBOARD PREVIEW WIDGET (Dashboard)
+   ============================================ */
+
+/* 2/3 + 1/3 layout for whiteboard + hot leads */
+.cc-priorities--wb {
+  grid-template-columns: 2fr 1fr !important;
+}
+
+/* The preview card itself — a clickable Link */
+.cc-wb-preview {
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  padding: 16px;
+  min-height: 200px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.cc-wb-preview:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.cc-wb-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cc-wb-preview-arrow {
+  color: #9CA3AF;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.cc-wb-preview:hover .cc-wb-preview-arrow {
+  color: #111111;
+  transform: translate(1px, -1px);
+}
+
+/* The miniature canvas */
+.cc-wb-preview-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(0,0,0,0.006) 0%, transparent 50%),
+    linear-gradient(135deg, #fafaf8 0%, #f5f4f0 50%, #f8f7f5 100%);
+}
+
+.cc-wb-preview-board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.cc-wb-preview-entry {
+  position: absolute;
+  font-family: var(--font-marker);
+  line-height: 1.35;
+  white-space: pre-wrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cc-wb-preview-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: #B0ADA6;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Mobile: whiteboard preview stacks above hot leads ---- */
+@media (max-width: 1023px) {
+  .cc-priorities--wb {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cc-wb-preview {
+    min-height: auto;
+    max-height: 220px;
+  }
+
+  .cc-wb-preview-canvas {
+    max-height: 160px;
+  }
+}

@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { CheckCircle, ArrowRight, AlertTriangle, Flame } from 'lucide-react';
+import { CheckCircle, ArrowRight, Flame } from 'lucide-react';
 import { supabase, Deal, DealStage, STAGE_CONFIG } from '@/lib/supabase';
 import { TrailblaizeCalendar } from './TrailblaizeCalendar';
+import { WhiteboardPreview } from './WhiteboardPreview';
 import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
 import { UseWorkspaceDataReturn } from '../hooks/useWorkspaceData';
 import { Employee } from '@/lib/supabase';
@@ -22,15 +23,6 @@ const FUNNEL_COLORS: Record<string, string> = {
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-}
-
-function relativeDate(dateStr: string): string {
-  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (diff < -1) return `${Math.abs(diff)}d overdue`;
-  if (diff === -1) return 'Yesterday';
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  return `in ${diff}d`;
 }
 
 function dayLabel(dateStr: string): string {
@@ -153,55 +145,9 @@ export function CommandCenter({ data, firstName }: CommandCenterProps) {
           Today&apos;s Priorities
           <span className="cc-section-title-right">{todayStr}</span>
         </div>
-        <div className="cc-priorities">
-          {/* Overdue */}
-          <div className="cc-priority-card">
-            <div className="cc-priority-header">
-              <span className="cc-priority-title">Overdue</span>
-              {overdueDeals.length > 0 && <span className="cc-priority-badge red">{overdueDeals.length}</span>}
-            </div>
-            {overdueDeals.length > 0 ? (
-              <div className="cc-priority-list">
-                {overdueDeals.slice(0, 5).map(d => (
-                  <Link key={d.id} href="/nucleus/pipeline" className="cc-priority-row">
-                    <span className="cc-priority-name">{d.contact_name || d.name}</span>
-                    <span className="cc-priority-meta overdue">{relativeDate(d.next_followup)}</span>
-                  </Link>
-                ))}
-                {overdueDeals.length > 5 && (
-                  <Link href="/nucleus/pipeline" className="cc-view-all">
-                    View all {overdueDeals.length} <ArrowRight size={12} />
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="cc-priority-empty">
-                <CheckCircle size={16} /> All caught up
-              </div>
-            )}
-          </div>
-
-          {/* Due Today */}
-          <div className="cc-priority-card">
-            <div className="cc-priority-header">
-              <span className="cc-priority-title">Due Today</span>
-              {todayDeals.length > 0 && <span className="cc-priority-badge">{todayDeals.length}</span>}
-            </div>
-            {todayDeals.length > 0 ? (
-              <div className="cc-priority-list">
-                {todayDeals.slice(0, 5).map(d => (
-                  <Link key={d.id} href="/nucleus/pipeline" className="cc-priority-row">
-                    <span className="cc-priority-name">{d.contact_name || d.name}</span>
-                    <span className="cc-priority-meta">{d.organization || ''}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="cc-priority-empty">
-                <CheckCircle size={16} /> No follow-ups due
-              </div>
-            )}
-          </div>
+        <div className="cc-priorities cc-priorities--wb">
+          {/* Whiteboard Preview */}
+          <WhiteboardPreview />
 
           {/* Hot Leads */}
           <div className="cc-priority-card">
