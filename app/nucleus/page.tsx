@@ -132,14 +132,17 @@ export default function Nucleus() {
           investors: contacts.filter(c => ['investor', 'angel', 'vc'].includes(c.contact_type)).length,
         },
         pipeline: {
-          value: deals.reduce((sum, d) => sum + (d.value || 0), 0),
-          active: deals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage)).length,
+          value: deals.filter(d => !['closed_lost', 'hold_off'].includes(d.stage)).reduce((sum, d) => sum + (d.value || 0), 0),
+          active: deals.filter(d => !['closed_won', 'closed_lost', 'hold_off'].includes(d.stage)).length,
           wonThisMonth: deals.filter(d => {
             if (d.stage !== 'closed_won') return false;
             const created = new Date(d.created_at);
             return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
           }).length,
-          avgDealSize: deals.length > 0 ? deals.reduce((sum, d) => sum + (d.value || 0), 0) / deals.length : 0,
+          avgDealSize: (() => {
+            const relevantDeals = deals.filter(d => !['closed_lost', 'hold_off'].includes(d.stage));
+            return relevantDeals.length > 0 ? relevantDeals.reduce((sum, d) => sum + (d.value || 0), 0) / relevantDeals.length : 0;
+          })(),
         },
         operations: {
           open: tasks.filter(t => t.status === 'todo').length,
