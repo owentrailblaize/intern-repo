@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -17,8 +17,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu,
-  X,
   MessageCircle,
   LucideIcon,
   TrendingUp,
@@ -27,7 +25,6 @@ import {
   Building2,
   Rocket,
   Bell,
-  MoreHorizontal,
   Ticket,
 } from 'lucide-react';
 
@@ -53,7 +50,6 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const { profile, signOut } = useAuth();
   const { role, roleLabel, canAccessNucleus } = useUserRole();
   const [collapsed, setCollapsed] = useState(false);
-  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [openTicketCount, setOpenTicketCount] = useState(0);
 
   const navItems = getNavigationItems(role, unreadCount);
@@ -94,48 +90,13 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
     { name: 'Employees', href: '/nucleus/employees', icon: Users },
   ];
 
-  // Mobile bottom tabs: Dashboard | Inbox | Tickets | Messages | More
-  const bottomTabItems = canAccessNucleus
-    ? [
-        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard', badge: 0 },
-        { name: 'Inbox', href: '/workspace/inbox', icon: 'Inbox', badge: unreadCount },
-        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', badge: openTicketCount },
-        { name: 'Nucleus', href: '/nucleus', icon: 'Zap', badge: 0 },
-      ]
-    : [
-        { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard', badge: 0 },
-        { name: 'Inbox', href: '/workspace/inbox', icon: 'Inbox', badge: unreadCount },
-        { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', badge: openTicketCount },
-        { name: 'Messages', href: '/workspace/messages', icon: 'MessageCircle', badge: 0 },
-      ];
-
-  // Remaining items for the More sheet
-  const moreNavItems = canAccessNucleus
-    ? []
-    : navItems.filter(
-        item => !bottomTabItems.some(tab => tab.href === item.href)
-      );
-
-  const closeMoreSheet = useCallback(() => {
-    setMoreSheetOpen(false);
-  }, []);
-
-  // Close more sheet on navigation
-  useEffect(() => {
-    setMoreSheetOpen(false);
-  }, [pathname]);
-
-  // Prevent body scroll when more sheet is open
-  useEffect(() => {
-    if (moreSheetOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [moreSheetOpen]);
+  // Mobile bottom tabs — same 4 tabs for ALL roles, no conditional rendering
+  const bottomTabItems = [
+    { name: 'Dashboard', href: '/workspace', icon: 'LayoutDashboard', badge: 0 },
+    { name: 'Pipeline', href: '/nucleus/pipeline', icon: 'TrendingUp', badge: 0 },
+    { name: 'Tickets', href: '/workspace/tickets', icon: 'Ticket', badge: openTicketCount },
+    { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine', badge: 0 },
+  ];
 
   // Get the page title from the current path
   const getPageTitle = () => {
@@ -255,15 +216,13 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Bottom Tab Bar — Mobile only (visibility controlled via CSS) */}
+      {/* Bottom Tab Bar — Mobile only, 4 fixed tabs for all roles */}
       <nav className="ws-bottom-tabs" aria-label="Main navigation">
         {bottomTabItems.map((item) => {
           const Icon = iconMap[item.icon] || LayoutDashboard;
           const active = item.href === '/workspace'
             ? pathname === '/workspace'
-            : item.href === '/nucleus'
-              ? pathname === '/nucleus'
-              : pathname.startsWith(item.href);
+            : pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
@@ -280,110 +239,7 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
             </Link>
           );
         })}
-        {!canAccessNucleus && (
-          <button
-            type="button"
-            className={`ws-bottom-tab ${moreSheetOpen ? 'active' : ''}`}
-            onClick={() => setMoreSheetOpen(!moreSheetOpen)}
-            aria-label="More navigation"
-          >
-            <span className="ws-bottom-tab-icon">
-              <MoreHorizontal size={22} />
-            </span>
-            <span className="ws-bottom-tab-label">More</span>
-          </button>
-        )}
       </nav>
-
-      {/* More Sheet — Slide-up overlay (Mobile only) */}
-      <div
-        className={`ws-more-sheet-backdrop ${moreSheetOpen ? 'open' : ''}`}
-        onClick={closeMoreSheet}
-      />
-      <div className={`ws-more-sheet ${moreSheetOpen ? 'open' : ''}`}>
-        <div className="ws-more-sheet-handle" />
-        <div className="ws-more-sheet-header">
-          <span className="ws-more-sheet-title">Navigation</span>
-          <button
-            type="button"
-            className="ws-more-sheet-close"
-            onClick={closeMoreSheet}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div className="ws-more-sheet-content">
-          {/* Remaining workspace nav items */}
-          {moreNavItems.length > 0 && (
-            <div className="ws-more-sheet-section">
-              <div className="ws-more-sheet-section-label">Workspace</div>
-              {moreNavItems.map((item) => {
-                const Icon = iconMap[item.icon] || LayoutDashboard;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`ws-more-sheet-item ${isActive(item.href) ? 'active' : ''}`}
-                    onClick={closeMoreSheet}
-                  >
-                    <span className="ws-more-sheet-item-icon">
-                      <Icon size={18} />
-                    </span>
-                    <span>{item.name}</span>
-                    {item.badge && item.badge > 0 && (
-                      <span className="ws-nav-badge">{item.badge}</span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Nucleus modules — only if user can access */}
-          {canAccessNucleus && (
-            <div className="ws-more-sheet-section">
-              <div className="ws-more-sheet-section-label">Nucleus</div>
-              {nucleusModules.map((m) => {
-                const isModActive = pathname === m.href || (m.href !== '/nucleus' && pathname.startsWith(m.href));
-                return (
-                  <Link
-                    key={m.href}
-                    href={m.href}
-                    className={`ws-more-sheet-item ${isModActive ? 'active' : ''}`}
-                    onClick={closeMoreSheet}
-                  >
-                    <span className="ws-more-sheet-item-icon">
-                      <m.icon size={18} />
-                    </span>
-                    <span>{m.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="ws-more-sheet-divider" />
-
-          {/* User info + sign out */}
-          <div className="ws-more-sheet-user">
-            <div className="ws-more-sheet-user-avatar">
-              {profile?.name?.charAt(0) || 'U'}
-            </div>
-            <div className="ws-more-sheet-user-info">
-              <div className="ws-more-sheet-user-name">{profile?.name}</div>
-              <div className="ws-more-sheet-user-email">{roleLabel}</div>
-            </div>
-            <button 
-              className="ws-logout-btn"
-              onClick={() => { signOut(); closeMoreSheet(); }}
-              title="Sign out"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
     </>
   );
 }

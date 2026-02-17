@@ -508,7 +508,10 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
                       {priorityCfg.badge}
                     </span>
                     <TypeIcon size={14} style={{ color: TypeIconInfo.color, flexShrink: 0 }} />
-                    <span className="eng-dash__ticket-number">#{ticket.number}</span>
+                    <span className="eng-dash__ticket-number">
+                      #{ticket.number}
+                      {ticket.external_id && <span className="eng-dash__ticket-ext-id">{ticket.external_id}</span>}
+                    </span>
                     <span className="eng-dash__ticket-title">{ticket.title}</span>
                   </div>
                   <div className="eng-dash__ticket-right">

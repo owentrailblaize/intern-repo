@@ -29470,3 +29470,51 @@ body { background: #FAFAFA; }
     max-height: 160px;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   External ID labels for Linear-imported tickets
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tkt__card-external-id {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #8b5cf615;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
+.tkt__external-id {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #8b5cf615;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  margin-left: 4px;
+}
+
+.tkt__detail-external-id {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #8b5cf615;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.eng-dash__ticket-ext-id {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #8b5cf615;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  margin-left: 4px;
+}

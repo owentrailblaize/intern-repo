@@ -558,6 +558,9 @@ function TicketCard({ ticket, onClick }: { ticket: TicketData; onClick: () => vo
     <div className="tkt__card" onClick={onClick}>
       <div className="tkt__card-top">
         <span className="tkt__card-number">#{ticket.number}</span>
+        {ticket.external_id && (
+          <span className="tkt__card-external-id">{ticket.external_id}</span>
+        )}
         <span className="tkt__card-priority" style={{ color: priorityCfg.color }}>
           {priorityCfg.icon}
         </span>
@@ -616,7 +619,10 @@ function TicketListView({
               className="tkt__list-row"
               onClick={() => onTicketClick(ticket)}
             >
-              <span className="tkt__list-col tkt__list-col--id">{ticket.number}</span>
+              <span className="tkt__list-col tkt__list-col--id">
+                {ticket.number}
+                {ticket.external_id && <span className="tkt__external-id">{ticket.external_id}</span>}
+              </span>
               <span className="tkt__list-col tkt__list-col--title">{ticket.title}</span>
               <span className="tkt__list-col tkt__list-col--status">
                 <span className="tkt__status-pill" style={{ color: statusCol?.color, background: `${statusCol?.color}15` }}>
@@ -898,6 +904,9 @@ function TicketDetailPanel({
         <div className="tkt__detail-header">
           <div className="tkt__detail-header-left">
             <span className="tkt__detail-number">#{ticket.number}</span>
+            {ticket.external_id && (
+              <span className="tkt__detail-external-id">{ticket.external_id}</span>
+            )}
             <span
               className="tkt__status-pill"
               style={{ color: statusCol?.color, background: `${statusCol?.color}15` }}
