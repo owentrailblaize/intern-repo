@@ -552,6 +552,35 @@ export default function FundraisingModule() {
     setParsedContacts(parsed);
   }
   
+  function convertImageToJpeg(file: File, maxDimension = 2048): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          const scale = maxDimension / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Could not create canvas context')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(jpegDataUrl);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Failed to load image'));
+      };
+      img.src = objectUrl;
+    });
+  }
+
   // Handle image upload
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -560,15 +589,20 @@ export default function FundraisingModule() {
     setImageFile(file);
     setBulkError(null);
     
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    // Create preview by converting to JPEG (handles HEIC and other formats)
+    try {
+      const jpegDataUrl = await convertImageToJpeg(file);
+      setImagePreview(jpegDataUrl);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   }
   
-  // Parse image using AI (placeholder - would need backend API)
+  // Parse image using AI
   async function parseImageWithAI() {
     if (!imageFile) return;
     
@@ -576,12 +610,8 @@ export default function FundraisingModule() {
     setBulkError(null);
     
     try {
-      // Convert image to base64
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(imageFile);
-      });
+      // Convert image to JPEG base64 (handles HEIC/HEIF and other unsupported formats)
+      const base64 = await convertImageToJpeg(imageFile);
       
       // Call API endpoint for image parsing
       const response = await fetch('/api/parse-contacts-image', {

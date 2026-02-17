@@ -341,6 +341,35 @@ export default function PipelineModule() {
     setImportSuccess(false);
   }
 
+  function convertImageToJpeg(file: File, maxDimension = 2048): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          const scale = maxDimension / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Could not create canvas context')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(jpegDataUrl);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Failed to load image'));
+      };
+      img.src = objectUrl;
+    });
+  }
+
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -350,15 +379,12 @@ export default function PipelineModule() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
+    try {
+      const base64 = await convertImageToJpeg(file);
       await parseContent({ image: base64 });
-    };
-    reader.onerror = () => {
-      setImportError('Failed to read image file');
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setImportError('Failed to read image file. Please try a different image.');
+    }
   }
 
   async function handleTextParse() {
