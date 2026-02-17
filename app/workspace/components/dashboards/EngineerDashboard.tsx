@@ -30,7 +30,9 @@ import {
   Flame,
   Activity,
   BarChart3,
-  User
+  User,
+  Ticket,
+  MessageSquare,
 } from 'lucide-react';
 import { FocusTimer } from '../FocusTimer';
 import { UseWorkspaceDataReturn } from '../../hooks/useWorkspaceData';
@@ -79,6 +81,47 @@ interface EngineeringProject {
 type IssueStatus = 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done' | 'cancelled';
 type IssueType = 'feature' | 'bug' | 'improvement' | 'task' | 'epic';
 
+// Ticket types for the dashboard widget
+interface DashboardTicket {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  type: 'bug' | 'feature_request' | 'issue';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'open' | 'in_progress' | 'in_review' | 'testing' | 'done';
+  creator_id: string | null;
+  assignee_id: string | null;
+  reviewer_id: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  creator?: { id: string; name: string; email: string; role: string } | null;
+  assignee?: { id: string; name: string; email: string; role: string } | null;
+  reviewer?: { id: string; name: string; email: string; role: string } | null;
+}
+
+const TICKET_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  open: { label: 'Open', color: '#6b7280' },
+  in_progress: { label: 'In Progress', color: '#f59e0b' },
+  in_review: { label: 'In Review', color: '#8b5cf6' },
+  testing: { label: 'Testing', color: '#3b82f6' },
+  done: { label: 'Done', color: '#10b981' },
+};
+
+const TICKET_PRIORITY_CONFIG: Record<string, { label: string; color: string; badge: string }> = {
+  critical: { label: 'P0', color: '#ef4444', badge: 'P0' },
+  high: { label: 'P1', color: '#f59e0b', badge: 'P1' },
+  medium: { label: 'P2', color: '#3b82f6', badge: 'P2' },
+  low: { label: 'P3', color: '#6b7280', badge: 'P3' },
+};
+
+const TICKET_TYPE_ICONS: Record<string, { icon: typeof Bug; color: string }> = {
+  bug: { icon: Bug, color: '#ef4444' },
+  feature_request: { icon: Sparkles, color: '#8b5cf6' },
+  issue: { icon: AlertTriangle, color: '#f59e0b' },
+};
+
 const STATUS_CONFIG: Record<IssueStatus, { label: string; icon: typeof Circle; color: string }> = {
   backlog: { label: 'Backlog', icon: CircleDashed, color: '#6b7280' },
   todo: { label: 'Todo', icon: Circle, color: '#6b7280' },
@@ -123,6 +166,56 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
     new Set(['done', 'cancelled', 'backlog'])
   );
 
+  // Ticket data for dashboard widget
+  const [tickets, setTickets] = useState<DashboardTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+
+  const fetchTickets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tickets?status=active');
+      const { data: ticketData } = await res.json();
+      if (ticketData) setTickets(ticketData);
+    } catch (err) {
+      console.error('Error fetching tickets:', err);
+    } finally {
+      setTicketsLoading(false);
+    }
+  }, []);
+
+  const updateTicketStatus = async (ticketId: string, newStatus: string) => {
+    try {
+      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus as DashboardTicket['status'] } : t));
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, actor_id: currentEmployee?.id }),
+      });
+      const result = await res.json();
+      if (result.error) {
+        alert(result.error.message);
+        fetchTickets();
+      }
+    } catch (err) {
+      console.error('Error updating ticket:', err);
+      fetchTickets();
+    }
+  };
+
+  const updateTicketAssignee = async (ticketId: string, assigneeId: string | null) => {
+    try {
+      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, assignee_id: assigneeId } : t));
+      await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignee_id: assigneeId, actor_id: currentEmployee?.id }),
+      });
+      fetchTickets();
+    } catch (err) {
+      console.error('Error updating ticket assignee:', err);
+      fetchTickets();
+    }
+  };
+
   const fetchProjects = useCallback(async () => {
     try {
       const res = await fetch('/api/engineering/projects');
@@ -152,7 +245,8 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+    fetchTickets();
+  }, [fetchProjects, fetchTickets]);
 
   useEffect(() => {
     fetchIssues();
@@ -225,6 +319,35 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
     if (total === 0) return 0;
     return Math.round((allDoneIssues.length / total) * 100);
   }, [myIssues, allDoneIssues]);
+
+  // Ticket widget derived data
+  const myTickets = useMemo(
+    () => tickets.filter(t => t.assignee_id === currentEmployee?.id && t.status !== 'done'),
+    [tickets, currentEmployee?.id]
+  );
+
+  const sortedTickets = useMemo(() => {
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    return [...tickets]
+      .filter(t => t.status !== 'done')
+      .sort((a, b) => {
+        const pa = priorityOrder[a.priority] ?? 3;
+        const pb = priorityOrder[b.priority] ?? 3;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      })
+      .slice(0, 10);
+  }, [tickets]);
+
+  const timeAgo = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   // Group all issues by status for the full tracker
   const groupedIssues = useMemo(() => {
@@ -329,6 +452,126 @@ export function EngineerDashboard({ data, teamMembers }: EngineerDashboardProps)
           </div>
         </div>
       </div>
+
+      {/* ── Ticket Widget ── */}
+      <section className="eng-dash__tickets">
+        <div className="eng-dash__section-header">
+          <h2>
+            <Ticket size={18} />
+            My Tickets
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {myTickets.length > 0 && (
+              <span className="eng-dash__badge eng-dash__badge--warning">
+                {myTickets.length} unresolved
+              </span>
+            )}
+            <Link href="/workspace/tickets" className="eng-dash__view-all">
+              View All <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        {ticketsLoading ? (
+          <div className="eng-dash__loading">Loading tickets...</div>
+        ) : sortedTickets.length === 0 ? (
+          <div className="eng-dash__empty-active">
+            <Ticket size={24} />
+            <p>No open tickets. Create one from the <Link href="/workspace/tickets">Tickets page</Link>.</p>
+          </div>
+        ) : (
+          <div className="eng-dash__ticket-list">
+            {sortedTickets.map(ticket => {
+              const TypeIconInfo = TICKET_TYPE_ICONS[ticket.type] || TICKET_TYPE_ICONS.issue;
+              const TypeIcon = TypeIconInfo.icon;
+              const priorityCfg = TICKET_PRIORITY_CONFIG[ticket.priority];
+              const statusCfg = TICKET_STATUS_CONFIG[ticket.status];
+              return (
+                <div key={ticket.id} className="eng-dash__ticket-row">
+                  <div className="eng-dash__ticket-left">
+                    <span
+                      className="eng-dash__ticket-priority-badge"
+                      style={{ backgroundColor: `${priorityCfg.color}18`, color: priorityCfg.color }}
+                    >
+                      {priorityCfg.badge}
+                    </span>
+                    <TypeIcon size={14} style={{ color: TypeIconInfo.color, flexShrink: 0 }} />
+                    <span className="eng-dash__ticket-number">#{ticket.number}</span>
+                    <span className="eng-dash__ticket-title">{ticket.title}</span>
+                  </div>
+                  <div className="eng-dash__ticket-right">
+                    <span
+                      className="eng-dash__ticket-status"
+                      style={{ backgroundColor: `${statusCfg.color}18`, color: statusCfg.color }}
+                    >
+                      {statusCfg.label}
+                    </span>
+                    {ticket.assignee ? (
+                      <div
+                        className="eng-dash__ticket-avatar"
+                        title={ticket.assignee.name}
+                      >
+                        {ticket.assignee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                      </div>
+                    ) : (
+                      <div className="eng-dash__ticket-avatar unassigned" title="Unassigned">
+                        <User size={12} />
+                      </div>
+                    )}
+                    <span className="eng-dash__ticket-age">{timeAgo(ticket.created_at)}</span>
+                    {/* Inline actions */}
+                    <div className="eng-dash__ticket-actions">
+                      {ticket.status === 'open' && (
+                        <button
+                          className="eng-dash__tkt-action-btn"
+                          onClick={() => updateTicketStatus(ticket.id, 'in_progress')}
+                          title="Start working"
+                        >
+                          <CircleDot size={12} />
+                        </button>
+                      )}
+                      {ticket.status === 'in_progress' && (
+                        <button
+                          className="eng-dash__tkt-action-btn"
+                          onClick={() => updateTicketStatus(ticket.id, 'in_review')}
+                          title="Move to review"
+                        >
+                          <GitBranch size={12} />
+                        </button>
+                      )}
+                      {ticket.status === 'in_review' && (
+                        <button
+                          className="eng-dash__tkt-action-btn"
+                          onClick={() => updateTicketStatus(ticket.id, 'testing')}
+                          title="Move to testing"
+                        >
+                          <CheckSquare size={12} />
+                        </button>
+                      )}
+                      {!ticket.assignee_id && currentEmployee?.id && (
+                        <button
+                          className="eng-dash__tkt-action-btn eng-dash__tkt-action-btn--assign"
+                          onClick={() => updateTicketAssignee(ticket.id, currentEmployee.id)}
+                          title="Assign to me"
+                        >
+                          <User size={12} />
+                        </button>
+                      )}
+                      <Link
+                        href="/workspace/tickets"
+                        className="eng-dash__tkt-action-btn"
+                        title="Add comment"
+                      >
+                        <MessageSquare size={12} />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* ── Active Work Hero ── */}
       <section className="eng-dash__active">

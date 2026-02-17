@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Target,
@@ -12,7 +12,9 @@ import {
   Briefcase,
   ArrowRight,
   Mail,
-  CheckSquare
+  CheckSquare,
+  Ticket,
+  AlertTriangle,
 } from 'lucide-react';
 import { TaskSection } from '../TaskSection';
 import { LeadSection } from '../LeadSection';
@@ -56,6 +58,40 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
   } = data;
 
   const [showSecondaryWidgets, setShowSecondaryWidgets] = useState(true);
+
+  // Ticket summary data
+  interface TicketSummaryItem {
+    id: string;
+    status: string;
+    priority: string;
+  }
+  const [ticketSummary, setTicketSummary] = useState<TicketSummaryItem[]>([]);
+  const [ticketSummaryLoading, setTicketSummaryLoading] = useState(true);
+
+  const fetchTicketSummary = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tickets?status=active');
+      const { data: ticketData } = await res.json();
+      if (ticketData) setTicketSummary(ticketData);
+    } catch (err) {
+      console.error('Error fetching ticket summary:', err);
+    } finally {
+      setTicketSummaryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTicketSummary();
+  }, [fetchTicketSummary]);
+
+  const ticketStats = useMemo(() => {
+    const open = ticketSummary.filter(t => t.status !== 'done');
+    const p0 = open.filter(t => t.priority === 'critical').length;
+    const p1 = open.filter(t => t.priority === 'high').length;
+    const p2 = open.filter(t => t.priority === 'medium').length;
+    const p3 = open.filter(t => t.priority === 'low').length;
+    return { total: open.length, p0, p1, p2, p3 };
+  }, [ticketSummary]);
 
   // Google Integration
   const google = useGoogleIntegration(currentEmployee?.id);
@@ -252,6 +288,93 @@ export function FounderDashboard({ data, teamMembers }: FounderDashboardProps) {
                 </div>
                 <Link href="/nucleus" className="ws-card-link">
                   Open Nucleus
+                  <ArrowRight size={14} />
+                </Link>
+              </section>
+            </div>
+
+            {/* Ticket Summary */}
+            <div className="ws-secondary-widget">
+              <section className="ws-card ws-ticket-summary-card">
+                <div className="ws-card-header">
+                  <h3>
+                    <Ticket size={16} />
+                    Tickets
+                  </h3>
+                  <Link href="/workspace/tickets" className="ws-see-all">
+                    View all
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+                {ticketSummaryLoading ? (
+                  <div className="ws-ticket-summary__loading">Loading...</div>
+                ) : (
+                  <>
+                    <div className="ws-ticket-summary__total">
+                      <span className="ws-ticket-summary__total-num">{ticketStats.total}</span>
+                      <span className="ws-ticket-summary__total-label">Open Tickets</span>
+                    </div>
+                    <div className="ws-ticket-summary__breakdown">
+                      {ticketStats.p0 > 0 && (
+                        <span className="ws-ticket-summary__badge ws-ticket-summary__badge--p0">
+                          {ticketStats.p0} P0
+                        </span>
+                      )}
+                      {ticketStats.p1 > 0 && (
+                        <span className="ws-ticket-summary__badge ws-ticket-summary__badge--p1">
+                          {ticketStats.p1} P1
+                        </span>
+                      )}
+                      {ticketStats.p2 > 0 && (
+                        <span className="ws-ticket-summary__badge ws-ticket-summary__badge--p2">
+                          {ticketStats.p2} P2
+                        </span>
+                      )}
+                      {ticketStats.p3 > 0 && (
+                        <span className="ws-ticket-summary__badge ws-ticket-summary__badge--p3">
+                          {ticketStats.p3} P3
+                        </span>
+                      )}
+                      {ticketStats.total === 0 && (
+                        <span className="ws-ticket-summary__all-clear">All clear</span>
+                      )}
+                    </div>
+                    {ticketStats.total > 0 && (
+                      <div className="ws-ticket-summary__bar">
+                        {ticketStats.p0 > 0 && (
+                          <div
+                            className="ws-ticket-summary__bar-seg ws-ticket-summary__bar-seg--p0"
+                            style={{ flex: ticketStats.p0 }}
+                            title={`${ticketStats.p0} Critical`}
+                          />
+                        )}
+                        {ticketStats.p1 > 0 && (
+                          <div
+                            className="ws-ticket-summary__bar-seg ws-ticket-summary__bar-seg--p1"
+                            style={{ flex: ticketStats.p1 }}
+                            title={`${ticketStats.p1} High`}
+                          />
+                        )}
+                        {ticketStats.p2 > 0 && (
+                          <div
+                            className="ws-ticket-summary__bar-seg ws-ticket-summary__bar-seg--p2"
+                            style={{ flex: ticketStats.p2 }}
+                            title={`${ticketStats.p2} Medium`}
+                          />
+                        )}
+                        {ticketStats.p3 > 0 && (
+                          <div
+                            className="ws-ticket-summary__bar-seg ws-ticket-summary__bar-seg--p3"
+                            style={{ flex: ticketStats.p3 }}
+                            title={`${ticketStats.p3} Low`}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+                <Link href="/workspace/tickets" className="ws-card-link">
+                  Open Tickets
                   <ArrowRight size={14} />
                 </Link>
               </section>
