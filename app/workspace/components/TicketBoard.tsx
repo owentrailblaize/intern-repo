@@ -803,11 +803,10 @@ function TicketDetailPanel({
 
   // Parse @mentions from comment text
   const parseMentions = (text: string): string[] => {
-    const mentionRegex = /@(\w+\s\w+)/g;
     const mentioned: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = mentionRegex.exec(text)) !== null) {
-      const emp = employees.find(e => e.name.toLowerCase() === match[1].toLowerCase());
+    const matches = Array.from(text.matchAll(/@(\w+\s\w+)/g));
+    for (const m of matches) {
+      const emp = employees.find(e => e.name.toLowerCase() === m[1].toLowerCase());
       if (emp) mentioned.push(emp.id);
     }
     return mentioned;
