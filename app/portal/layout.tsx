@@ -10,7 +10,7 @@ import {
   LayoutDashboard, 
   Inbox, 
   CheckSquare, 
-  FolderKanban,
+  PenLine,
   Users,
   Target,
   Settings,
@@ -33,7 +33,7 @@ function PortalLayoutInner({ children }: { children: ReactNode }) {
     { name: 'Dashboard', href: '/portal', icon: LayoutDashboard },
     { name: 'Inbox', href: '/portal/inbox', icon: Inbox, badge: 3 },
     { name: 'My Tasks', href: '/portal/tasks', icon: CheckSquare },
-    { name: 'Projects', href: '/portal/projects', icon: FolderKanban },
+    { name: 'Whiteboard', href: '/workspace/whiteboard', icon: PenLine },
     { name: 'My Leads', href: '/portal/leads', icon: Target },
     { name: 'Team', href: '/portal/team', icon: Users },
   ];
@@ -117,7 +117,7 @@ function PortalLayoutInner({ children }: { children: ReactNode }) {
               </Link>
             )}
             <Link href="/workspace" className="portal-quick-link">
-              <FolderKanban size={16} />
+              <LayoutDashboard size={16} />
               <span>Legacy Workspace</span>
             </Link>
           </div>

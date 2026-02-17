@@ -26,7 +26,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/portal/projects',
-        destination: '/workspace/projects',
+        destination: '/workspace/whiteboard',
+        permanent: true,
+      },
+      {
+        source: '/workspace/projects',
+        destination: '/workspace/whiteboard',
         permanent: true,
       },
       {

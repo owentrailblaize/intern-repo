@@ -117,7 +117,7 @@ export function SmartSuggestions({
           title: 'Strategic Planning',
           description: 'Review and update company goals',
           icon: Rocket,
-          href: '/workspace/projects',
+          href: '/workspace/whiteboard',
           color: '#8b5cf6',
           priority: 'low'
         }
@@ -164,7 +164,7 @@ export function SmartSuggestions({
           title: 'Update Documentation',
           description: 'Review and improve docs',
           icon: FileText,
-          href: '/workspace/projects',
+          href: '/workspace/whiteboard',
           color: '#f59e0b',
           priority: 'low'
         }

@@ -68,7 +68,7 @@ export function getRoleLevel(role: EmployeeRole): number {
  * Role-specific feature flags
  */
 export interface RoleFeatures {
-  showProjects: boolean;
+  showWhiteboard: boolean;
   showLeads: boolean;
   showEngineering: boolean;
   showTeamOverview: boolean;
@@ -85,7 +85,7 @@ export function getRoleFeatures(role: EmployeeRole): RoleFeatures {
   switch (workspaceRole) {
     case 'founder':
       return {
-        showProjects: true,
+        showWhiteboard: true,
         showLeads: true,
         showEngineering: false,
         showTeamOverview: true,
@@ -97,7 +97,7 @@ export function getRoleFeatures(role: EmployeeRole): RoleFeatures {
       };
     case 'engineer':
       return {
-        showProjects: true,
+        showWhiteboard: true,
         showLeads: false,
         showEngineering: true,
         showTeamOverview: true,
@@ -110,7 +110,7 @@ export function getRoleFeatures(role: EmployeeRole): RoleFeatures {
     case 'growth_intern':
     default:
       return {
-        showProjects: false,
+        showWhiteboard: false,
         showLeads: true,
         showEngineering: false,
         showTeamOverview: true,
@@ -147,7 +147,7 @@ export function getNavigationItems(role: EmployeeRole, unreadCount?: number): Na
       return [
         ...baseItems,
         { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare', emphasized: true },
-        { name: 'Projects', href: '/workspace/projects', icon: 'FolderKanban' },
+        { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine' },
         { name: 'My Leads', href: '/workspace/leads', icon: 'Target', emphasized: true },
         { name: 'Team', href: '/workspace/team', icon: 'Users' },
       ];
@@ -155,7 +155,7 @@ export function getNavigationItems(role: EmployeeRole, unreadCount?: number): Na
       return [
         ...baseItems,
         { name: 'My Tasks', href: '/workspace/tasks', icon: 'CheckSquare' },
-        { name: 'Projects', href: '/workspace/projects', icon: 'FolderKanban', emphasized: true },
+        { name: 'Whiteboard', href: '/workspace/whiteboard', icon: 'PenLine', emphasized: true },
         { name: 'Team', href: '/workspace/team', icon: 'Users' },
       ];
     case 'growth_intern':
