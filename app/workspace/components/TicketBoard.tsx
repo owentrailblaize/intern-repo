@@ -805,7 +805,7 @@ function TicketDetailPanel({
   const parseMentions = (text: string): string[] => {
     const mentionRegex = /@(\w+\s\w+)/g;
     const mentioned: string[] = [];
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = mentionRegex.exec(text)) !== null) {
       const emp = employees.find(e => e.name.toLowerCase() === match[1].toLowerCase());
       if (emp) mentioned.push(emp.id);
