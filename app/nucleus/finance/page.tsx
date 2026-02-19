@@ -83,6 +83,9 @@ export default function FinanceModule() {
     notes: '',
     period_start: '',
     period_end: '',
+    setup_subscription: true,
+    subscription_type: 'annual' as Chapter['payment_type'],
+    subscription_payment_day: '',
   });
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -170,16 +173,65 @@ export default function FinanceModule() {
     if (error) {
       console.error('Error creating payment:', error);
       alert(`Failed to record payment: ${error.message}`);
+      return;
+    }
+
+    const isCompleted = formData.status === 'completed';
+
+    if (chapterNeedsSubscription && formData.setup_subscription && isCompleted) {
+      const paymentDay = formData.subscription_payment_day
+        ? parseInt(formData.subscription_payment_day)
+        : new Date(formData.payment_date).getDate();
+
+      const subType = formData.subscription_type;
+      const amount = parseFloat(formData.amount);
+
+      const tempChapter = {
+        ...selectedChapterInfo!,
+        payment_type: subType,
+        payment_amount: amount,
+        payment_day: paymentDay,
+      };
+      const nextPaymentDate = calculateNextPaymentDate(tempChapter, formData.payment_date);
+
+      await supabase
+        .from('chapters')
+        .update({
+          last_payment_date: formData.payment_date,
+          payment_type: subType,
+          payment_amount: amount,
+          payment_day: paymentDay,
+          payment_start_date: formData.payment_date,
+          next_payment_date: nextPaymentDate,
+        })
+        .eq('id', formData.chapter_id);
+    } else if (selectedChapterInfo && isCompleted) {
+      const chapterUpdate: Record<string, string | null> = {
+        last_payment_date: formData.payment_date,
+      };
+
+      if (selectedChapterInfo.next_payment_date && selectedChapterInfo.payment_type !== 'one_time') {
+        chapterUpdate.next_payment_date = calculateNextPaymentDate(
+          selectedChapterInfo,
+          formData.payment_date
+        );
+      } else if (selectedChapterInfo.payment_type === 'one_time') {
+        chapterUpdate.next_payment_date = null;
+      }
+
+      await supabase
+        .from('chapters')
+        .update(chapterUpdate)
+        .eq('id', formData.chapter_id);
     } else {
-      // Update chapter's last payment date
       await supabase
         .from('chapters')
         .update({ last_payment_date: formData.payment_date })
         .eq('id', formData.chapter_id);
-      
-      resetForm();
-      fetchPayments();
     }
+
+    resetForm();
+    await fetchData();
   }
 
   async function updatePayment() {
@@ -237,6 +289,9 @@ export default function FinanceModule() {
       notes: '',
       period_start: '',
       period_end: '',
+      setup_subscription: true,
+      subscription_type: 'annual',
+      subscription_payment_day: '',
     });
     setEditingPayment(null);
     setShowModal(false);
@@ -257,6 +312,18 @@ export default function FinanceModule() {
     });
     setShowModal(true);
   }
+
+  const selectedChapterInfo = useMemo(() => {
+    if (!formData.chapter_id) return null;
+    return chapters.find(c => c.id === formData.chapter_id) || null;
+  }, [formData.chapter_id, chapters]);
+
+  const chapterNeedsSubscription = useMemo(() => {
+    if (!selectedChapterInfo) return false;
+    return !selectedChapterInfo.payment_start_date &&
+           !selectedChapterInfo.next_payment_date &&
+           !selectedChapterInfo.payment_day;
+  }, [selectedChapterInfo]);
 
   function openConfirmModal(chapter: Chapter) {
     setConfirmingChapter(chapter);
@@ -597,8 +664,8 @@ export default function FinanceModule() {
   };
 
   const methodLabels: Record<Payment['payment_method'], string> = {
-    card: 'Card',
-    bank_transfer: 'Bank Transfer',
+    card: 'Stripe',
+    bank_transfer: 'Wire Transfer',
     check: 'Check',
     cash: 'Cash',
     other: 'Other',
@@ -1322,9 +1389,9 @@ export default function FinanceModule() {
                     value={formData.payment_method}
                     onChange={(e) => setFormData({ ...formData, payment_method: e.target.value as Payment['payment_method'] })}
                   >
-                    <option value="card">Card</option>
-                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="card">Stripe</option>
                     <option value="check">Check</option>
+                    <option value="bank_transfer">Wire Transfer</option>
                     <option value="cash">Cash</option>
                     <option value="other">Other</option>
                   </select>
@@ -1385,6 +1452,55 @@ export default function FinanceModule() {
                   />
                 </div>
               </div>
+
+              {/* Subscription Setup — appears when the chapter has no active subscription */}
+              {!editingPayment && chapterNeedsSubscription && formData.chapter_id && (
+                <div className="subscription-setup">
+                  <div className="subscription-setup-toggle">
+                    <label className="subscription-toggle-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.setup_subscription}
+                        onChange={(e) => setFormData({ ...formData, setup_subscription: e.target.checked })}
+                      />
+                      <CalendarDays size={16} />
+                      <span>Set up payment schedule for this chapter</span>
+                    </label>
+                    <span className="subscription-setup-hint">
+                      This chapter has no active subscription. Enable to track future payments.
+                    </span>
+                  </div>
+
+                  {formData.setup_subscription && (
+                    <div className="subscription-setup-fields">
+                      <div className="finance-form-row">
+                        <div className="finance-form-group">
+                          <label>Subscription Type</label>
+                          <select
+                            value={formData.subscription_type}
+                            onChange={(e) => setFormData({ ...formData, subscription_type: e.target.value as Chapter['payment_type'] })}
+                          >
+                            <option value="annual">Annual</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="one_time">One-time</option>
+                          </select>
+                        </div>
+                        <div className="finance-form-group">
+                          <label>Payment Day</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            value={formData.subscription_payment_day}
+                            onChange={(e) => setFormData({ ...formData, subscription_payment_day: e.target.value })}
+                            placeholder={formData.payment_date ? `${new Date(formData.payment_date).getDate()} (from payment date)` : 'Day of month (1-31)'}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="finance-modal-footer">
@@ -2457,6 +2573,58 @@ export default function FinanceModule() {
         .overdue-date {
           color: #dc2626;
           font-weight: 500;
+        }
+
+        /* Subscription Setup in Record Payment Modal */
+        .subscription-setup {
+          margin-top: 0.5rem;
+          padding-top: 1rem;
+          border-top: 1px dashed #e5e7eb;
+        }
+
+        .subscription-setup-toggle {
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+        }
+
+        .subscription-toggle-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #374151;
+          cursor: pointer;
+        }
+
+        .subscription-toggle-label input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          accent-color: #10b981;
+          cursor: pointer;
+        }
+
+        .subscription-toggle-label svg {
+          color: #10b981;
+        }
+
+        .subscription-setup-hint {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin-left: 1.625rem;
+        }
+
+        .subscription-setup-fields {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 10px;
+        }
+
+        .subscription-setup-fields .finance-form-row {
+          margin-bottom: 0;
         }
 
         /* Confirmations Banner */
