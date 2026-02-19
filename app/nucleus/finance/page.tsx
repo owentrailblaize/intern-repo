@@ -309,6 +309,9 @@ export default function FinanceModule() {
       notes: payment.notes || '',
       period_start: payment.period_start || '',
       period_end: payment.period_end || '',
+      setup_subscription: false,
+      subscription_type: 'annual',
+      subscription_payment_day: '',
     });
     setShowModal(true);
   }
