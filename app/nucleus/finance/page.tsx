@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { supabase, Chapter } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import AccountingTab from './AccountingTab';
 
 interface Payment {
   id: string;
@@ -59,7 +60,7 @@ interface Payment {
 }
 
 type TimeRange = 'week' | 'month' | 'quarter' | 'year' | 'all';
-type ActiveTab = 'payments' | 'schedule';
+type ActiveTab = 'payments' | 'schedule' | 'accounting';
 
 export default function FinanceModule() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -735,6 +736,13 @@ export default function FinanceModule() {
           <Receipt size={18} />
           Payment History
         </button>
+        <button
+          className={`finance-tab ${activeTab === 'accounting' ? 'active' : ''}`}
+          onClick={() => setActiveTab('accounting')}
+        >
+          <DollarSign size={18} />
+          Accounting
+        </button>
       </div>
 
       {/* Schedule View */}
@@ -1273,6 +1281,11 @@ export default function FinanceModule() {
         </span>
       </div>
         </>
+      )}
+
+      {/* Accounting View */}
+      {activeTab === 'accounting' && (
+        <AccountingTab payments={payments} />
       )}
 
       {/* Confirm Payment Modal */}

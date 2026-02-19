@@ -324,6 +324,37 @@ export interface Payment {
 }
 
 // ============================================
+// Accounting Types
+// ============================================
+
+export type ExpenseCategory = 'software' | 'travel' | 'legal' | 'marketing' | 'payroll' | 'office' | 'other';
+export type ExpensePaymentMethod = 'brex' | 'personal' | 'wire' | 'other';
+
+export interface Expense {
+  id: string;
+  date: string;
+  amount: number;
+  category: ExpenseCategory;
+  vendor: string | null;
+  description: string | null;
+  payment_method: ExpensePaymentMethod;
+  receipt_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonthlyStatement {
+  id: string;
+  year: number;
+  month: number;
+  notes: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
 // Onboarding System Types
 // ============================================
 
