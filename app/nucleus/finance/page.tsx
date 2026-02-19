@@ -29,6 +29,9 @@ import {
   AlertTriangle,
   Repeat,
   LayoutDashboard,
+  Undo2,
+  ChevronRight,
+  History,
 } from 'lucide-react';
 import { supabase, Chapter } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -81,6 +84,24 @@ export default function FinanceModule() {
     period_start: '',
     period_end: '',
   });
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmingChapter, setConfirmingChapter] = useState<Chapter | null>(null);
+  const [confirmForm, setConfirmForm] = useState({
+    payment_method: 'card' as Payment['payment_method'],
+    date_received: new Date().toISOString().split('T')[0],
+  });
+  const [recentConfirmations, setRecentConfirmations] = useState<Array<{
+    paymentId: string;
+    chapterId: string;
+    chapterName: string;
+    amount: number;
+    previousLastPayment: string | null;
+    previousNextPayment: string | null;
+    confirmedAt: Date;
+  }>>([]);
+  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
+  const [chapterPaymentHistory, setChapterPaymentHistory] = useState<Record<string, Payment[]>>({});
 
   useEffect(() => {
     fetchData();
@@ -235,6 +256,162 @@ export default function FinanceModule() {
       period_end: payment.period_end || '',
     });
     setShowModal(true);
+  }
+
+  function openConfirmModal(chapter: Chapter) {
+    setConfirmingChapter(chapter);
+    setConfirmForm({
+      payment_method: 'card',
+      date_received: new Date().toISOString().split('T')[0],
+    });
+    setShowConfirmModal(true);
+  }
+
+  function calculateNextPaymentDate(chapter: Chapter, fromDate: string): string | null {
+    if (chapter.payment_type === 'one_time') return null;
+
+    const date = new Date(fromDate);
+    if (chapter.payment_type === 'monthly') {
+      date.setMonth(date.getMonth() + 1);
+    } else if (chapter.payment_type === 'annual') {
+      date.setFullYear(date.getFullYear() + 1);
+    }
+
+    if (chapter.payment_day) {
+      const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      date.setDate(Math.min(chapter.payment_day, lastDayOfMonth));
+    }
+
+    return date.toISOString().split('T')[0];
+  }
+
+  async function confirmPayment() {
+    if (!supabase || !confirmingChapter) return;
+
+    const chapter = confirmingChapter;
+    const amount = chapter.payment_amount || 0;
+    const nextPayment = calculateNextPaymentDate(chapter, confirmForm.date_received);
+
+    const { data: paymentData, error: paymentError } = await supabase
+      .from('payments')
+      .insert([{
+        chapter_id: chapter.id,
+        amount,
+        payment_date: confirmForm.date_received,
+        payment_method: confirmForm.payment_method,
+        status: 'completed',
+        notes: 'Manually confirmed payment',
+        period_start: chapter.next_payment_date || confirmForm.date_received,
+        period_end: nextPayment || confirmForm.date_received,
+      }])
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('Error confirming payment:', paymentError);
+      alert(`Failed to confirm payment: ${paymentError.message}`);
+      return;
+    }
+
+    const updateData: Record<string, string | null> = {
+      last_payment_date: confirmForm.date_received,
+    };
+    if (chapter.payment_type !== 'one_time') {
+      updateData.next_payment_date = nextPayment;
+    } else {
+      updateData.next_payment_date = null;
+    }
+
+    const { error: chapterError } = await supabase
+      .from('chapters')
+      .update(updateData)
+      .eq('id', chapter.id);
+
+    if (chapterError) {
+      console.error('Error updating chapter:', chapterError);
+      alert(`Payment recorded but failed to update chapter dates: ${chapterError.message}`);
+    }
+
+    setRecentConfirmations(prev => [...prev, {
+      paymentId: paymentData.id,
+      chapterId: chapter.id,
+      chapterName: chapter.chapter_name,
+      amount,
+      previousLastPayment: chapter.last_payment_date,
+      previousNextPayment: chapter.next_payment_date,
+      confirmedAt: new Date(),
+    }]);
+
+    setShowConfirmModal(false);
+    setConfirmingChapter(null);
+    setChapterPaymentHistory(prev => {
+      const copy = { ...prev };
+      delete copy[chapter.id];
+      return copy;
+    });
+    await fetchData();
+  }
+
+  async function undoConfirmation(confirmation: typeof recentConfirmations[0]) {
+    if (!supabase) return;
+
+    const { error: deleteError } = await supabase
+      .from('payments')
+      .delete()
+      .eq('id', confirmation.paymentId);
+
+    if (deleteError) {
+      console.error('Error undoing confirmation:', deleteError);
+      alert(`Failed to undo confirmation: ${deleteError.message}`);
+      return;
+    }
+
+    const { error: revertError } = await supabase
+      .from('chapters')
+      .update({
+        last_payment_date: confirmation.previousLastPayment,
+        next_payment_date: confirmation.previousNextPayment,
+      })
+      .eq('id', confirmation.chapterId);
+
+    if (revertError) {
+      console.error('Error reverting chapter dates:', revertError);
+      alert(`Payment deleted but failed to revert chapter dates: ${revertError.message}`);
+    }
+
+    setRecentConfirmations(prev => prev.filter(c => c.paymentId !== confirmation.paymentId));
+    setChapterPaymentHistory(prev => {
+      const copy = { ...prev };
+      delete copy[confirmation.chapterId];
+      return copy;
+    });
+    await fetchData();
+  }
+
+  async function fetchChapterPayments(chapterId: string) {
+    if (!supabase) return;
+    if (chapterPaymentHistory[chapterId]) return;
+
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('chapter_id', chapterId)
+      .eq('status', 'completed')
+      .order('payment_date', { ascending: false })
+      .limit(10);
+
+    if (!error && data) {
+      setChapterPaymentHistory(prev => ({ ...prev, [chapterId]: data }));
+    }
+  }
+
+  function toggleChapterHistory(chapterId: string) {
+    if (expandedChapterId === chapterId) {
+      setExpandedChapterId(null);
+    } else {
+      setExpandedChapterId(chapterId);
+      fetchChapterPayments(chapterId);
+    }
   }
 
   // Calculate date range based on selected time range
@@ -427,6 +604,23 @@ export default function FinanceModule() {
     other: 'Other',
   };
 
+  const confirmMethodLabels: Record<string, string> = {
+    card: 'Stripe',
+    bank_transfer: 'Wire Transfer',
+    check: 'Check',
+    other: 'Other',
+  };
+
+  const lastPaymentMethodByChapter = useMemo(() => {
+    const result: Record<string, Payment['payment_method']> = {};
+    for (const p of payments) {
+      if (p.status === 'completed' && !result[p.chapter_id]) {
+        result[p.chapter_id] = p.payment_method;
+      }
+    }
+    return result;
+  }, [payments]);
+
   return (
     <div className="finance-page">
       {/* Header */}
@@ -518,6 +712,22 @@ export default function FinanceModule() {
             )}
           </div>
 
+          {/* Recent Confirmations Banner */}
+          {recentConfirmations.length > 0 && (
+            <div className="confirmations-banner">
+              {recentConfirmations.map((conf) => (
+                <div key={conf.paymentId} className="confirmation-item">
+                  <CheckCircle size={16} />
+                  <span>Payment confirmed for <strong>{conf.chapterName}</strong> — {formatCurrency(conf.amount)}</span>
+                  <button className="confirmation-undo-btn" onClick={() => undoConfirmation(conf)}>
+                    <Undo2 size={14} />
+                    Undo
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Overdue Section */}
           {scheduleData.overduePayments.length > 0 && (
             <div className="schedule-section overdue-section">
@@ -528,7 +738,7 @@ export default function FinanceModule() {
               </div>
               <div className="schedule-list">
                 {scheduleData.overduePayments.map((item) => (
-                  <div key={item.chapter.id} className="schedule-item overdue">
+                  <div key={item.chapter.id} className="schedule-item overdue has-action">
                     <div className="schedule-item-left">
                       <div className="schedule-item-chapter">
                         <span className="schedule-chapter-name">{item.chapter.chapter_name}</span>
@@ -549,6 +759,16 @@ export default function FinanceModule() {
                         {item.daysOverdue} day{item.daysOverdue !== 1 ? 's' : ''} overdue
                       </span>
                       <span className="schedule-date">Due: {formatDate(item.chapter.next_payment_date!)}</span>
+                    </div>
+                    <div className="schedule-item-actions">
+                      <button
+                        className="schedule-confirm-btn"
+                        onClick={() => openConfirmModal(item.chapter)}
+                        title="Confirm payment received"
+                      >
+                        <CheckCircle size={16} />
+                        Confirm
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -571,7 +791,7 @@ export default function FinanceModule() {
             ) : (
               <div className="schedule-list">
                 {scheduleData.upcomingPayments.map((item) => (
-                  <div key={item.chapter.id} className="schedule-item">
+                  <div key={item.chapter.id} className="schedule-item has-action">
                     <div className="schedule-item-left">
                       <div className="schedule-item-chapter">
                         <span className="schedule-chapter-name">{item.chapter.chapter_name}</span>
@@ -594,6 +814,16 @@ export default function FinanceModule() {
                          `In ${item.daysUntil} days`}
                       </span>
                       <span className="schedule-date">{formatDate(item.chapter.next_payment_date!)}</span>
+                    </div>
+                    <div className="schedule-item-actions">
+                      <button
+                        className="schedule-confirm-btn upcoming"
+                        onClick={() => openConfirmModal(item.chapter)}
+                        title="Confirm early payment received"
+                      >
+                        <CheckCircle size={16} />
+                        Confirm
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -619,6 +849,7 @@ export default function FinanceModule() {
                 <table className="schedule-table">
                   <thead>
                     <tr>
+                      <th></th>
                       <th>Chapter</th>
                       <th>Type</th>
                       <th>Amount</th>
@@ -626,43 +857,113 @@ export default function FinanceModule() {
                       <th>Started</th>
                       <th>Last Payment</th>
                       <th>Next Payment</th>
+                      <th>Last Method</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {scheduleData.chaptersWithPayments.map((chapter) => {
                       const isOverdue = chapter.next_payment_date && new Date(chapter.next_payment_date) < new Date();
+                      const isExpanded = expandedChapterId === chapter.id;
+                      const historyEntries = chapterPaymentHistory[chapter.id] || [];
+                      const lastMethod = lastPaymentMethodByChapter[chapter.id];
                       return (
-                        <tr key={chapter.id} className={isOverdue ? 'overdue-row' : ''}>
-                          <td>
-                            <div className="schedule-table-chapter">
-                              <span className="chapter-name">{chapter.chapter_name}</span>
-                              {chapter.school && <span className="chapter-school">{chapter.school}</span>}
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`schedule-type-badge ${chapter.payment_type}`}>
-                              {chapter.payment_type === 'monthly' ? 'Monthly' : 
-                               chapter.payment_type === 'annual' ? 'Annual' : 'One-time'}
-                            </span>
-                          </td>
-                          <td className="schedule-table-amount">
-                            {formatCurrency(chapter.payment_amount || 0)}
-                          </td>
-                          <td className="schedule-table-day">
-                            {chapter.payment_day ? `${chapter.payment_day}${getOrdinalSuffix(chapter.payment_day)}` : '—'}
-                          </td>
-                          <td>{chapter.payment_start_date ? formatDate(chapter.payment_start_date) : '—'}</td>
-                          <td>{chapter.last_payment_date ? formatDate(chapter.last_payment_date) : '—'}</td>
-                          <td className={isOverdue ? 'overdue-date' : ''}>
-                            {chapter.next_payment_date ? formatDate(chapter.next_payment_date) : '—'}
-                          </td>
-                          <td>
-                            <span className={`chapter-status-badge ${chapter.status}`}>
-                              {chapter.status}
-                            </span>
-                          </td>
-                        </tr>
+                        <React.Fragment key={chapter.id}>
+                          <tr className={`${isOverdue ? 'overdue-row' : ''} ${isExpanded ? 'expanded-row' : ''}`}>
+                            <td className="schedule-table-expand">
+                              <button
+                                className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
+                                onClick={() => toggleChapterHistory(chapter.id)}
+                                title="View payment history"
+                              >
+                                <ChevronRight size={16} />
+                              </button>
+                            </td>
+                            <td>
+                              <div className="schedule-table-chapter">
+                                <span className="chapter-name">{chapter.chapter_name}</span>
+                                {chapter.school && <span className="chapter-school">{chapter.school}</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`schedule-type-badge ${chapter.payment_type}`}>
+                                {chapter.payment_type === 'monthly' ? 'Monthly' : 
+                                 chapter.payment_type === 'annual' ? 'Annual' : 'One-time'}
+                              </span>
+                            </td>
+                            <td className="schedule-table-amount">
+                              {formatCurrency(chapter.payment_amount || 0)}
+                            </td>
+                            <td className="schedule-table-day">
+                              {chapter.payment_day ? `${chapter.payment_day}${getOrdinalSuffix(chapter.payment_day)}` : '—'}
+                            </td>
+                            <td>{chapter.payment_start_date ? formatDate(chapter.payment_start_date) : '—'}</td>
+                            <td>{chapter.last_payment_date ? formatDate(chapter.last_payment_date) : '—'}</td>
+                            <td className={isOverdue ? 'overdue-date' : ''}>
+                              {chapter.payment_type === 'one_time' && !chapter.next_payment_date
+                                ? <span className="paid-complete-badge">Paid</span>
+                                : chapter.next_payment_date ? formatDate(chapter.next_payment_date) : '—'}
+                            </td>
+                            <td>
+                              {lastMethod ? (
+                                <span className="method-badge">
+                                  <CreditCard size={12} />
+                                  {confirmMethodLabels[lastMethod] || methodLabels[lastMethod]}
+                                </span>
+                              ) : '—'}
+                            </td>
+                            <td>
+                              <span className={`chapter-status-badge ${chapter.status}`}>
+                                {chapter.status}
+                              </span>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="history-expansion-row">
+                              <td colSpan={10}>
+                                <div className="chapter-history-panel">
+                                  <div className="chapter-history-header">
+                                    <History size={16} />
+                                    <span>Payment History — {chapter.chapter_name}</span>
+                                  </div>
+                                  {historyEntries.length === 0 ? (
+                                    <div className="chapter-history-empty">
+                                      No payment records found
+                                    </div>
+                                  ) : (
+                                    <table className="chapter-history-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Date</th>
+                                          <th>Amount</th>
+                                          <th>Method</th>
+                                          <th>Reference</th>
+                                          <th>Notes</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {historyEntries.map((p) => (
+                                          <tr key={p.id}>
+                                            <td>{formatDate(p.payment_date)}</td>
+                                            <td className="schedule-table-amount">{formatCurrency(p.amount)}</td>
+                                            <td>
+                                              <span className="method-badge small">
+                                                <CreditCard size={11} />
+                                                {confirmMethodLabels[p.payment_method] || methodLabels[p.payment_method]}
+                                              </span>
+                                            </td>
+                                            <td className="finance-table-ref">{p.reference_number || '—'}</td>
+                                            <td className="history-notes">{p.notes || '—'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -902,6 +1203,60 @@ export default function FinanceModule() {
         </span>
       </div>
         </>
+      )}
+
+      {/* Confirm Payment Modal */}
+      {showConfirmModal && confirmingChapter && (
+        <div className="finance-modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="confirm-payment-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-top">
+              <div className="confirm-modal-icon-wrap">
+                <CheckCircle size={28} />
+              </div>
+              <h2>Confirm Payment</h2>
+              <p className="confirm-modal-subtitle">
+                {confirmingChapter.chapter_name}
+                {confirmingChapter.school && ` — ${confirmingChapter.school}`}
+              </p>
+              <div className="confirm-modal-amount">
+                {formatCurrency(confirmingChapter.payment_amount || 0)}
+              </div>
+            </div>
+
+            <div className="confirm-modal-body">
+              <div className="confirm-form-group">
+                <label>Payment Method</label>
+                <select
+                  value={confirmForm.payment_method}
+                  onChange={(e) => setConfirmForm({ ...confirmForm, payment_method: e.target.value as Payment['payment_method'] })}
+                >
+                  <option value="card">Stripe</option>
+                  <option value="check">Check</option>
+                  <option value="bank_transfer">Wire Transfer</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="confirm-form-group">
+                <label>Date Received</label>
+                <input
+                  type="date"
+                  value={confirmForm.date_received}
+                  onChange={(e) => setConfirmForm({ ...confirmForm, date_received: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="confirm-modal-footer">
+              <button className="finance-btn-secondary" onClick={() => setShowConfirmModal(false)}>
+                Cancel
+              </button>
+              <button className="confirm-payment-btn" onClick={confirmPayment}>
+                <CheckCircle size={16} />
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Payment Modal */}
@@ -2104,6 +2459,357 @@ export default function FinanceModule() {
           font-weight: 500;
         }
 
+        /* Confirmations Banner */
+        .confirmations-banner {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .confirmation-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          border-radius: 10px;
+          font-size: 0.875rem;
+          color: #065f46;
+        }
+
+        .confirmation-item svg {
+          flex-shrink: 0;
+          color: #10b981;
+        }
+
+        .confirmation-item span {
+          flex: 1;
+        }
+
+        .confirmation-undo-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.375rem 0.75rem;
+          background: white;
+          border: 1px solid #a7f3d0;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: #065f46;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .confirmation-undo-btn:hover {
+          background: #d1fae5;
+          border-color: #6ee7b7;
+        }
+
+        /* Schedule item with action column */
+        .schedule-item.has-action {
+          grid-template-columns: 1fr 150px 150px auto;
+        }
+
+        .schedule-item-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+        }
+
+        .schedule-confirm-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.5rem 1rem;
+          background: #10b981;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.8125rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .schedule-confirm-btn:hover {
+          background: #059669;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+          transform: translateY(-1px);
+        }
+
+        .schedule-confirm-btn:active {
+          transform: translateY(0);
+        }
+
+        .schedule-confirm-btn.upcoming {
+          background: white;
+          color: #10b981;
+          border: 1px solid #d1fae5;
+        }
+
+        .schedule-confirm-btn.upcoming:hover {
+          background: #ecfdf5;
+          border-color: #10b981;
+        }
+
+        /* Confirm Payment Modal */
+        .confirm-payment-modal {
+          background: white;
+          border-radius: 20px;
+          width: 100%;
+          max-width: 420px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .confirm-modal-top {
+          padding: 2rem 1.5rem 1.25rem;
+          text-align: center;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .confirm-modal-icon-wrap {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
+          background: #ecfdf5;
+          color: #10b981;
+          margin-bottom: 1rem;
+        }
+
+        .confirm-modal-top h2 {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 0.375rem 0;
+        }
+
+        .confirm-modal-subtitle {
+          font-size: 0.875rem;
+          color: #6b7280;
+          margin: 0 0 0.75rem 0;
+        }
+
+        .confirm-modal-amount {
+          font-size: 1.75rem;
+          font-weight: 700;
+          color: #10b981;
+        }
+
+        .confirm-modal-body {
+          padding: 1.25rem 1.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .confirm-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .confirm-form-group label {
+          font-size: 0.8125rem;
+          font-weight: 500;
+          color: #374151;
+        }
+
+        .confirm-form-group select,
+        .confirm-form-group input {
+          padding: 0.75rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          font-size: 0.875rem;
+          color: #374151;
+          transition: all 0.2s;
+        }
+
+        .confirm-form-group select:focus,
+        .confirm-form-group input:focus {
+          outline: none;
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .confirm-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          padding: 1.25rem 1.5rem;
+          border-top: 1px solid #e5e7eb;
+          background: #f9fafb;
+        }
+
+        .confirm-payment-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border: none;
+          border-radius: 10px;
+          font-weight: 600;
+          font-size: 0.875rem;
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .confirm-payment-btn:hover {
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .confirm-payment-btn:active {
+          transform: translateY(0);
+        }
+
+        /* Expand button in subscriptions table */
+        .schedule-table-expand {
+          width: 40px;
+          padding: 0.875rem 0.5rem 0.875rem 1rem !important;
+        }
+
+        .expand-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: none;
+          background: transparent;
+          color: #9ca3af;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .expand-btn:hover {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .expand-btn.expanded {
+          color: #10b981;
+          transform: rotate(90deg);
+        }
+
+        .expanded-row td {
+          border-bottom-color: transparent !important;
+        }
+
+        /* Payment History Expansion */
+        .history-expansion-row td {
+          padding: 0 !important;
+          background: #f9fafb;
+        }
+
+        .chapter-history-panel {
+          padding: 0.75rem 1.25rem 1.25rem;
+          margin: 0 1rem 0.75rem;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+        }
+
+        .chapter-history-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding-bottom: 0.75rem;
+          margin-bottom: 0.75rem;
+          border-bottom: 1px solid #f3f4f6;
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .chapter-history-header svg {
+          color: #6b7280;
+        }
+
+        .chapter-history-empty {
+          padding: 1.5rem;
+          text-align: center;
+          color: #9ca3af;
+          font-size: 0.8125rem;
+        }
+
+        .chapter-history-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .chapter-history-table th {
+          text-align: left;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.6875rem;
+          font-weight: 600;
+          color: #9ca3af;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .chapter-history-table td {
+          padding: 0.5rem 0.75rem;
+          font-size: 0.8125rem;
+          color: #374151;
+          border-bottom: 1px solid #f9fafb;
+        }
+
+        .chapter-history-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .history-notes {
+          color: #9ca3af;
+          font-size: 0.75rem;
+          max-width: 200px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* Method Badge */
+        .method-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.25rem 0.625rem;
+          background: #f3f4f6;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: #6b7280;
+        }
+
+        .method-badge.small {
+          padding: 0.125rem 0.5rem;
+          font-size: 0.6875rem;
+        }
+
+        /* Paid Complete Badge (one-time) */
+        .paid-complete-badge {
+          display: inline-block;
+          padding: 0.25rem 0.625rem;
+          background: #ecfdf5;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: #10b981;
+        }
+
         @media (max-width: 1024px) {
           .finance-metrics {
             grid-template-columns: repeat(2, 1fr);
@@ -2168,13 +2874,21 @@ export default function FinanceModule() {
             gap: 0.75rem;
           }
 
+          .schedule-item.has-action {
+            grid-template-columns: 1fr;
+          }
+
           .schedule-item-center,
           .schedule-item-right {
             align-items: flex-start;
           }
 
+          .schedule-item-actions {
+            justify-content: flex-start;
+          }
+
           .schedule-table {
-            min-width: 800px;
+            min-width: 900px;
           }
         }
       `}</style>

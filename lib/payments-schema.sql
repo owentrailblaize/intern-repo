@@ -41,8 +41,23 @@ CREATE TRIGGER update_payments_updated_at
 -- Enable RLS
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
--- Policy for authenticated users (adjust based on your auth setup)
--- Drop existing policy first to avoid conflicts
+-- Explicit policies for each operation to avoid WITH CHECK issues
 DROP POLICY IF EXISTS "Enable all access for authenticated users" ON payments;
-CREATE POLICY "Enable all access for authenticated users" ON payments
-  FOR ALL USING (true);
+DROP POLICY IF EXISTS "Authenticated users can read payments" ON payments;
+DROP POLICY IF EXISTS "Authenticated users can insert payments" ON payments;
+DROP POLICY IF EXISTS "Authenticated users can update payments" ON payments;
+DROP POLICY IF EXISTS "Authenticated users can delete payments" ON payments;
+
+CREATE POLICY "Authenticated users can read payments" ON payments
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated users can insert payments" ON payments
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated users can update payments" ON payments
+  FOR UPDATE
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated users can delete payments" ON payments
+  FOR DELETE USING (auth.uid() IS NOT NULL);
