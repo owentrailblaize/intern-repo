@@ -33,8 +33,9 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { supabase, Expense, MonthlyStatement, ExpenseCategory, ExpensePaymentMethod } from '@/lib/supabase';
+import { supabase, Expense, MonthlyStatement, ImportBatch, ExpenseCategory, ExpensePaymentMethod } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import PLImportModal from './PLImportModal';
 
 interface Payment {
   id: string;
@@ -104,11 +105,14 @@ const MONTH_NAMES = [
 export default function AccountingTab({ payments }: AccountingTabProps) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [statements, setStatements] = useState<MonthlyStatement[]>([]);
+  const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id: string | null }>({ show: false, id: null });
+  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState<{ show: boolean; batch: ImportBatch | null }>({ show: false, batch: null });
   const [uploadingMonth, setUploadingMonth] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [expenseSearch, setExpenseSearch] = useState('');
@@ -129,7 +133,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
 
   async function fetchAccountingData() {
     setLoading(true);
-    await Promise.all([fetchExpenses(), fetchStatements()]);
+    await Promise.all([fetchExpenses(), fetchStatements(), fetchBatches()]);
     setLoading(false);
   }
 
@@ -150,6 +154,34 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
       .order('year', { ascending: false })
       .order('month', { ascending: false });
     if (!error) setStatements(data || []);
+  }
+
+  async function fetchBatches() {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from('import_batches')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error) setImportBatches(data || []);
+  }
+
+  async function deleteBatch(batch: ImportBatch) {
+    if (!supabase) return;
+    await supabase.from('expenses').delete().eq('import_batch_id', batch.id);
+    await supabase.from('import_batches').delete().eq('id', batch.id);
+    setBatchDeleteConfirm({ show: false, batch: null });
+    fetchAccountingData();
+  }
+
+  function downloadTemplate() {
+    const csv = `Date,Description,Category,Amount,Type\n2026-01-15,Vercel Pro,Software,-49.00,Expense\n2026-01-15,Chapter Payment,Revenue,299.00,Revenue\n2026-01-20,Delta Airlines,Travel,-385.00,Expense\n2026-01-25,Contractor Invoice,Payroll,-1500.00,Expense`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pl-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function saveExpense() {
@@ -219,7 +251,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
     setExpenseForm({
       date: expense.date,
       amount: expense.amount.toString(),
-      category: expense.category,
+      category: expense.category || 'other',
       vendor: expense.vendor || '',
       description: expense.description || '',
       payment_method: expense.payment_method,
@@ -267,34 +299,42 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
     }
   }
 
-  // Computed: all completed revenue
   const completedPayments = useMemo(
     () => payments.filter(p => p.status === 'completed'),
     [payments]
   );
 
+  const revenueEntries = useMemo(
+    () => expenses.filter(e => e.type === 'revenue'),
+    [expenses]
+  );
+
+  const expenseEntries = useMemo(
+    () => expenses.filter(e => !e.type || e.type === 'expense'),
+    [expenses]
+  );
+
   const totalRevenue = useMemo(
-    () => completedPayments.reduce((s, p) => s + p.amount, 0),
-    [completedPayments]
+    () => completedPayments.reduce((s, p) => s + p.amount, 0) + revenueEntries.reduce((s, e) => s + e.amount, 0),
+    [completedPayments, revenueEntries]
   );
 
   const totalExpenses = useMemo(
-    () => expenses.reduce((s, e) => s + e.amount, 0),
-    [expenses]
+    () => expenseEntries.reduce((s, e) => s + e.amount, 0),
+    [expenseEntries]
   );
 
   const netCash = totalRevenue - totalExpenses;
 
-  // Burn rate: average monthly expenses over last 3 months
   const burnAndRunway = useMemo(() => {
     const now = new Date();
     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-    const recentExpenses = expenses.filter(e => new Date(e.date) >= threeMonthsAgo);
+    const recentExpenses = expenseEntries.filter(e => new Date(e.date) >= threeMonthsAgo);
     const monthSpan = Math.max(1, 3);
     const monthlyBurn = recentExpenses.reduce((s, e) => s + e.amount, 0) / monthSpan;
     const runway = monthlyBurn > 0 ? Math.floor(netCash / monthlyBurn) : null;
     return { monthlyBurn, runway };
-  }, [expenses, netCash]);
+  }, [expenseEntries, netCash]);
 
   // Monthly data for chart + statements list
   const monthlyData = useMemo(() => {
@@ -326,7 +366,13 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
       md.revenueItems.push(p);
     }
 
-    for (const e of expenses) {
+    for (const e of revenueEntries) {
+      const d = new Date(e.date);
+      const md = getOrCreate(d.getFullYear(), d.getMonth() + 1);
+      md.revenue += e.amount;
+    }
+
+    for (const e of expenseEntries) {
       const d = new Date(e.date);
       const md = getOrCreate(d.getFullYear(), d.getMonth() + 1);
       md.expenses += e.amount;
@@ -347,7 +393,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
     });
-  }, [completedPayments, expenses, statements]);
+  }, [completedPayments, revenueEntries, expenseEntries, statements]);
 
   // Chart data: last 12 months, ascending order
   const chartData = useMemo(() => {
@@ -370,9 +416,8 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
     return months;
   }, [monthlyData]);
 
-  // Filtered expenses for table
   const filteredExpenses = useMemo(() => {
-    return expenses.filter(e => {
+    return expenseEntries.filter(e => {
       const matchCat = categoryFilter === 'all' || e.category === categoryFilter;
       const search = expenseSearch.toLowerCase();
       const matchSearch = !expenseSearch ||
@@ -380,7 +425,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
         e.description?.toLowerCase().includes(search);
       return matchCat && matchSearch;
     });
-  }, [expenses, categoryFilter, expenseSearch]);
+  }, [expenseEntries, categoryFilter, expenseSearch]);
 
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat('en-US', {
@@ -439,7 +484,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
           <div className="acct-metric-content">
             <span className="acct-metric-label">Total Revenue</span>
             <span className="acct-metric-value">{formatCurrency(totalRevenue)}</span>
-            <span className="acct-metric-sub">{completedPayments.length} payments</span>
+            <span className="acct-metric-sub">{completedPayments.length + revenueEntries.length} entries</span>
           </div>
         </div>
 
@@ -450,7 +495,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
           <div className="acct-metric-content">
             <span className="acct-metric-label">Total Expenses</span>
             <span className="acct-metric-value">{formatCurrency(totalExpenses)}</span>
-            <span className="acct-metric-sub">{expenses.length} entries</span>
+            <span className="acct-metric-sub">{expenseEntries.length} entries</span>
           </div>
         </div>
 
@@ -486,10 +531,20 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
             <PieChart size={18} />
             <h3>Revenue vs Expenses</h3>
           </div>
-          <button className="acct-export-btn" onClick={exportCSV}>
-            <Download size={16} />
-            Export CSV
-          </button>
+          <div className="acct-header-actions">
+            <button className="acct-template-btn" onClick={downloadTemplate}>
+              <Download size={14} />
+              Template
+            </button>
+            <button className="acct-import-btn" onClick={() => setShowImportModal(true)}>
+              <Upload size={16} />
+              Import P&L
+            </button>
+            <button className="acct-export-btn" onClick={exportCSV}>
+              <Download size={16} />
+              Export CSV
+            </button>
+          </div>
         </div>
         <div className="acct-chart-container">
           <ResponsiveContainer width="100%" height={300}>
@@ -528,6 +583,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
             {monthlyData.map((md) => {
               const isExpanded = expandedMonth === md.key;
               const isUploading = uploadingMonth === md.key;
+              const monthBatch = importBatches.find(b => b.year === md.year && b.month === md.month);
               return (
                 <div key={md.key} className={`acct-statement-card ${isExpanded ? 'expanded' : ''}`}>
                   <div className="acct-statement-header" onClick={() => setExpandedMonth(isExpanded ? null : md.key)}>
@@ -585,6 +641,22 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
                         )}
                       </div>
 
+                      {monthBatch && (
+                        <div className="acct-batch-info">
+                          <div className="acct-batch-left">
+                            <FileText size={14} />
+                            <span>Imported from <strong>{monthBatch.filename}</strong> — {monthBatch.line_count} entries ({formatCurrency(monthBatch.total_revenue)} revenue, {formatCurrency(monthBatch.total_expenses)} expenses)</span>
+                          </div>
+                          <button
+                            className="acct-batch-delete"
+                            onClick={() => setBatchDeleteConfirm({ show: true, batch: monthBatch })}
+                          >
+                            <Trash2 size={13} />
+                            Delete Import
+                          </button>
+                        </div>
+                      )}
+
                       {md.revenueItems.length > 0 && (
                         <div className="acct-line-items">
                           <h5>Revenue ({md.revenueItems.length})</h5>
@@ -613,7 +685,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
                                 <tr key={e.id}>
                                   <td>{formatDate(e.date)}</td>
                                   <td>{e.vendor || e.description || '—'}</td>
-                                  <td><span className="acct-cat-badge" style={{ background: CATEGORY_COLORS[e.category]?.bg, color: CATEGORY_COLORS[e.category]?.text }}>{CATEGORY_LABELS[e.category]}</span></td>
+                                  <td><span className="acct-cat-badge" style={{ background: CATEGORY_COLORS[e.category || 'other']?.bg, color: CATEGORY_COLORS[e.category || 'other']?.text }}>{CATEGORY_LABELS[e.category || 'other']}</span></td>
                                   <td className="acct-amount-cell red">{formatCurrency(e.amount)}</td>
                                 </tr>
                               ))}
@@ -706,8 +778,8 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
                       </div>
                     </td>
                     <td>
-                      <span className="acct-cat-badge" style={{ background: CATEGORY_COLORS[expense.category]?.bg, color: CATEGORY_COLORS[expense.category]?.text }}>
-                        {CATEGORY_LABELS[expense.category]}
+                      <span className="acct-cat-badge" style={{ background: CATEGORY_COLORS[expense.category || 'other']?.bg, color: CATEGORY_COLORS[expense.category || 'other']?.text }}>
+                        {CATEGORY_LABELS[expense.category || 'other']}
                       </span>
                     </td>
                     <td className="acct-amount-cell red">{formatCurrency(expense.amount)}</td>
@@ -808,6 +880,26 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
         confirmText="Delete"
         onConfirm={() => deleteConfirm.id && deleteExpense(deleteConfirm.id)}
         onCancel={() => setDeleteConfirm({ show: false, id: null })}
+      />
+
+      <ConfirmModal
+        isOpen={batchDeleteConfirm.show}
+        title="Delete Import"
+        message={`Are you sure you want to delete this import? All ${batchDeleteConfirm.batch?.line_count || 0} entries from "${batchDeleteConfirm.batch?.filename || ''}" will be removed.`}
+        confirmText="Delete Import"
+        onConfirm={() => batchDeleteConfirm.batch && deleteBatch(batchDeleteConfirm.batch)}
+        onCancel={() => setBatchDeleteConfirm({ show: false, batch: null })}
+      />
+
+      <PLImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={() => {
+          fetchAccountingData();
+          setShowImportModal(false);
+        }}
+        existingPayments={payments}
+        existingBatches={importBatches}
       />
 
       <style jsx>{`
@@ -914,6 +1006,39 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
         }
 
         .acct-export-btn:hover { background: #f3f4f6; border-color: #d1d5db; }
+
+        .acct-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+        .acct-import-btn {
+          display: flex; align-items: center; gap: 0.375rem;
+          padding: 0.5rem 0.875rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border: none; border-radius: 8px; font-size: 0.8125rem; font-weight: 600;
+          color: white; cursor: pointer; transition: all 0.2s;
+        }
+        .acct-import-btn:hover { box-shadow: 0 2px 8px rgba(16,185,129,0.3); transform: translateY(-1px); }
+
+        .acct-template-btn {
+          display: flex; align-items: center; gap: 0.25rem;
+          padding: 0.4rem 0.75rem; background: white; border: 1px solid #e5e7eb;
+          border-radius: 8px; font-size: 0.75rem; font-weight: 500;
+          color: #6b7280; cursor: pointer; transition: all 0.2s;
+        }
+        .acct-template-btn:hover { background: #f3f4f6; border-color: #d1d5db; }
+
+        .acct-batch-info {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0.625rem 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe;
+          border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.8125rem; color: #1e40af;
+        }
+        .acct-batch-left { display: flex; align-items: center; gap: 0.5rem; }
+        .acct-batch-left strong { font-weight: 600; }
+        .acct-batch-delete {
+          display: flex; align-items: center; gap: 0.25rem;
+          padding: 0.3rem 0.625rem; background: white; border: 1px solid #fecaca;
+          border-radius: 6px; font-size: 0.75rem; font-weight: 500;
+          color: #dc2626; cursor: pointer; transition: all 0.2s;
+        }
+        .acct-batch-delete:hover { background: #fef2f2; border-color: #f87171; }
 
         /* Statements List */
         .acct-statements-list { display: flex; flex-direction: column; }

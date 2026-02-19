@@ -329,18 +329,32 @@ export interface Payment {
 
 export type ExpenseCategory = 'software' | 'travel' | 'legal' | 'marketing' | 'payroll' | 'office' | 'other';
 export type ExpensePaymentMethod = 'brex' | 'personal' | 'wire' | 'other';
+export type LedgerEntryType = 'revenue' | 'expense';
 
 export interface Expense {
   id: string;
   date: string;
   amount: number;
-  category: ExpenseCategory;
+  category: ExpenseCategory | null;
   vendor: string | null;
   description: string | null;
   payment_method: ExpensePaymentMethod;
   receipt_url: string | null;
+  type: LedgerEntryType;
+  import_batch_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ImportBatch {
+  id: string;
+  year: number;
+  month: number;
+  filename: string | null;
+  total_revenue: number;
+  total_expenses: number;
+  line_count: number;
+  created_at: string;
 }
 
 export interface MonthlyStatement {
