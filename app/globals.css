@@ -3520,6 +3520,7 @@ input:focus {
   background: white;
   color: #6b7280;
   border: 1px solid #e5e7eb;
+  text-decoration: none;
 }
 
 .pipeline-card-actions .action-btn:hover {
@@ -3567,6 +3568,39 @@ input:focus {
   background: #fef2f2;
   color: #dc2626;
   border-color: #fecaca;
+}
+
+/* Message button — no phone (grayed with + indicator) */
+.pipeline-card-actions .action-btn.message-no-phone,
+.pipeline-mobile-card-actions .action-btn.message-no-phone-mobile {
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  cursor: pointer;
+  position: relative;
+}
+
+.pipeline-card-actions .action-btn.message-no-phone:hover,
+.pipeline-mobile-card-actions .action-btn.message-no-phone-mobile:hover {
+  color: #6b7280;
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.message-no-phone-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.message-plus-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -5px;
+  color: #f59e0b;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 1px white);
 }
 
 /* Stage-specific card accents */

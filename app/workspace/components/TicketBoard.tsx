@@ -152,6 +152,7 @@ export function TicketBoard() {
   const [filterAssignee, setFilterAssignee] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterProject, setFilterProject] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
   const [notifications, setNotifications] = useState<TicketNotification[]>([]);
@@ -185,6 +186,7 @@ export function TicketBoard() {
       if (filterAssignee) params.set('assignee_id', filterAssignee);
       if (filterPriority) params.set('priority', filterPriority);
       if (filterType) params.set('type', filterType);
+      if (filterProject) params.set('project', filterProject);
       if (filterStatus) params.set('status', filterStatus);
       if (searchQuery) params.set('search', searchQuery);
 
@@ -196,7 +198,7 @@ export function TicketBoard() {
     } finally {
       setLoading(false);
     }
-  }, [filterAssignee, filterPriority, filterType, filterStatus, searchQuery]);
+  }, [filterAssignee, filterPriority, filterType, filterProject, filterStatus, searchQuery]);
 
   const fetchNotifications = useCallback(async () => {
     if (!currentEmployee) return;
@@ -259,7 +261,13 @@ export function TicketBoard() {
     }
   };
 
-  const activeFilterCount = [filterStatus, filterAssignee, filterPriority, filterType].filter(Boolean).length;
+  const uniqueProjects = useMemo(() => {
+    const projects = new Set<string>();
+    tickets.forEach(t => { if (t.project) projects.add(t.project); });
+    return Array.from(projects).sort();
+  }, [tickets]);
+
+  const activeFilterCount = [filterStatus, filterAssignee, filterPriority, filterType, filterProject].filter(Boolean).length;
 
   return (
     <div className="tkt">
@@ -389,6 +397,17 @@ export function TicketBoard() {
               <option value="epic">Epic</option>
             </select>
           </div>
+          {uniqueProjects.length > 0 && (
+            <div className="tkt__filter-group">
+              <label>Project</label>
+              <select value={filterProject} onChange={e => setFilterProject(e.target.value)}>
+                <option value="">Any</option>
+                {uniqueProjects.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {activeFilterCount > 0 && (
             <button
               className="tkt__clear-filters"
@@ -397,6 +416,7 @@ export function TicketBoard() {
                 setFilterAssignee('');
                 setFilterPriority('');
                 setFilterType('');
+                setFilterProject('');
               }}
             >
               Clear all

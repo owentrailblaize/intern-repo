@@ -57,6 +57,8 @@ export default function PipelineModule() {
   const [followUpDealId, setFollowUpDealId] = useState<string | null>(null);
   // Advancing stage — track which deal ID is showing success state
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  // When true, the edit modal auto-focuses the phone input
+  const [focusPhoneOnEdit, setFocusPhoneOnEdit] = useState(false);
   // Mobile detection for call behavior
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
@@ -329,6 +331,7 @@ export default function PipelineModule() {
     });
     setEditingDeal(null);
     setShowModal(false);
+    setFocusPhoneOnEdit(false);
   }
 
   function resetImportModal() {
@@ -628,16 +631,26 @@ export default function PipelineModule() {
     setDetailDeal(deal);
   }
 
-  // Call handler — tel: on mobile, copy on desktop
+  function isValidPhone(phone: string | null | undefined): boolean {
+    if (!phone) return false;
+    const cleaned = phone.replace(/[\s\-.()+]/g, '');
+    return /^1?\d{10,14}$/.test(cleaned);
+  }
+
   function handleCallClick(deal: Deal) {
-    if (!deal.phone) return;
+    if (!isValidPhone(deal.phone)) return;
     if (isMobileDevice) {
       window.location.href = `tel:${deal.phone}`;
     } else {
-      navigator.clipboard.writeText(deal.phone).then(() => {
+      navigator.clipboard.writeText(deal.phone!).then(() => {
         showToast(`Copied: ${deal.phone}`, 'info');
       });
     }
+  }
+
+  function openEditModalWithPhoneFocus(deal: Deal) {
+    setFocusPhoneOnEdit(true);
+    openEditModal(deal);
   }
 
   return (
@@ -1010,18 +1023,26 @@ export default function PipelineModule() {
                         </td>
                         <td className="pipeline-table-actions">
                           <div className="pipeline-card-actions">
-                            <button
-                              className={`action-btn ${deal.phone ? 'followup' : ''}`}
-                              onClick={() => handleCallClick(deal)}
-                              title={deal.phone ? 'Call' : 'No phone number'}
-                              disabled={!deal.phone}
-                            >
-                              <Phone size={16} />
-                            </button>
-                            {deal.phone && (
+                            {isValidPhone(deal.phone) && (
+                              <a href={`tel:${deal.phone}`} className="action-btn followup" title="Call">
+                                <Phone size={16} />
+                              </a>
+                            )}
+                            {isValidPhone(deal.phone) ? (
                               <a href={`sms:${deal.phone}`} className="action-btn text" title="Text">
                                 <MessageSquare size={16} />
                               </a>
+                            ) : (
+                              <button
+                                className="action-btn message-no-phone"
+                                onClick={() => openEditModalWithPhoneFocus(deal)}
+                                title="Add phone number to enable calling & messaging"
+                              >
+                                <span className="message-no-phone-wrap">
+                                  <MessageSquare size={16} />
+                                  <Plus size={10} className="message-plus-badge" />
+                                </span>
+                              </button>
                             )}
                             {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) ? (
                               <button
@@ -1089,10 +1110,26 @@ export default function PipelineModule() {
                             </span>
                           </div>
                           <div className="pipeline-mobile-card-actions" onClick={e => e.stopPropagation()}>
-                            {deal.phone && (
+                            {isValidPhone(deal.phone) && (
                               <a href={`tel:${deal.phone}`} className="action-btn followup-btn" title="Call" onClick={e => e.stopPropagation()}>
                                 <Phone size={14} />
                               </a>
+                            )}
+                            {isValidPhone(deal.phone) ? (
+                              <a href={`sms:${deal.phone}`} className="action-btn text-btn" title="Text" onClick={e => e.stopPropagation()}>
+                                <MessageSquare size={14} />
+                              </a>
+                            ) : (
+                              <button
+                                className="action-btn message-no-phone-mobile"
+                                onClick={(e) => { e.stopPropagation(); openEditModalWithPhoneFocus(deal); }}
+                                title="Add phone number"
+                              >
+                                <span className="message-no-phone-wrap">
+                                  <MessageSquare size={14} />
+                                  <Plus size={8} className="message-plus-badge" />
+                                </span>
+                              </button>
                             )}
                             {!['closed_won', 'closed_lost', 'hold_off'].includes(deal.stage) && (
                               <button
@@ -1163,6 +1200,8 @@ export default function PipelineModule() {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="555-123-4567"
+                    autoFocus={focusPhoneOnEdit}
+                    id="deal-phone-input"
                   />
                 </div>
               </div>

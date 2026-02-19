@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const creatorId = searchParams.get('creator_id');
     const priority = searchParams.get('priority');
     const type = searchParams.get('type');
+    const project = searchParams.get('project');
     const search = searchParams.get('search');
 
     let query = supabase
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     if (creatorId) query = query.eq('creator_id', creatorId);
     if (priority) query = query.eq('priority', priority);
     if (type) query = query.eq('type', type);
+    if (project) query = query.eq('project', project);
     if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
 
     const { data, error } = await query;
