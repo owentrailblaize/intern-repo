@@ -527,12 +527,12 @@ export default function LeadsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Edit Lead Modal */}
       {editingLead && (
-        <div className="leads-modal-overlay" onClick={() => setEditingLead(null)}>
+        <ModalOverlay className="leads-modal-overlay" onClose={() => setEditingLead(null)}>
           <div className="leads-modal" onClick={(e) => e.stopPropagation()}>
             <div className="leads-modal-header">
               <h3>Edit Lead</h3>
