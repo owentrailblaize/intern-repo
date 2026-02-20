@@ -961,6 +961,7 @@ export default function PipelineModule() {
                       <th>Fraternity</th>
                       <th className="pipeline-table-value">Value</th>
                       <th>Follow-up</th>
+                      <th className="pipeline-table-notes">Notes</th>
                       <th className="pipeline-table-actions">Actions</th>
                     </tr>
                   </thead>
@@ -1020,6 +1021,15 @@ export default function PipelineModule() {
                               onClose={() => setFollowUpDealId(null)}
                               isMobile={false}
                             />
+                          )}
+                        </td>
+                        <td className="pipeline-table-notes">
+                          {deal.notes ? (
+                            <span className="pipeline-notes-preview" title={deal.notes} onClick={() => openDetail(deal)}>
+                              {deal.notes.length > 60 ? deal.notes.slice(0, 60) + '…' : deal.notes}
+                            </span>
+                          ) : (
+                            <span className="pipeline-notes-empty" onClick={() => openDetail(deal)} role="button" tabIndex={0}>+ Add</span>
                           )}
                         </td>
                         <td className="pipeline-table-actions">

@@ -1,13 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-function getSupabaseAdmin() {
-  if (!supabaseUrl || !supabaseServiceKey) return null;
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getAuthUser, unauthorizedResponse } from '@/lib/api-auth';
+import { parsePagination } from '@/lib/utils';
 
 const TICKET_SELECT = `
   *,
@@ -16,9 +10,12 @@ const TICKET_SELECT = `
   reviewer:employees!tickets_reviewer_id_fkey(id, name, email, role)
 `;
 
-// GET - List tickets with filters
+// GET - List tickets with filters and pagination
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthUser(request);
+    if (!user) return unauthorizedResponse();
+
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
@@ -32,11 +29,13 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const project = searchParams.get('project');
     const search = searchParams.get('search');
+    const { from, to } = parsePagination(searchParams);
 
     let query = supabase
       .from('tickets')
-      .select(TICKET_SELECT)
-      .order('created_at', { ascending: false });
+      .select(TICKET_SELECT, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (status && status !== 'all') {
       if (status === 'active') {
@@ -53,14 +52,14 @@ export async function GET(request: NextRequest) {
     if (project) query = query.eq('project', project);
     if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('Error fetching tickets:', error);
       return NextResponse.json({ data: null, error: { message: error.message, code: error.code } }, { status: 500 });
     }
 
-    return NextResponse.json({ data, error: null });
+    return NextResponse.json({ data, count, error: null });
   } catch (err) {
     console.error('Unexpected error:', err);
     return NextResponse.json({ data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } }, { status: 500 });
@@ -70,6 +69,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new ticket
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthUser(request);
+    if (!user) return unauthorizedResponse();
+
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       return NextResponse.json({ data: null, error: { message: 'Database not configured', code: 'DB_NOT_CONFIGURED' } }, { status: 500 });
