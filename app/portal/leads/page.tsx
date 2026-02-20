@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import ModalOverlay from '@/components/ModalOverlay';
 import { supabase, Employee, ROLE_PERMISSIONS } from '@/lib/supabase';
 import {
   Target,
