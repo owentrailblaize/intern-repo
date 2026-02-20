@@ -5,6 +5,7 @@ import { ArrowLeft, CheckSquare, Plus, Search, Filter, X, Trash2, Edit2, Check, 
 import Link from 'next/link';
 import { supabase, Task } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 export default function OperationsModule() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -301,7 +302,7 @@ export default function OperationsModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingTask ? 'Edit Task' : 'Add Task'}</h2>
@@ -381,7 +382,7 @@ export default function OperationsModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}

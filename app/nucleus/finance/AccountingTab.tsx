@@ -36,6 +36,7 @@ import {
 import { supabase, Expense, MonthlyStatement, ImportBatch, ExpenseCategory, ExpensePaymentMethod } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
 import PLImportModal from './PLImportModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface Payment {
   id: string;
@@ -805,7 +806,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
 
       {/* Expense Modal */}
       {showExpenseModal && (
-        <div className="acct-modal-overlay" onClick={() => resetExpenseForm()}>
+        <ModalOverlay className="acct-modal-overlay" onClose={() => resetExpenseForm()}>
           <div className="acct-modal" onClick={(e) => e.stopPropagation()}>
             <div className="acct-modal-header">
               <h2>{editingExpense ? 'Edit Expense' : 'Log Expense'}</h2>
@@ -869,7 +870,7 @@ export default function AccountingTab({ payments }: AccountingTabProps) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirm */}

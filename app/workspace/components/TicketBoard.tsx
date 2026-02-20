@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // ═══════════════════════════════════════════
 // TYPES
@@ -724,7 +725,7 @@ function CreateTicketModal({
   };
 
   return (
-    <div className="tkt__overlay" onClick={onClose}>
+    <ModalOverlay className="tkt__overlay" onClose={onClose}>
       <div className="tkt__modal" onClick={e => e.stopPropagation()}>
         <div className="tkt__modal-header">
           <h2>New Ticket</h2>
@@ -795,7 +796,7 @@ function CreateTicketModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 
@@ -918,7 +919,7 @@ function TicketDetailPanel({
   const TypeIcon = TYPE_CONFIG[ticket.type]?.icon || AlertCircle;
 
   return (
-    <div className="tkt__overlay" onClick={onClose}>
+    <ModalOverlay className="tkt__overlay" onClose={onClose}>
       <div className="tkt__detail" onClick={e => e.stopPropagation()}>
         {/* Detail Header */}
         <div className="tkt__detail-header">
@@ -1129,7 +1130,7 @@ function TicketDetailPanel({
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

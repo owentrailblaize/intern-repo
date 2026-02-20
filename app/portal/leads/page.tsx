@@ -431,7 +431,7 @@ export default function LeadsPage() {
 
       {/* New Lead Modal */}
       {showNewLead && (
-        <div className="leads-modal-overlay" onClick={() => setShowNewLead(false)}>
+        <ModalOverlay className="leads-modal-overlay" onClose={() => setShowNewLead(false)}>
           <div className="leads-modal" onClick={(e) => e.stopPropagation()}>
             <div className="leads-modal-header">
               <h3>Add New Lead</h3>
@@ -647,7 +647,7 @@ export default function LeadsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

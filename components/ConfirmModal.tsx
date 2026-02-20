@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export default function ConfirmModal({
   const styles = variantStyles[variant];
 
   return (
-    <div className="confirm-modal-overlay" onClick={onCancel}>
+    <ModalOverlay className="confirm-modal-overlay" onClose={onCancel}>
       <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
         <button className="confirm-modal-close" onClick={onCancel}>
           <X size={18} />
@@ -82,6 +83,6 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

@@ -5,6 +5,7 @@ import { ArrowLeft, Building2, Plus, Search, Filter, X, Trash2, Edit2, LayoutDas
 import Link from 'next/link';
 import { supabase, EnterpriseContract } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 export default function EnterpriseModule() {
   const [contracts, setContracts] = useState<EnterpriseContract[]>([]);
@@ -281,7 +282,7 @@ export default function EnterpriseModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingContract ? 'Edit Contract' : 'New Contract'}</h2>
@@ -374,7 +375,7 @@ export default function EnterpriseModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}

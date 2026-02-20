@@ -28,6 +28,7 @@ import {
   CornerDownLeft
 } from 'lucide-react';
 import { Employee } from '@/lib/supabase';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Types
 export interface EngineeringIssue {
@@ -619,7 +620,7 @@ export function LinearIssueTracker({ currentEmployee, teamMembers }: LinearIssue
 
       {/* New Issue Modal */}
       {showNewIssue && (
-        <div className="linear-modal-overlay" onClick={() => setShowNewIssue(false)}>
+        <ModalOverlay className="linear-modal-overlay" onClose={() => setShowNewIssue(false)}>
           <div className="linear-modal" onClick={(e) => e.stopPropagation()}>
             <div className="linear-modal-header">
               <h3>New Issue</h3>
@@ -713,12 +714,12 @@ export function LinearIssueTracker({ currentEmployee, teamMembers }: LinearIssue
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Issue Detail Sidebar */}
       {selectedIssue && (
-        <div className="linear-sidebar-overlay" onClick={() => setSelectedIssue(null)}>
+        <ModalOverlay className="linear-sidebar-overlay" onClose={() => setSelectedIssue(null)}>
           <div className="linear-sidebar" onClick={(e) => e.stopPropagation()}>
             <div className="linear-sidebar-header">
               <span className="linear-sidebar-id">
@@ -788,7 +789,7 @@ export function LinearIssueTracker({ currentEmployee, teamMembers }: LinearIssue
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

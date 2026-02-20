@@ -5,6 +5,7 @@ import { X, Phone, Mail, ChevronRight, Calendar, Edit2, Check, Trash2, Archive }
 import { Deal, DealStage, STAGE_CONFIG } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
+import ModalOverlay from '@/components/ModalOverlay';
 import FollowUpPicker from './FollowUpPicker';
 
 const STAGE_ORDER: DealStage[] = ['lead', 'demo_booked', 'first_demo', 'second_call', 'contract_sent', 'closed_won'];
@@ -447,7 +448,7 @@ export default function LeadDetailPanel({ deal, onClose, onUpdated, onDelete }: 
 
         {/* Confirm modals */}
         {showArchiveConfirm && (
-          <div className="ldp-confirm-overlay" onClick={() => setShowArchiveConfirm(false)}>
+          <ModalOverlay className="ldp-confirm-overlay" onClose={() => setShowArchiveConfirm(false)}>
             <div className="ldp-confirm" onClick={e => e.stopPropagation()}>
               <h3>Archive this lead?</h3>
               <p>This will move the lead to &quot;Hold Off&quot; status. You can reactivate it later.</p>
@@ -456,10 +457,10 @@ export default function LeadDetailPanel({ deal, onClose, onUpdated, onDelete }: 
                 <button className="ldp-confirm-ok" onClick={archiveLead}>Archive</button>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )}
         {showDeleteConfirm && (
-          <div className="ldp-confirm-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <ModalOverlay className="ldp-confirm-overlay" onClose={() => setShowDeleteConfirm(false)}>
             <div className="ldp-confirm" onClick={e => e.stopPropagation()}>
               <h3>Delete this lead?</h3>
               <p>This action cannot be undone. All data for this lead will be permanently removed.</p>
@@ -468,7 +469,7 @@ export default function LeadDetailPanel({ deal, onClose, onUpdated, onDelete }: 
                 <button className="ldp-confirm-ok ldp-confirm-danger" onClick={() => { onDelete(deal.id); closePanel(); }}>Delete</button>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         )}
       </div>
     </>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee, ROLE_LABELS } from '@/lib/supabase';
+import ModalOverlay from '@/components/ModalOverlay';
 import {
   CheckCircle2,
   Circle,

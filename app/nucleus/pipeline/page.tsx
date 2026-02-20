@@ -7,6 +7,7 @@ import { supabase, Deal, DealStage, STAGE_CONFIG, MRR_LEVEL_THRESHOLDS, MRR_LEVE
 import { getConferenceForDeal } from '@/lib/conference-map';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useToast } from '@/components/Toast';
+import ModalOverlay from '@/components/ModalOverlay';
 import PipelineTreeView from './PipelineTreeView';
 import LeadDetailPanel from './LeadDetailPanel';
 import FollowUpPicker from './FollowUpPicker';
@@ -1174,7 +1175,7 @@ export default function PipelineModule() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingDeal ? 'Edit Lead' : 'Add New Lead'}</h2>
@@ -1328,12 +1329,12 @@ export default function PipelineModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Import Modal */}
       {showImportModal && (
-        <div className="module-modal-overlay" onClick={() => resetImportModal()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetImportModal()}>
           <div className="module-modal import-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>
@@ -1530,7 +1531,7 @@ export default function PipelineModule() {
               </div>
             )}
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}

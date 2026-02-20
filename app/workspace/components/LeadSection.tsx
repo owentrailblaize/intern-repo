@@ -18,6 +18,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { PersonalLead } from '../hooks/useWorkspaceData';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface LeadSectionProps {
   leads: PersonalLead[];
@@ -209,7 +210,7 @@ export function LeadSection({
 
       {/* Edit Lead Modal */}
       {editingLeadId && (
-        <div className="ws-modal-overlay" onClick={() => { setEditingLeadId(null); setEditLead({}); }}>
+        <ModalOverlay className="ws-modal-overlay" onClose={() => { setEditingLeadId(null); setEditLead({}); }}>
           <div className="ws-modal" onClick={e => e.stopPropagation()}>
             <div className="ws-modal-header">
               <h3>Edit Lead</h3>
@@ -286,7 +287,7 @@ export function LeadSection({
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       <div className="ws-leads-list">

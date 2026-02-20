@@ -30,6 +30,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Lead category configuration
 const LEAD_CATEGORIES = {
@@ -609,7 +610,7 @@ export default function LeadsPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="leads-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="leads-modal-overlay" onClose={() => resetForm()}>
           <div className="leads-modal" onClick={(e) => e.stopPropagation()}>
             <div className="leads-modal-header">
               <h2>{editingContact ? 'Edit Lead' : 'Add Lead'}</h2>
@@ -769,7 +770,7 @@ export default function LeadsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation */}

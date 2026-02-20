@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
 import { Trash2, X, Send } from 'lucide-react';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface WhiteboardEntry {
   id: string;
@@ -467,7 +468,7 @@ export function Whiteboard() {
 
       {/* Clear confirmation modal */}
       {showClearConfirm && (
-        <div className="wb-modal-overlay" onClick={() => setShowClearConfirm(false)}>
+        <ModalOverlay className="wb-modal-overlay" onClose={() => setShowClearConfirm(false)}>
           <div className="wb-modal" onClick={(e) => e.stopPropagation()}>
             <div className="wb-modal-header">
               <h3>Clear Whiteboard</h3>
@@ -487,7 +488,7 @@ export function Whiteboard() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

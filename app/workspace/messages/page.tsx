@@ -19,6 +19,7 @@ import {
   Plus,
   X
 } from 'lucide-react';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Types
 interface Message {
@@ -183,7 +184,7 @@ function NewConversationModal({
   );
 
   return (
-    <div className="chat-modal-overlay" onClick={onClose}>
+    <ModalOverlay className="chat-modal-overlay" onClose={onClose}>
       <div className="chat-modal" onClick={e => e.stopPropagation()}>
         <div className="chat-modal-header">
           <h2>New Message</h2>
@@ -223,7 +224,7 @@ function NewConversationModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

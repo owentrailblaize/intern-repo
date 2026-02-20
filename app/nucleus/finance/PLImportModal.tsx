@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase, ExpenseCategory, ImportBatch } from '@/lib/supabase';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface Payment {
   id: string;
@@ -365,7 +366,7 @@ export default function PLImportModal({
   if (!isOpen) return null;
 
   return (
-    <div className="pli-overlay" onClick={handleClose}>
+    <ModalOverlay className="pli-overlay" onClose={handleClose}>
       <div className="pli-modal" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="pli-header">
@@ -702,6 +703,6 @@ export default function PLImportModal({
           .pli-review-table { min-width: 600px; }
         }
       `}</style>
-    </div>
+    </ModalOverlay>
   );
 }

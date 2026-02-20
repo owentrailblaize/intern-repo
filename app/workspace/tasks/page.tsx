@@ -20,6 +20,7 @@ import {
   Inbox,
   CheckSquare
 } from 'lucide-react';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface Task {
   id: string;
@@ -418,7 +419,7 @@ export default function TasksPage() {
 
       {/* New Task Modal */}
       {showNewTask && (
-        <div className="ws-modal-overlay" onClick={() => setShowNewTask(false)}>
+        <ModalOverlay className="ws-modal-overlay" onClose={() => setShowNewTask(false)}>
           <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ws-modal-header">
               <h3>New Task</h3>
@@ -505,12 +506,12 @@ export default function TasksPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Edit Task Modal */}
       {editingTask && (
-        <div className="ws-modal-overlay" onClick={() => setEditingTask(null)}>
+        <ModalOverlay className="ws-modal-overlay" onClose={() => setEditingTask(null)}>
           <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ws-modal-header">
               <h3>Edit Task</h3>
@@ -593,7 +594,7 @@ export default function TasksPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

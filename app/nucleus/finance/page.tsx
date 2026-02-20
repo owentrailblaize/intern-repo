@@ -36,6 +36,7 @@ import {
 import { supabase, Chapter } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
 import AccountingTab from './AccountingTab';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface Payment {
   id: string;
@@ -1290,7 +1291,7 @@ export default function FinanceModule() {
 
       {/* Confirm Payment Modal */}
       {showConfirmModal && confirmingChapter && (
-        <div className="finance-modal-overlay" onClick={() => setShowConfirmModal(false)}>
+        <ModalOverlay className="finance-modal-overlay" onClose={() => setShowConfirmModal(false)}>
           <div className="confirm-payment-modal" onClick={(e) => e.stopPropagation()}>
             <div className="confirm-modal-top">
               <div className="confirm-modal-icon-wrap">
@@ -1339,12 +1340,12 @@ export default function FinanceModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Payment Modal */}
       {showModal && (
-        <div className="finance-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="finance-modal-overlay" onClose={() => resetForm()}>
           <div className="finance-modal" onClick={(e) => e.stopPropagation()}>
             <div className="finance-modal-header">
               <h2>{editingPayment ? 'Edit Payment' : 'Record Payment'}</h2>
@@ -1531,7 +1532,7 @@ export default function FinanceModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation */}

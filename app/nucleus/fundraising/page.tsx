@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase, NetworkContact, Employee } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Parsed contact type for bulk upload preview
 interface ParsedContact {
@@ -945,7 +946,7 @@ export default function FundraisingModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingContact ? 'Edit Contact' : 'Add Contact'}</h2>
@@ -1127,12 +1128,12 @@ export default function FundraisingModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Bulk Upload Modal */}
       {showBulkModal && (
-        <div className="module-modal-overlay" onClick={() => resetBulkUpload()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetBulkUpload()}>
           <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>Bulk Upload Contacts</h2>
@@ -1331,7 +1332,7 @@ Jane Doe - VP Sales @ BigCorp - jane@bigcorp.com`}
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}

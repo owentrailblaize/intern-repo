@@ -15,6 +15,7 @@ import {
   OUTREACH_CHANNEL_LABELS, ChapterWithOnboarding
 } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Toast notification type
 interface Toast {
@@ -1127,7 +1128,7 @@ export default function CustomerSuccessModule() {
 
       {/* Add/Edit Chapter Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingChapter ? 'Edit Chapter' : 'Add Chapter'}</h2>
@@ -1360,12 +1361,12 @@ export default function CustomerSuccessModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Check-in Modal */}
       {showCheckInModal && (
-        <div className="module-modal-overlay" onClick={() => setShowCheckInModal(null)}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => setShowCheckInModal(null)}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>Log Check-in</h2>
@@ -1466,12 +1467,12 @@ export default function CustomerSuccessModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* View Submission Modal */}
       {showSubmissionModal && (
-        <div className="module-modal-overlay" onClick={() => { setShowSubmissionModal(null); setSubmissionData(null); }}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => { setShowSubmissionModal(null); setSubmissionData(null); }}>
           <div className="module-modal module-modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>Onboarding Submission</h2>
@@ -1585,7 +1586,7 @@ export default function CustomerSuccessModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Full Completion Celebration Modal */}
@@ -1631,7 +1632,7 @@ export default function CustomerSuccessModule() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="module-modal-overlay" onClick={() => setShowSettingsModal(false)}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => setShowSettingsModal(false)}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>Onboarding Settings</h2>
@@ -1669,7 +1670,7 @@ export default function CustomerSuccessModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}

@@ -5,6 +5,7 @@ import { ArrowLeft, Users, Plus, Search, Filter, X, Trash2, Edit2, ExternalLink,
 import Link from 'next/link';
 import { supabase, Employee, EmployeeRole, ROLE_LABELS } from '@/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import ModalOverlay from '@/components/ModalOverlay';
 
 // Job Application type
 interface JobApplication {
@@ -855,7 +856,7 @@ export default function EmployeesModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="module-modal-overlay" onClick={() => resetForm()}>
+        <ModalOverlay className="module-modal-overlay" onClose={() => resetForm()}>
           <div className="module-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>{editingEmployee ? 'Edit Employee' : 'Add Employee'}</h2>
@@ -989,7 +990,7 @@ export default function EmployeesModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -1006,7 +1007,7 @@ export default function EmployeesModule() {
 
       {/* Created Credentials Modal */}
       {createdCredentials && (
-        <div className="module-modal-overlay" onClick={closeCredentialsModal}>
+        <ModalOverlay className="module-modal-overlay" onClose={closeCredentialsModal}>
           <div className="module-modal credentials-modal" onClick={(e) => e.stopPropagation()}>
             <div className="module-modal-header">
               <h2>✅ Employee Created</h2>
@@ -1039,7 +1040,7 @@ export default function EmployeesModule() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

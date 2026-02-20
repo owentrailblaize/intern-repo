@@ -23,6 +23,7 @@ import {
   Rocket
 } from 'lucide-react';
 import { Employee } from '@/lib/supabase';
+import ModalOverlay from '@/components/ModalOverlay';
 
 interface Project {
   id: string;
@@ -290,7 +291,7 @@ export function GrowthProjectTracker({ currentEmployee }: GrowthProjectTrackerPr
 
       {/* New Project Modal */}
       {showNewProject && (
-        <div className="growth-modal-overlay" onClick={() => setShowNewProject(false)}>
+        <ModalOverlay className="growth-modal-overlay" onClose={() => setShowNewProject(false)}>
           <div className="growth-modal" onClick={(e) => e.stopPropagation()}>
             <div className="growth-modal-header">
               <h3>Create New Project</h3>
@@ -389,12 +390,12 @@ export function GrowthProjectTracker({ currentEmployee }: GrowthProjectTrackerPr
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Project Detail Sidebar */}
       {selectedProject && (
-        <div className="growth-sidebar-overlay" onClick={() => setSelectedProject(null)}>
+        <ModalOverlay className="growth-sidebar-overlay" onClose={() => setSelectedProject(null)}>
           <div className="growth-sidebar" onClick={(e) => e.stopPropagation()}>
             <div className="growth-sidebar-header">
               <span className="growth-sidebar-icon">{selectedProject.icon}</span>
@@ -476,7 +477,7 @@ export function GrowthProjectTracker({ currentEmployee }: GrowthProjectTrackerPr
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );
