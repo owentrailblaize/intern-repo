@@ -1,5 +1,7 @@
 import { supabase, SENDING_LINES } from './supabase';
 
+const PAGE_SIZE = 1000;
+
 /**
  * Auto-assigns all alumni contacts with a phone_primary that are
  * not yet in the outreach_queue. First run does a sequential split
@@ -8,23 +10,43 @@ import { supabase, SENDING_LINES } from './supabase';
 export async function autoAssignQueue(chapterId: string): Promise<{ assigned: number; total_in_queue: number }> {
   if (!supabase) throw new Error('Database not connected');
 
-  const { data: allContacts } = await supabase
-    .from('alumni_contacts')
-    .select('id')
-    .eq('chapter_id', chapterId)
-    .not('phone_primary', 'is', null)
-    .order('created_at', { ascending: true });
+  // Fetch ALL contacts with phone (paginated past 1000-row limit)
+  const allContacts: { id: string }[] = [];
+  let offset = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('alumni_contacts')
+      .select('id')
+      .eq('chapter_id', chapterId)
+      .not('phone_primary', 'is', null)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (!data || data.length === 0) break;
+    allContacts.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
 
-  if (!allContacts || allContacts.length === 0) {
+  if (allContacts.length === 0) {
     return { assigned: 0, total_in_queue: 0 };
   }
 
-  const { data: existingQueue } = await supabase
-    .from('outreach_queue')
-    .select('contact_id, line_number, queue_position')
-    .eq('chapter_id', chapterId);
+  // Fetch ALL existing queue entries (paginated)
+  const existingQueue: { contact_id: string; line_number: number; queue_position: number }[] = [];
+  offset = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('outreach_queue')
+      .select('contact_id, line_number, queue_position')
+      .eq('chapter_id', chapterId)
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (!data || data.length === 0) break;
+    existingQueue.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
 
-  const assignedContactIds = new Set((existingQueue || []).map(q => q.contact_id));
+  const assignedContactIds = new Set(existingQueue.map(q => q.contact_id));
   const newContacts = allContacts.filter(c => !assignedContactIds.has(c.id));
 
   if (newContacts.length === 0) {
@@ -34,7 +56,7 @@ export async function autoAssignQueue(chapterId: string): Promise<{ assigned: nu
   const lineCount = SENDING_LINES.length;
   const toInsert: { chapter_id: string; contact_id: string; line_number: number; queue_position: number }[] = [];
 
-  if (!existingQueue || existingQueue.length === 0) {
+  if (existingQueue.length === 0) {
     const base = Math.floor(newContacts.length / lineCount);
     const remainder = newContacts.length % lineCount;
     let idx = 0;
