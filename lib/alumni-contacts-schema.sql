@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS alumni_contacts (
   last_name TEXT NOT NULL,
   phone TEXT,          -- E.164 format, e.g. +15551234567
   email TEXT,
+  year INTEGER,        -- Grad year or initiation year (age reference)
   outreach_status outreach_status NOT NULL DEFAULT 'not_contacted',
   is_imessage BOOLEAN DEFAULT NULL,
 

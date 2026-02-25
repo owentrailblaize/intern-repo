@@ -6,6 +6,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   last_name: ['last name', 'lname', 'last', 'lastname', 'surname', 'family name', 'familyname'],
   phone: ['phone', 'phone number', 'phonenumber', 'cell', 'cell phone', 'cellphone', 'mobile', 'telephone', 'tel'],
   email: ['email', 'email address', 'emailaddress', 'e-mail', 'mail'],
+  year: ['year', 'grad year', 'graduation year', 'class year', 'class', 'initiation year', 'init year', 'grad', 'graduation'],
 };
 
 function matchHeader(raw: string): string | null {
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     const existingPhones = new Set((existing || []).map(c => c.phone));
 
-    const toInsert: { chapter_id: string; first_name: string; last_name: string; phone: string | null; email: string | null }[] = [];
+    const toInsert: { chapter_id: string; first_name: string; last_name: string; phone: string | null; email: string | null; year: number | null }[] = [];
     const errors: { row: number; message: string }[] = [];
     let skipped = 0;
     let duplicates = 0;
@@ -155,6 +156,7 @@ export async function POST(request: NextRequest) {
       const lastName = record.last_name?.trim();
       const rawPhone = record.phone?.trim() || '';
       const rawEmail = record.email?.trim() || '';
+      const rawYear = record.year?.trim() || '';
 
       if (!firstName || !lastName) {
         errors.push({ row: r + 1, message: 'Missing first or last name' });
@@ -164,12 +166,7 @@ export async function POST(request: NextRequest) {
 
       const phone = rawPhone ? normalizePhone(rawPhone) : null;
       const email = rawEmail || null;
-
-      if (!phone && !email) {
-        errors.push({ row: r + 1, message: 'Missing both phone and email' });
-        skipped++;
-        continue;
-      }
+      const year = rawYear ? parseInt(rawYear) : null;
 
       if (rawPhone && !phone) {
         errors.push({ row: r + 1, message: `Invalid phone number: ${rawPhone}` });
@@ -191,7 +188,7 @@ export async function POST(request: NextRequest) {
         seenPhones.add(phone);
       }
 
-      toInsert.push({ chapter_id: chapterId, first_name: firstName, last_name: lastName, phone, email });
+      toInsert.push({ chapter_id: chapterId, first_name: firstName, last_name: lastName, phone, email, year: (year && year > 1900 && year < 2100) ? year : null });
     }
 
     let imported = 0;

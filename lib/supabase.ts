@@ -668,6 +668,7 @@ export interface AlumniContact {
   last_name: string;
   phone: string | null;
   email: string | null;
+  year: number | null;
   outreach_status: OutreachStatus;
   is_imessage: boolean | null;
   created_at: string;

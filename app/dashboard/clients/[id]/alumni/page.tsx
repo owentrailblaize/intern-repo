@@ -18,7 +18,7 @@ import {
 import ConfirmModal from '@/components/ConfirmModal';
 import ModalOverlay from '@/components/ModalOverlay';
 
-type SortField = 'first_name' | 'last_name' | 'phone' | 'email' | 'outreach_status' | 'created_at';
+type SortField = 'first_name' | 'last_name' | 'phone' | 'email' | 'year' | 'outreach_status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
 interface AlumniStats {
@@ -275,9 +275,9 @@ export default function AlumniPage() {
       ? contacts.filter(c => allSelected.includes(c.id))
       : contacts;
 
-    const header = 'First Name,Last Name,Phone,Email,Status,Date Added';
+    const header = 'First Name,Last Name,Phone,Email,Year,Status,Date Added';
     const rows = toExport.map(c =>
-      [c.first_name, c.last_name, c.phone || '', c.email || '', c.outreach_status, formatDate(c.created_at)]
+      [c.first_name, c.last_name, c.phone || '', c.email || '', c.year || '', c.outreach_status, formatDate(c.created_at)]
         .map(v => `"${String(v).replace(/"/g, '""')}"`)
         .join(',')
     );
@@ -453,6 +453,7 @@ export default function AlumniPage() {
                     <SortHeader field="first_name">Name</SortHeader>
                     <SortHeader field="phone">Phone</SortHeader>
                     <SortHeader field="email">Email</SortHeader>
+                    <SortHeader field="year">Year</SortHeader>
                     <SortHeader field="outreach_status">Status</SortHeader>
                     <SortHeader field="created_at">Date Added</SortHeader>
                   </tr>
@@ -478,6 +479,7 @@ export default function AlumniPage() {
                         {formatPhone(contact.phone)}
                       </td>
                       <td>{contact.email || '—'}</td>
+                      <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{contact.year || '—'}</td>
                       <td><StatusBadge status={contact.outreach_status} /></td>
                       <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{formatDate(contact.created_at)}</td>
                     </tr>
@@ -593,7 +595,7 @@ export default function AlumniPage() {
                   </div>
 
                   <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginBottom: '16px' }}>
-                    Expected columns: First Name, Last Name, Phone, Email. We accept common aliases and are case-insensitive.
+                    Expected columns: First Name, Last Name, Phone, Email, Year (grad or initiation). We accept common aliases and are case-insensitive. Only name is required.
                   </p>
 
                   {/* Preview */}

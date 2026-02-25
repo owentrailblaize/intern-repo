@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('outreach_status', status);
     }
 
-    const validSortColumns = ['first_name', 'last_name', 'email', 'phone', 'outreach_status', 'created_at'];
+    const validSortColumns = ['first_name', 'last_name', 'email', 'phone', 'year', 'outreach_status', 'created_at'];
     const col = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
     query = query.order(col, { ascending: sortDir === 'asc' })
       .range(offset, offset + limit - 1);
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { chapter_id, first_name, last_name, phone, email } = body;
+    const { chapter_id, first_name, last_name, phone, email, year } = body;
 
     if (!chapter_id || !first_name || !last_name) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('alumni_contacts')
-      .insert({ chapter_id, first_name, last_name, phone: phone || null, email: email || null })
+      .insert({ chapter_id, first_name, last_name, phone: phone || null, email: email || null, year: year || null })
       .select()
       .single();
 
@@ -134,7 +134,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const allowedFields = ['first_name', 'last_name', 'phone', 'email', 'outreach_status'];
+    const allowedFields = ['first_name', 'last_name', 'phone', 'email', 'year', 'outreach_status'];
     const sanitized: Record<string, unknown> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {
