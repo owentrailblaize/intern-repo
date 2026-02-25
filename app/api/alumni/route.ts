@@ -1,0 +1,214 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+export async function GET(request: NextRequest) {
+  if (!supabase) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Database not connected', code: 'DB_ERROR' } },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const chapterId = searchParams.get('chapter_id');
+    const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || '';
+    const sortBy = searchParams.get('sort_by') || 'created_at';
+    const sortDir = searchParams.get('sort_dir') || 'desc';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '25');
+    const offset = (page - 1) * limit;
+
+    if (!chapterId) {
+      return NextResponse.json(
+        { data: null, error: { message: 'chapter_id is required', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      );
+    }
+
+    let query = supabase
+      .from('alumni_contacts')
+      .select('*', { count: 'exact' })
+      .eq('chapter_id', chapterId);
+
+    if (search) {
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+
+    if (status && status !== 'all') {
+      query = query.eq('outreach_status', status);
+    }
+
+    const validSortColumns = ['first_name', 'last_name', 'email', 'phone', 'outreach_status', 'created_at'];
+    const col = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+    query = query.order(col, { ascending: sortDir === 'asc' })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      return NextResponse.json(
+        { data: null, error: { message: error.message, code: 'DB_ERROR' } },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      data: { contacts: data, total: count ?? 0, page, limit },
+      error: null,
+    });
+  } catch (err) {
+    console.error('Error fetching alumni:', err);
+    return NextResponse.json(
+      { data: null, error: { message: 'Failed to fetch alumni contacts', code: 'SERVER_ERROR' } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!supabase) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Database not connected', code: 'DB_ERROR' } },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { chapter_id, first_name, last_name, phone, email } = body;
+
+    if (!chapter_id || !first_name || !last_name) {
+      return NextResponse.json(
+        { data: null, error: { message: 'chapter_id, first_name, and last_name are required', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from('alumni_contacts')
+      .insert({ chapter_id, first_name, last_name, phone: phone || null, email: email || null })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { data: null, error: { message: 'A contact with this phone number already exists for this chapter', code: 'DUPLICATE' } },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { data: null, error: { message: error.message, code: 'DB_ERROR' } },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ data, error: null });
+  } catch (err) {
+    console.error('Error creating alumni contact:', err);
+    return NextResponse.json(
+      { data: null, error: { message: 'Failed to create alumni contact', code: 'SERVER_ERROR' } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!supabase) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Database not connected', code: 'DB_ERROR' } },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { ids, updates } = body as { ids: string[]; updates: Record<string, unknown> };
+
+    if (!ids || ids.length === 0) {
+      return NextResponse.json(
+        { data: null, error: { message: 'ids array is required', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      );
+    }
+
+    const allowedFields = ['first_name', 'last_name', 'phone', 'email', 'outreach_status'];
+    const sanitized: Record<string, unknown> = {};
+    for (const key of Object.keys(updates)) {
+      if (allowedFields.includes(key)) {
+        sanitized[key] = updates[key];
+      }
+    }
+
+    if (Object.keys(sanitized).length === 0) {
+      return NextResponse.json(
+        { data: null, error: { message: 'No valid fields to update', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from('alumni_contacts')
+      .update(sanitized)
+      .in('id', ids)
+      .select();
+
+    if (error) {
+      return NextResponse.json(
+        { data: null, error: { message: error.message, code: 'DB_ERROR' } },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ data, error: null });
+  } catch (err) {
+    console.error('Error updating alumni contacts:', err);
+    return NextResponse.json(
+      { data: null, error: { message: 'Failed to update alumni contacts', code: 'SERVER_ERROR' } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!supabase) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Database not connected', code: 'DB_ERROR' } },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { ids } = body as { ids: string[] };
+
+    if (!ids || ids.length === 0) {
+      return NextResponse.json(
+        { data: null, error: { message: 'ids array is required', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabase
+      .from('alumni_contacts')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      return NextResponse.json(
+        { data: null, error: { message: error.message, code: 'DB_ERROR' } },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ data: { deleted: ids.length }, error: null });
+  } catch (err) {
+    console.error('Error deleting alumni contacts:', err);
+    return NextResponse.json(
+      { data: null, error: { message: 'Failed to delete alumni contacts', code: 'SERVER_ERROR' } },
+      { status: 500 }
+    );
+  }
+}

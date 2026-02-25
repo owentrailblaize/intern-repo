@@ -645,3 +645,38 @@ export const SORORITIES = [
 ];
 
 export const GREEK_ORGANIZATIONS = [...FRATERNITIES, ...SORORITIES].sort();
+
+// ============================================
+// Alumni Contact Types
+// ============================================
+
+export type OutreachStatus = 'not_contacted' | 'verified' | 'pitched' | 'signed_up' | 'wrong_number' | 'opted_out';
+
+export const OUTREACH_STATUS_CONFIG: Record<OutreachStatus, { label: string; color: string; bg: string }> = {
+  not_contacted: { label: 'Not Contacted', color: '#6b7280', bg: '#f3f4f6' },
+  verified: { label: 'Verified', color: '#2563eb', bg: '#dbeafe' },
+  pitched: { label: 'Pitched', color: '#d97706', bg: '#fef3c7' },
+  signed_up: { label: 'Signed Up', color: '#16a34a', bg: '#dcfce7' },
+  wrong_number: { label: 'Wrong Number', color: '#dc2626', bg: '#fee2e2' },
+  opted_out: { label: 'Opted Out', color: '#4b5563', bg: '#e5e7eb' },
+};
+
+export interface AlumniContact {
+  id: string;
+  chapter_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  email: string | null;
+  outreach_status: OutreachStatus;
+  is_imessage: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlumniImportSummary {
+  imported: number;
+  skipped: number;
+  duplicates: number;
+  errors: { row: number; message: string }[];
+}

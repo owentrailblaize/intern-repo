@@ -66,6 +66,9 @@ export default function CustomerSuccessModule() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
   
+  // Alumni counts per chapter
+  const [alumniCounts, setAlumniCounts] = useState<Record<string, number>>({});
+
   // Booking link settings
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [bookingLink, setBookingLink] = useState('');
@@ -205,6 +208,18 @@ export default function CustomerSuccessModule() {
       setChapters(data || []);
     }
     setLoading(false);
+  }
+
+  async function fetchAlumniCount(chapterId: string) {
+    try {
+      const res = await fetch(`/api/alumni/stats?chapter_id=${chapterId}`);
+      const json = await res.json();
+      if (json.data) {
+        setAlumniCounts(prev => ({ ...prev, [chapterId]: json.data.total }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch alumni count:', err);
+    }
   }
 
   async function fetchCheckIns(chapterId: string) {
@@ -819,6 +834,9 @@ export default function CustomerSuccessModule() {
                       if (!checkIns[chapter.id]) {
                         fetchCheckIns(chapter.id);
                       }
+                      if (alumniCounts[chapter.id] === undefined) {
+                        fetchAlumniCount(chapter.id);
+                      }
                     }}
                   >
                     <div className="chapter-card-expand">
@@ -1022,6 +1040,36 @@ export default function CustomerSuccessModule() {
                                   );
                                 })}
                               </div>
+                              {category === 'alumni' && (
+                                <Link
+                                  href={`/dashboard/clients/${chapter.id}/alumni`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    marginTop: '10px',
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    background: '#f5f3ff',
+                                    border: '1px solid #e9d5ff',
+                                    textDecoration: 'none',
+                                    color: '#7c3aed',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 500,
+                                    transition: 'background 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#ede9fe'; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#f5f3ff'; }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span>
+                                    {alumniCounts[chapter.id] !== undefined
+                                      ? `${alumniCounts[chapter.id]} alumni contact${alumniCounts[chapter.id] !== 1 ? 's' : ''}`
+                                      : 'View alumni contacts'}
+                                  </span>
+                                  <ChevronRight size={16} />
+                                </Link>
+                              )}
                               {isCategoryCelebrating && (
                                 <div className="category-confetti">
                                   {generateConfetti().slice(0, 20).map(p => (
