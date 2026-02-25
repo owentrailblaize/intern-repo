@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       .from('alumni_contacts')
       .select('*', { count: 'exact', head: true })
       .eq('chapter_id', chapterId)
-      .not('phone', 'is', null);
+      .not('phone_primary', 'is', null);
 
     const { count: haveEmail } = await supabase
       .from('alumni_contacts')

@@ -5,6 +5,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
   first_name: ['first name', 'fname', 'first', 'firstname', 'given name', 'givenname'],
   last_name: ['last name', 'lname', 'last', 'lastname', 'surname', 'family name', 'familyname'],
   phone: ['phone', 'phone number', 'phonenumber', 'cell', 'cell phone', 'cellphone', 'mobile', 'telephone', 'tel'],
+  phone_primary: ['phone 1', 'phone1', 'primary phone', 'primary', 'cell 1', 'cell1', 'mobile 1', 'phone primary'],
+  phone_secondary: ['phone 2', 'phone2', 'secondary phone', 'secondary', 'cell 2', 'cell2', 'mobile 2', 'phone secondary', 'alt phone', 'alternate phone', 'other phone', 'imessage', 'imessage number'],
   email: ['email', 'email address', 'emailaddress', 'e-mail', 'mail'],
   year: ['year', 'grad year', 'graduation year', 'class year', 'class', 'initiation year', 'init year', 'grad', 'graduation'],
 };
@@ -12,7 +14,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
 function matchHeader(raw: string): string | null {
   const normalized = raw.trim().toLowerCase().replace(/[_\-]/g, ' ');
   for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
-    if (aliases.includes(normalized) || normalized === field.replace('_', ' ')) {
+    if (aliases.includes(normalized) || normalized === field.replace(/_/g, ' ')) {
       return field;
     }
   }
@@ -21,17 +23,27 @@ function matchHeader(raw: string): string | null {
 
 function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
-
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
-  }
-  if (digits.length >= 11 && digits.length <= 15) {
-    return `+${digits}`;
-  }
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length >= 11 && digits.length <= 15) return `+${digits}`;
   return null;
+}
+
+function splitMultiPhone(raw: string): string[] {
+  const parts = raw.split(/[,;\/|]+/).map(p => p.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 20) {
+    return [digits.slice(0, 10), digits.slice(10)];
+  }
+  if (digits.length === 21 && digits.startsWith('1')) {
+    return [digits.slice(0, 11), digits.slice(11)];
+  }
+  if (digits.length === 22 && digits.startsWith('1')) {
+    return [digits.slice(0, 11), digits.slice(11)];
+  }
+  return [raw];
 }
 
 function parseCSV(text: string): string[][] {
@@ -43,41 +55,23 @@ function parseCSV(text: string): string[][] {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const next = text[i + 1];
-
     if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        current += '"';
-        i++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        current += ch;
-      }
+      if (ch === '"' && next === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
     } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ',') {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { row.push(current.trim()); current = ''; }
+      else if (ch === '\n' || (ch === '\r' && next === '\n')) {
         row.push(current.trim());
-        current = '';
-      } else if (ch === '\n' || (ch === '\r' && next === '\n')) {
-        row.push(current.trim());
-        if (row.some(cell => cell !== '')) {
-          rows.push(row);
-        }
-        row = [];
-        current = '';
+        if (row.some(cell => cell !== '')) rows.push(row);
+        row = []; current = '';
         if (ch === '\r') i++;
-      } else {
-        current += ch;
-      }
+      } else { current += ch; }
     }
   }
-
   row.push(current.trim());
-  if (row.some(cell => cell !== '')) {
-    rows.push(row);
-  }
-
+  if (row.some(cell => cell !== '')) rows.push(row);
   return rows;
 }
 
@@ -115,9 +109,7 @@ export async function POST(request: NextRequest) {
     const columnMap: Record<number, string> = {};
     for (let i = 0; i < headerRow.length; i++) {
       const field = matchHeader(headerRow[i]);
-      if (field) {
-        columnMap[i] = field;
-      }
+      if (field) columnMap[i] = field;
     }
 
     const hasFirstName = Object.values(columnMap).includes('first_name');
@@ -129,32 +121,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const hasSeparatePhoneCols = Object.values(columnMap).includes('phone_primary') || Object.values(columnMap).includes('phone_secondary');
+    const hasSinglePhoneCol = Object.values(columnMap).includes('phone');
+
     const { data: existing } = await supabase
       .from('alumni_contacts')
-      .select('phone')
+      .select('phone_primary')
       .eq('chapter_id', chapterId)
-      .not('phone', 'is', null);
+      .not('phone_primary', 'is', null);
 
-    const existingPhones = new Set((existing || []).map(c => c.phone));
+    const existingPhones = new Set((existing || []).map(c => c.phone_primary));
 
-    const toInsert: { chapter_id: string; first_name: string; last_name: string; phone: string | null; email: string | null; year: number | null }[] = [];
+    type InsertRow = { chapter_id: string; first_name: string; last_name: string; phone_primary: string | null; phone_secondary: string | null; email: string | null; year: number | null };
+    const toInsert: InsertRow[] = [];
     const errors: { row: number; message: string }[] = [];
     let skipped = 0;
     let duplicates = 0;
+    let dualPhoneCount = 0;
     const seenPhones = new Set<string>();
 
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
       const record: Record<string, string> = {};
-
       for (const [colIdx, field] of Object.entries(columnMap)) {
-        const value = row[parseInt(colIdx)] || '';
-        record[field] = value;
+        record[field] = row[parseInt(colIdx)] || '';
       }
 
       const firstName = record.first_name?.trim();
       const lastName = record.last_name?.trim();
-      const rawPhone = record.phone?.trim() || '';
       const rawEmail = record.email?.trim() || '';
       const rawYear = record.year?.trim() || '';
 
@@ -164,31 +158,55 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const phone = rawPhone ? normalizePhone(rawPhone) : null;
+      let phonePrimary: string | null = null;
+      let phoneSecondary: string | null = null;
+
+      if (hasSeparatePhoneCols) {
+        const rawP1 = record.phone_primary?.trim() || record.phone?.trim() || '';
+        const rawP2 = record.phone_secondary?.trim() || '';
+        if (rawP1) phonePrimary = normalizePhone(rawP1);
+        if (rawP2) phoneSecondary = normalizePhone(rawP2);
+        if (rawP1 && !phonePrimary) {
+          errors.push({ row: r + 1, message: `Invalid primary phone: ${rawP1}` });
+          skipped++;
+          continue;
+        }
+      } else if (hasSinglePhoneCol) {
+        const rawPhone = record.phone?.trim() || '';
+        if (rawPhone) {
+          const parts = splitMultiPhone(rawPhone);
+          if (parts.length >= 2) {
+            phonePrimary = normalizePhone(parts[0]);
+            phoneSecondary = normalizePhone(parts[1]);
+          } else {
+            phonePrimary = normalizePhone(parts[0]);
+          }
+          if (rawPhone && !phonePrimary) {
+            errors.push({ row: r + 1, message: `Invalid phone number: ${rawPhone}` });
+            skipped++;
+            continue;
+          }
+        }
+      }
+
+      if (phonePrimary && phoneSecondary) dualPhoneCount++;
+
       const email = rawEmail || null;
       const year = rawYear ? parseInt(rawYear) : null;
 
-      if (rawPhone && !phone) {
-        errors.push({ row: r + 1, message: `Invalid phone number: ${rawPhone}` });
-        skipped++;
-        continue;
-      }
+      if (phonePrimary && existingPhones.has(phonePrimary)) { duplicates++; continue; }
+      if (phonePrimary && seenPhones.has(phonePrimary)) { duplicates++; continue; }
+      if (phonePrimary) seenPhones.add(phonePrimary);
 
-      if (phone && existingPhones.has(phone)) {
-        duplicates++;
-        continue;
-      }
-
-      if (phone && seenPhones.has(phone)) {
-        duplicates++;
-        continue;
-      }
-
-      if (phone) {
-        seenPhones.add(phone);
-      }
-
-      toInsert.push({ chapter_id: chapterId, first_name: firstName, last_name: lastName, phone, email, year: (year && year > 1900 && year < 2100) ? year : null });
+      toInsert.push({
+        chapter_id: chapterId,
+        first_name: firstName,
+        last_name: lastName,
+        phone_primary: phonePrimary,
+        phone_secondary: phoneSecondary,
+        email,
+        year: (year && year > 1900 && year < 2100) ? year : null,
+      });
     }
 
     let imported = 0;
@@ -209,7 +227,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      data: { imported, skipped, duplicates, errors },
+      data: { imported, skipped, duplicates, dual_phone_count: dualPhoneCount, errors },
       error: null,
     });
   } catch (err) {

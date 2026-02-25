@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
       .eq('chapter_id', chapterId);
 
     if (search) {
-      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone_primary.ilike.%${search}%,phone_secondary.ilike.%${search}%`);
     }
 
     if (status && status !== 'all') {
       query = query.eq('outreach_status', status);
     }
 
-    const validSortColumns = ['first_name', 'last_name', 'email', 'phone', 'year', 'outreach_status', 'created_at'];
+    const validSortColumns = ['first_name', 'last_name', 'email', 'phone_primary', 'phone_secondary', 'year', 'outreach_status', 'created_at'];
     const col = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
     query = query.order(col, { ascending: sortDir === 'asc' })
       .range(offset, offset + limit - 1);
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { chapter_id, first_name, last_name, phone, email, year } = body;
+    const { chapter_id, first_name, last_name, phone_primary, phone_secondary, email, year } = body;
 
     if (!chapter_id || !first_name || !last_name) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('alumni_contacts')
-      .insert({ chapter_id, first_name, last_name, phone: phone || null, email: email || null, year: year || null })
+      .insert({ chapter_id, first_name, last_name, phone_primary: phone_primary || null, phone_secondary: phone_secondary || null, email: email || null, year: year || null })
       .select()
       .single();
 
@@ -134,7 +134,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const allowedFields = ['first_name', 'last_name', 'phone', 'email', 'year', 'outreach_status'];
+    const allowedFields = ['first_name', 'last_name', 'phone_primary', 'phone_secondary', 'email', 'year', 'outreach_status'];
     const sanitized: Record<string, unknown> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {

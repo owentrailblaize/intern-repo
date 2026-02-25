@@ -666,7 +666,8 @@ export interface AlumniContact {
   chapter_id: string;
   first_name: string;
   last_name: string;
-  phone: string | null;
+  phone_primary: string | null;
+  phone_secondary: string | null;
   email: string | null;
   year: number | null;
   outreach_status: OutreachStatus;
@@ -679,5 +680,61 @@ export interface AlumniImportSummary {
   imported: number;
   skipped: number;
   duplicates: number;
+  dual_phone_count: number;
   errors: { row: number; message: string }[];
+}
+
+// ============================================
+// Outreach / Campaign Types
+// ============================================
+
+export interface SendingLine {
+  id: string;
+  chapter_id: string;
+  label: string;
+  phone_number: string;
+  daily_limit: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
+export type AssignmentStatus = 'queued' | 'sent' | 'failed';
+
+export interface OutreachCampaign {
+  id: string;
+  chapter_id: string;
+  name: string;
+  message_template: string;
+  use_secondary_phone: boolean;
+  status: CampaignStatus;
+  total_contacts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignAssignment {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  line_id: string;
+  send_phone: string;
+  queue_position: number;
+  scheduled_day: number;
+  status: AssignmentStatus;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  contact?: AlumniContact;
+}
+
+export interface CampaignLineState {
+  id: string;
+  campaign_id: string;
+  line_id: string;
+  is_paused: boolean;
+  contacts_assigned: number;
+  line?: SendingLine;
 }
