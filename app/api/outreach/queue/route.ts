@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, SENDING_LINES } from '@/lib/supabase';
 
 /**
- * GET /api/outreach/queue?line_id=xxx&campaign_id=xxx
- * Returns today's queue for a given line — contacts that are queued
- * for the current day (based on how many have been sent so far).
+ * GET /api/outreach/queue?chapter_id=xxx&line_number=1
+ * Returns the next daily_limit pending contacts for that line.
  */
 export async function GET(request: NextRequest) {
   if (!supabase) {
@@ -12,68 +11,37 @@ export async function GET(request: NextRequest) {
   }
   try {
     const { searchParams } = new URL(request.url);
-    const lineId = searchParams.get('line_id');
-    const campaignId = searchParams.get('campaign_id');
+    const chapterId = searchParams.get('chapter_id');
+    const lineNumber = parseInt(searchParams.get('line_number') || '0');
 
-    if (!lineId || !campaignId) {
-      return NextResponse.json({ data: null, error: { message: 'line_id and campaign_id are required', code: 'VALIDATION_ERROR' } }, { status: 400 });
+    if (!chapterId || !lineNumber) {
+      return NextResponse.json({ data: null, error: { message: 'chapter_id and line_number are required', code: 'VALIDATION_ERROR' } }, { status: 400 });
     }
 
-    const { data: lineState } = await supabase
-      .from('campaign_line_states')
-      .select('is_paused')
-      .eq('campaign_id', campaignId)
-      .eq('line_id', lineId)
-      .single();
-
-    if (lineState?.is_paused) {
-      return NextResponse.json({ data: { queue: [], paused: true }, error: null });
+    const line = SENDING_LINES.find(l => l.number === lineNumber);
+    if (!line) {
+      return NextResponse.json({ data: null, error: { message: 'Invalid line_number', code: 'VALIDATION_ERROR' } }, { status: 400 });
     }
-
-    const { data: campaign } = await supabase
-      .from('outreach_campaigns')
-      .select('status, message_template')
-      .eq('id', campaignId)
-      .single();
-
-    if (!campaign || campaign.status === 'paused' || campaign.status === 'completed') {
-      return NextResponse.json({ data: { queue: [], paused: campaign?.status !== 'completed', completed: campaign?.status === 'completed' }, error: null });
-    }
-
-    const { count: sentSoFar } = await supabase
-      .from('campaign_assignments')
-      .select('*', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId)
-      .eq('line_id', lineId)
-      .in('status', ['sent', 'failed']);
-
-    const { data: line } = await supabase
-      .from('sending_lines')
-      .select('daily_limit')
-      .eq('id', lineId)
-      .single();
-
-    const dailyLimit = line?.daily_limit || 50;
-    const currentDay = Math.floor((sentSoFar ?? 0) / dailyLimit) + 1;
 
     const { data: queue, error } = await supabase
-      .from('campaign_assignments')
-      .select('*, contact:alumni_contacts(id, first_name, last_name, phone_primary, phone_secondary, email, year)')
-      .eq('campaign_id', campaignId)
-      .eq('line_id', lineId)
-      .eq('scheduled_day', currentDay)
-      .eq('status', 'queued')
-      .order('queue_position', { ascending: true });
+      .from('outreach_queue')
+      .select('*, contact:alumni_contacts(id, first_name, last_name, phone_primary, phone_secondary, email, year, outreach_status)')
+      .eq('chapter_id', chapterId)
+      .eq('line_number', lineNumber)
+      .eq('status', 'pending')
+      .order('queue_position', { ascending: true })
+      .limit(line.daily_limit);
 
-    if (error) return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });
+    }
 
     return NextResponse.json({
       data: {
+        line_number: lineNumber,
+        line_label: line.label,
+        daily_limit: line.daily_limit,
         queue: queue || [],
-        paused: false,
-        completed: false,
-        current_day: currentDay,
-        message_template: campaign.message_template,
       },
       error: null,
     });

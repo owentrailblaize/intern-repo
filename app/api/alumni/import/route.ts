@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { autoAssignQueue } from '@/lib/outreach';
 
 const HEADER_ALIASES: Record<string, string[]> = {
   first_name: ['first name', 'fname', 'first', 'firstname', 'given name', 'givenname'],
@@ -226,8 +227,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let queueAssigned = 0;
+    if (imported > 0) {
+      try {
+        const result = await autoAssignQueue(chapterId);
+        queueAssigned = result.assigned;
+      } catch (assignErr) {
+        console.error('Auto-assign after import failed:', assignErr);
+      }
+    }
+
     return NextResponse.json({
-      data: { imported, skipped, duplicates, dual_phone_count: dualPhoneCount, errors },
+      data: { imported, skipped, duplicates, dual_phone_count: dualPhoneCount, queue_assigned: queueAssigned, errors },
       error: null,
     });
   } catch (err) {

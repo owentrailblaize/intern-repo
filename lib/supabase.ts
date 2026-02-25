@@ -685,56 +685,26 @@ export interface AlumniImportSummary {
 }
 
 // ============================================
-// Outreach / Campaign Types
+// Outreach Queue Types
 // ============================================
 
-export interface SendingLine {
+export const SENDING_LINES = [
+  { number: 1, label: 'Owen', daily_limit: 50 },
+  { number: 2, label: 'Adam', daily_limit: 50 },
+  { number: 3, label: 'Ford', daily_limit: 50 },
+] as const;
+
+export type QueueStatus = 'pending' | 'sent' | 'failed';
+
+export interface OutreachQueueEntry {
   id: string;
   chapter_id: string;
-  label: string;
-  phone_number: string;
-  daily_limit: number;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
-export type AssignmentStatus = 'queued' | 'sent' | 'failed';
-
-export interface OutreachCampaign {
-  id: string;
-  chapter_id: string;
-  name: string;
-  message_template: string;
-  use_secondary_phone: boolean;
-  status: CampaignStatus;
-  total_contacts: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CampaignAssignment {
-  id: string;
-  campaign_id: string;
   contact_id: string;
-  line_id: string;
-  send_phone: string;
+  line_number: number;
   queue_position: number;
-  scheduled_day: number;
-  status: AssignmentStatus;
+  status: QueueStatus;
   sent_at: string | null;
   error_message: string | null;
   created_at: string;
   contact?: AlumniContact;
-}
-
-export interface CampaignLineState {
-  id: string;
-  campaign_id: string;
-  line_id: string;
-  is_paused: boolean;
-  contacts_assigned: number;
-  line?: SendingLine;
 }
