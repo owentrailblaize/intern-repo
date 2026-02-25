@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS workspace_tasks (
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
   category TEXT,
   due_date TIMESTAMPTZ,
+  ticket_id UUID REFERENCES tickets(id) ON DELETE SET NULL,
+  completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -34,6 +36,8 @@ CREATE INDEX IF NOT EXISTS idx_workspace_tasks_employee_id ON workspace_tasks(em
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_status ON workspace_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_due_date ON workspace_tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_workspace_tasks_created_at ON workspace_tasks(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workspace_tasks_ticket_id ON workspace_tasks(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_tasks_completed_at ON workspace_tasks(completed_at);
 
 CREATE INDEX IF NOT EXISTS idx_workspace_leads_employee_id ON workspace_leads(employee_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_leads_status ON workspace_leads(status);
@@ -66,11 +70,14 @@ CREATE TRIGGER update_workspace_leads_updated_at
 ALTER TABLE workspace_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspace_leads ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for workspace_tasks
+-- RLS Policies for workspace_tasks (team-wide read access)
 DROP POLICY IF EXISTS "Users can view own tasks" ON workspace_tasks;
-CREATE POLICY "Users can view own tasks" ON workspace_tasks
+DROP POLICY IF EXISTS "Team members can view all tasks" ON workspace_tasks;
+CREATE POLICY "Team members can view all tasks" ON workspace_tasks
   FOR SELECT
-  USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
+  USING (
+    EXISTS (SELECT 1 FROM employees WHERE auth_user_id = auth.uid() AND status = 'active')
+  );
 
 DROP POLICY IF EXISTS "Users can insert own tasks" ON workspace_tasks;
 CREATE POLICY "Users can insert own tasks" ON workspace_tasks

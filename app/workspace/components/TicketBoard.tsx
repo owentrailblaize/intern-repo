@@ -35,6 +35,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { supabase, Employee } from '@/lib/supabase';
 import ModalOverlay from '@/components/ModalOverlay';
+import { RichTextEditor, RichTextDisplay } from '@/components/RichTextEditor';
 
 // ═══════════════════════════════════════════
 // TYPES
@@ -695,6 +696,8 @@ function CreateTicketModal({
   const [assigneeId, setAssigneeId] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const isDescriptionEmpty = !description || description === '<p></p>' || !description.replace(/<[^>]*>/g, '').trim();
+
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setCreating(true);
@@ -704,7 +707,7 @@ function CreateTicketModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
-          description: description.trim() || null,
+          description: isDescriptionEmpty ? null : description,
           type,
           priority,
           assignee_id: assigneeId || null,
@@ -744,11 +747,10 @@ function CreateTicketModal({
           </div>
           <div className="tkt__field">
             <label>Description</label>
-            <textarea
+            <RichTextEditor
+              content={description}
+              onChange={setDescription}
               placeholder="Steps to reproduce, expected behavior, screenshots..."
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={4}
             />
           </div>
           <div className="tkt__field-row">
@@ -942,7 +944,9 @@ function TicketDetailPanel({
         <div className="tkt__detail-body">
           <h2 className="tkt__detail-title">{ticket.title}</h2>
           {ticket.description && (
-            <p className="tkt__detail-desc">{ticket.description}</p>
+            <div className="tkt__detail-desc">
+              <RichTextDisplay content={ticket.description} />
+            </div>
           )}
 
           {/* Meta Fields */}

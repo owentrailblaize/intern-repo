@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { supabase, Employee, ROLE_LABELS } from '@/lib/supabase';
+import { supabase, Employee } from '@/lib/supabase';
 import ModalOverlay from '@/components/ModalOverlay';
 import {
   CheckCircle2,
@@ -10,31 +10,32 @@ import {
   Plus,
   Calendar,
   Clock,
-  Filter,
-  MoreVertical,
   Trash2,
   Edit3,
   X,
   Check,
-  ChevronDown,
   AlertCircle,
   Flag,
   ListTodo,
   Inbox,
   CheckSquare,
-  Archive
+  Ticket
 } from 'lucide-react';
 
 interface Task {
   id: string;
   employee_id: string;
   title: string;
-  description: string;
-  category: string;
+  description: string | null;
+  category: string | null;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'todo' | 'in_progress' | 'done';
-  due_date: string;
+  due_date: string | null;
+  ticket_id: string | null;
+  completed_at: string | null;
   created_at: string;
+  updated_at: string;
+  ticket?: { id: string; number: number; title: string; status: string } | null;
 }
 
 type FilterType = 'all' | 'today' | 'upcoming' | 'overdue' | 'completed';
@@ -45,11 +46,11 @@ export default function TasksPage() {
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('due_date');
   const [showCompleted, setShowCompleted] = useState(false);
-  
-  // New task state
+
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -58,8 +59,7 @@ export default function TasksPage() {
     due_date: '',
     category: 'general'
   });
-  
-  // Edit task state
+
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const fetchEmployee = useCallback(async () => {
@@ -89,86 +89,169 @@ export default function TasksPage() {
     fetchEmployee();
   }, [fetchEmployee]);
 
+  const fetchTasks = useCallback(async () => {
+    if (!currentEmployee) return;
+
+    try {
+      const params = new URLSearchParams({ employee_id: currentEmployee.id });
+      const res = await fetch(`/api/workspace/tasks?${params}`);
+      const result = await res.json();
+
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      const allTasks: Task[] = result.data || [];
+      if (!showCompleted) {
+        setTasks(allTasks.filter(t => t.status !== 'done'));
+      } else {
+        setTasks(allTasks);
+      }
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError('Failed to load tasks');
+    }
+  }, [currentEmployee, showCompleted]);
+
   useEffect(() => {
-    if (currentEmployee) {
-      fetchTasks();
-    }
-  }, [currentEmployee]);
-
-  async function fetchTasks() {
-    if (!supabase || !currentEmployee) return;
-    
-    let query = supabase
-      .from('employee_tasks')
-      .select('*')
-      .eq('employee_id', currentEmployee.id);
-
-    if (!showCompleted) {
-      query = query.neq('status', 'done');
-    }
-
-    const { data } = await query.order('created_at', { ascending: false });
-    setTasks(data || []);
-  }
+    if (currentEmployee) fetchTasks();
+  }, [currentEmployee, fetchTasks]);
 
   async function createTask() {
-    if (!supabase || !currentEmployee || !newTask.title.trim()) return;
-    
-    await supabase.from('employee_tasks').insert([{
-      employee_id: currentEmployee.id,
-      title: newTask.title,
-      description: newTask.description,
-      priority: newTask.priority,
-      due_date: newTask.due_date || null,
-      category: newTask.category,
-      status: 'todo'
-    }]);
+    if (!currentEmployee || !newTask.title.trim()) return;
 
-    setNewTask({ title: '', description: '', priority: 'medium', due_date: '', category: 'general' });
-    setShowNewTask(false);
-    fetchTasks();
+    try {
+      const res = await fetch('/api/workspace/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: currentEmployee.id,
+          title: newTask.title.trim(),
+          description: newTask.description.trim() || null,
+          priority: newTask.priority,
+          due_date: newTask.due_date || null,
+          category: newTask.category,
+        }),
+      });
+
+      const result = await res.json();
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      setTasks(prev => [result.data, ...prev]);
+      setNewTask({ title: '', description: '', priority: 'medium', due_date: '', category: 'general' });
+      setShowNewTask(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error creating task:', err);
+      setError('Failed to create task');
+    }
   }
 
   async function updateTask() {
-    if (!supabase || !editingTask) return;
-    
-    await supabase.from('employee_tasks').update({
-      title: editingTask.title,
-      description: editingTask.description,
-      priority: editingTask.priority,
-      due_date: editingTask.due_date || null,
-      category: editingTask.category
-    }).eq('id', editingTask.id);
+    if (!editingTask) return;
 
-    setEditingTask(null);
-    fetchTasks();
+    try {
+      const res = await fetch(`/api/workspace/tasks/${editingTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingTask.title,
+          description: editingTask.description,
+          priority: editingTask.priority,
+          due_date: editingTask.due_date || null,
+          category: editingTask.category,
+        }),
+      });
+
+      const result = await res.json();
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      setTasks(prev => prev.map(t => t.id === editingTask.id ? result.data : t));
+      setEditingTask(null);
+      setError(null);
+    } catch (err) {
+      console.error('Error updating task:', err);
+      setError('Failed to update task');
+    }
   }
 
   async function toggleTask(task: Task) {
-    if (!supabase) return;
     const newStatus = task.status === 'done' ? 'todo' : 'done';
-    await supabase.from('employee_tasks').update({ status: newStatus }).eq('id', task.id);
-    fetchTasks();
+
+    try {
+      const res = await fetch(`/api/workspace/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const result = await res.json();
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (newStatus === 'done' && !showCompleted) {
+        setTasks(prev => prev.filter(t => t.id !== task.id));
+      } else {
+        setTasks(prev => prev.map(t => t.id === task.id ? result.data : t));
+      }
+    } catch (err) {
+      console.error('Error toggling task:', err);
+      setError('Failed to update task');
+    }
   }
 
   async function deleteTask(task: Task) {
-    if (!supabase) return;
-    await supabase.from('employee_tasks').delete().eq('id', task.id);
-    fetchTasks();
+    try {
+      const res = await fetch(`/api/workspace/tasks/${task.id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError('Failed to delete task');
+    }
   }
 
   async function updateTaskStatus(task: Task, status: Task['status']) {
-    if (!supabase) return;
-    await supabase.from('employee_tasks').update({ status }).eq('id', task.id);
-    fetchTasks();
+    try {
+      const res = await fetch(`/api/workspace/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const result = await res.json();
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (status === 'done' && !showCompleted) {
+        setTasks(prev => prev.filter(t => t.id !== task.id));
+      } else {
+        setTasks(prev => prev.map(t => t.id === task.id ? result.data : t));
+      }
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      setError('Failed to update task');
+    }
   }
 
-  // Filter tasks
   const getFilteredTasks = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
@@ -201,11 +284,10 @@ export default function TasksPage() {
         break;
     }
 
-    // Sort
     filtered.sort((a, b) => {
       if (sortBy === 'priority') {
-        const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
+        const order = { urgent: 0, high: 1, medium: 2, low: 3 };
+        return order[a.priority] - order[b.priority];
       }
       if (sortBy === 'due_date') {
         if (!a.due_date && !b.due_date) return 0;
@@ -222,15 +304,12 @@ export default function TasksPage() {
   const filteredTasks = getFilteredTasks();
   const todoTasks = filteredTasks.filter(t => t.status === 'todo');
   const inProgressTasks = filteredTasks.filter(t => t.status === 'in_progress');
-  const doneTasks = filteredTasks.filter(t => t.status === 'done');
-  
-  // Stats
+
   const overdueCount = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length;
   const todayCount = tasks.filter(t => {
     if (!t.due_date) return false;
-    const today = new Date();
     const due = new Date(t.due_date);
-    return due.toDateString() === today.toDateString() && t.status !== 'done';
+    return due.toDateString() === new Date().toDateString() && t.status !== 'done';
   }).length;
 
   const priorityColors = {
@@ -260,7 +339,7 @@ export default function TasksPage() {
           </h1>
           <span className="tasks-count">{tasks.filter(t => t.status !== 'done').length} active</span>
         </div>
-        <button 
+        <button
           className="tasks-new-btn"
           onClick={() => setShowNewTask(true)}
         >
@@ -268,6 +347,16 @@ export default function TasksPage() {
           New Task
         </button>
       </header>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c' }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="tasks-stats">
@@ -315,7 +404,7 @@ export default function TasksPage() {
         </div>
 
         <div className="tasks-filter-actions">
-          <select 
+          <select
             className="tasks-sort-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortType)}
@@ -324,7 +413,7 @@ export default function TasksPage() {
             <option value="priority">Sort by Priority</option>
             <option value="created_at">Sort by Created</option>
           </select>
-          
+
           <label className="tasks-show-completed">
             <input
               type="checkbox"
@@ -352,13 +441,13 @@ export default function TasksPage() {
           <div className="tasks-list">
             {filteredTasks.map(task => {
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
-              
+
               return (
-                <div 
+                <div
                   key={task.id}
                   className={`tasks-item ${task.status === 'done' ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}`}
                 >
-                  <button 
+                  <button
                     className={`tasks-item-check ${task.status === 'done' ? 'checked' : ''}`}
                     onClick={() => toggleTask(task)}
                   >
@@ -378,13 +467,23 @@ export default function TasksPage() {
                         </span>
                       )}
                       <span className="tasks-item-category">{task.category}</span>
+                      {task.ticket && (
+                        <a
+                          href={`/workspace/tickets?ticket=${task.ticket.id}`}
+                          className="ws-task-ticket-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Ticket size={12} />
+                          #{task.ticket.number}
+                        </a>
+                      )}
                     </div>
                   </div>
 
                   <div className="tasks-item-right">
-                    <span 
+                    <span
                       className="tasks-item-priority"
-                      style={{ 
+                      style={{
                         background: priorityColors[task.priority].bg,
                         color: priorityColors[task.priority].text
                       }}
@@ -404,13 +503,13 @@ export default function TasksPage() {
                     </select>
 
                     <div className="tasks-item-actions">
-                      <button 
+                      <button
                         className="tasks-item-action"
                         onClick={() => setEditingTask(task)}
                       >
                         <Edit3 size={14} />
                       </button>
-                      <button 
+                      <button
                         className="tasks-item-action delete"
                         onClick={() => deleteTask(task)}
                       >
@@ -427,7 +526,7 @@ export default function TasksPage() {
 
       {/* New Task Modal */}
       {showNewTask && (
-        <div className="tasks-modal-overlay" onClick={() => setShowNewTask(false)}>
+        <ModalOverlay className="tasks-modal-overlay" onClose={() => setShowNewTask(false)}>
           <div className="tasks-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tasks-modal-header">
               <h3>New Task</h3>
@@ -498,13 +597,13 @@ export default function TasksPage() {
             </div>
 
             <div className="tasks-modal-footer">
-              <button 
+              <button
                 className="tasks-modal-cancel"
                 onClick={() => setShowNewTask(false)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="tasks-modal-submit"
                 onClick={createTask}
                 disabled={!newTask.title.trim()}
@@ -514,12 +613,12 @@ export default function TasksPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Edit Task Modal */}
       {editingTask && (
-        <div className="tasks-modal-overlay" onClick={() => setEditingTask(null)}>
+        <ModalOverlay className="tasks-modal-overlay" onClose={() => setEditingTask(null)}>
           <div className="tasks-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tasks-modal-header">
               <h3>Edit Task</h3>
@@ -574,7 +673,7 @@ export default function TasksPage() {
               <div className="tasks-form-group">
                 <label>Category</label>
                 <select
-                  value={editingTask.category}
+                  value={editingTask.category || 'general'}
                   onChange={(e) => setEditingTask({ ...editingTask, category: e.target.value })}
                 >
                   <option value="general">General</option>
@@ -587,13 +686,13 @@ export default function TasksPage() {
             </div>
 
             <div className="tasks-modal-footer">
-              <button 
+              <button
                 className="tasks-modal-cancel"
                 onClick={() => setEditingTask(null)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="tasks-modal-submit"
                 onClick={updateTask}
               >
@@ -602,7 +701,7 @@ export default function TasksPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Lazy initialize Supabase client to avoid build-time errors
 let supabase: SupabaseClient | null = null;
 
 function getSupabase(): SupabaseClient {
@@ -27,31 +26,52 @@ export interface WorkspaceTask {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   category: string | null;
   due_date: string | null;
+  ticket_id: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
+  employee?: { id: string; name: string; email: string; role: string } | null;
+  ticket?: { id: string; number: number; title: string; status: string } | null;
 }
+
+const TASK_SELECT = `
+  *,
+  employee:employee_id(id, name, email, role),
+  ticket:ticket_id(id, number, title, status)
+`;
 
 /**
  * GET /api/workspace/tasks
- * List tasks for an employee
+ * Params:
+ *   employee_id - filter by employee (omit for team-wide)
+ *   status      - filter by status
+ *   completed_since - ISO date, filters completed_at >= value
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
+    const status = searchParams.get('status');
+    const completedSince = searchParams.get('completed_since');
 
-    if (!employeeId) {
-      return NextResponse.json(
-        { data: null, error: { message: 'employee_id is required', code: 'MISSING_PARAM' } },
-        { status: 400 }
-      );
+    let query = getSupabase()
+      .from('workspace_tasks')
+      .select(TASK_SELECT)
+      .order('created_at', { ascending: false });
+
+    if (employeeId) {
+      query = query.eq('employee_id', employeeId);
     }
 
-    const { data, error } = await getSupabase()
-      .from('workspace_tasks')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false });
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (completedSince) {
+      query = query.gte('completed_at', completedSince);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching tasks:', error);
@@ -78,7 +98,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { employee_id, title, description, status, priority, category, due_date } = body;
+    const { employee_id, title, description, status, priority, category, due_date, ticket_id } = body;
 
     if (!employee_id || !title) {
       return NextResponse.json(
@@ -97,8 +117,9 @@ export async function POST(request: NextRequest) {
         priority: priority || 'medium',
         category: category || null,
         due_date: due_date || null,
+        ticket_id: ticket_id || null,
       })
-      .select()
+      .select(TASK_SELECT)
       .single();
 
     if (error) {

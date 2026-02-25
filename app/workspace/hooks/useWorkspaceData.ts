@@ -13,6 +13,8 @@ export interface EmployeeTask {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'todo' | 'in_progress' | 'done';
   due_date: string | null;
+  ticket_id?: string | null;
+  completed_at?: string | null;
   created_at: string;
   updated_at?: string;
 }

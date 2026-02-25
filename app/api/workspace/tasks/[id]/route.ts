@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Lazy initialize Supabase client to avoid build-time errors
 let supabase: SupabaseClient | null = null;
 
 function getSupabase(): SupabaseClient {
@@ -18,13 +17,18 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
+const TASK_SELECT = `
+  *,
+  employee:employee_id(id, name, email, role),
+  ticket:ticket_id(id, number, title, status)
+`;
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 /**
  * GET /api/workspace/tasks/[id]
- * Get a single task by ID
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const { data, error } = await getSupabase()
       .from('workspace_tasks')
-      .select('*')
+      .select(TASK_SELECT)
       .eq('id', id)
       .single();
 
@@ -62,15 +66,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PATCH /api/workspace/tasks/[id]
- * Update a task
+ * Automatically sets completed_at when status transitions to/from 'done'.
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
     const body = await request.json();
     
-    // Only allow updating specific fields
-    const allowedFields = ['title', 'description', 'status', 'priority', 'category', 'due_date'];
+    const allowedFields = ['title', 'description', 'status', 'priority', 'category', 'due_date', 'ticket_id'];
     const updates: Record<string, unknown> = {};
     
     for (const field of allowedFields) {
@@ -86,11 +89,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
+    if (updates.status === 'done') {
+      updates.completed_at = new Date().toISOString();
+    } else if (updates.status && updates.status !== 'done') {
+      updates.completed_at = null;
+    }
+
     const { data, error } = await getSupabase()
       .from('workspace_tasks')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select(TASK_SELECT)
       .single();
 
     if (error) {
@@ -119,7 +128,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 /**
  * DELETE /api/workspace/tasks/[id]
- * Delete a task
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
