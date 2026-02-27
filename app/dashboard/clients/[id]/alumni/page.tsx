@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   ArrowLeft, Upload, Download, Search, X, Trash2, ChevronLeft, ChevronRight,
   Users, Phone, Mail, UserCheck, FileSpreadsheet, AlertCircle, CheckCircle2,
-  ChevronDown, Filter, Smartphone, Send, Check, XCircle,
+  ChevronDown, Filter, Smartphone, Send, Check, XCircle, Zap, MessageSquare,
+  RefreshCw, MessageCircle,
 } from 'lucide-react';
 import {
   supabase,
@@ -24,7 +25,7 @@ type SortField = 'first_name' | 'last_name' | 'phone_primary' | 'email' | 'year'
 type SortDir = 'asc' | 'desc';
 type TabView = 'contacts' | 'campaigns' | 'lines';
 
-interface AlumniStats { total: number; have_phone: number; have_email: number; contacted: number; }
+interface AlumniStats { total: number; have_phone: number; have_email: number; contacted: number; imessage: number; sms: number; unverified: number; responded: number; signed_up: number; }
 interface ImportResult { imported: number; skipped: number; duplicates: number; dual_phone_count: number; queue_assigned: number; errors: { row: number; message: string }[]; }
 
 interface DashboardLine {
@@ -90,7 +91,7 @@ export default function AlumniPage() {
 
   const [chapter, setChapter] = useState<ChapterWithOnboarding | null>(null);
   const [contacts, setContacts] = useState<AlumniContact[]>([]);
-  const [stats, setStats] = useState<AlumniStats>({ total: 0, have_phone: 0, have_email: 0, contacted: 0 });
+  const [stats, setStats] = useState<AlumniStats>({ total: 0, have_phone: 0, have_email: 0, contacted: 0, imessage: 0, sms: 0, unverified: 0, responded: 0, signed_up: 0 });
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -118,6 +119,30 @@ export default function AlumniPage() {
   // Dashboard
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
+
+  // iMessage filter
+  const [imessageFilter, setImessageFilter] = useState<'all' | 'imessage' | 'sms' | 'unverified'>('all');
+
+  // Verify iMessage
+  const [verifying, setVerifying] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState(false);
+
+  // Send Batch modal
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendTouch, setSendTouch] = useState<1 | 2 | 3>(1);
+  const [sendSchool, setSendSchool] = useState('');
+  const [sendFraternity, setSendFraternity] = useState('');
+  const [sendSignupLink, setSendSignupLink] = useState('');
+  const [sendSenderName, setSendSenderName] = useState('Owen');
+  const [sendBatchSize, setSendBatchSize] = useState(50);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ sent: number; per_line: { line: number; label: string; sent: number; remaining: number }[]; errors: { contact_id: string; message: string }[] } | null>(null);
+
+  // Poll responses
+  const [polling, setPolling] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Queue per line
   const [expandedLine, setExpandedLine] = useState<number | null>(null);
@@ -150,12 +175,13 @@ export default function AlumniPage() {
       const p = new URLSearchParams({ chapter_id: chapterId, page: String(page), limit: String(limit), sort_by: sortBy, sort_dir: sortDir });
       if (search) p.set('search', search);
       if (filterStatus !== 'all') p.set('status', filterStatus);
+      if (imessageFilter !== 'all') p.set('imessage_filter', imessageFilter);
       const res = await fetch(`/api/alumni?${p}`);
       const json = await res.json();
       if (json.data) { setContacts(json.data.contacts); setTotal(json.data.total); }
     } catch (err) { console.error('Failed to fetch contacts:', err); }
     finally { setLoading(false); }
-  }, [chapterId, page, search, filterStatus, sortBy, sortDir]);
+  }, [chapterId, page, search, filterStatus, imessageFilter, sortBy, sortDir]);
 
   const fetchDashboard = useCallback(async () => {
     setDashLoading(true);
@@ -189,7 +215,7 @@ export default function AlumniPage() {
 
   useEffect(() => { fetchChapter(); fetchStats(); }, [fetchChapter, fetchStats]);
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
-  useEffect(() => { setPage(1); }, [search, filterStatus]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, imessageFilter]);
   useEffect(() => {
     if (activeTab === 'campaigns') {
       triggerAutoAssign().then(() => fetchDashboard());
@@ -287,6 +313,89 @@ export default function AlumniPage() {
     }
   }
 
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  }
+
+  async function handleVerifyIMessage() {
+    setVerifyConfirm(false);
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/outreach/verify-imessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter_id: chapterId }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        showToast(`Verified ${json.data.total_checked} contacts: ${json.data.imessage} iMessage, ${json.data.sms} SMS${json.data.errors > 0 ? `, ${json.data.errors} errors` : ''}`);
+        fetchContacts();
+        fetchStats();
+      } else {
+        showToast(json.error?.message || 'Verification failed', 'error');
+      }
+    } catch { showToast('Network error during verification', 'error'); }
+    finally { setVerifying(false); }
+  }
+
+  async function handleSendBatch() {
+    setSending(true);
+    try {
+      const res = await fetch('/api/outreach/send-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chapter_id: chapterId,
+          touch: sendTouch,
+          sender_name: sendSenderName,
+          school: sendSchool,
+          fraternity: sendFraternity,
+          signup_link: sendSignupLink,
+          batch_size: sendBatchSize,
+        }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        setSendResult(json.data);
+        const lineBreakdown = json.data.per_line
+          .filter((l: { sent: number }) => l.sent > 0)
+          .map((l: { label: string; sent: number }) => `${l.label}: ${l.sent}`)
+          .join(', ');
+        showToast(`Sent ${json.data.sent} Touch ${sendTouch} messages${lineBreakdown ? ` (${lineBreakdown})` : ''}`);
+        fetchContacts();
+        fetchStats();
+        fetchDashboard();
+      } else {
+        showToast(json.error?.message || 'Send failed', 'error');
+      }
+    } catch { showToast('Network error during send', 'error'); }
+    finally { setSending(false); }
+  }
+
+  async function handlePollResponses() {
+    setPolling(true);
+    try {
+      const res = await fetch('/api/outreach/poll-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter_id: chapterId }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        const cls = Object.entries(json.data.by_classification || {})
+          .map(([k, v]) => `${v} ${k}`)
+          .join(', ');
+        showToast(`Checked ${json.data.polled} conversations: ${json.data.new_responses} new responses${cls ? ` (${cls})` : ''}`);
+        fetchContacts();
+        fetchStats();
+      } else {
+        showToast(json.error?.message || 'Poll failed', 'error');
+      }
+    } catch { showToast('Network error during poll', 'error'); }
+    finally { setPolling(false); }
+  }
+
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <th onClick={() => handleSort(field)} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -316,8 +425,14 @@ export default function AlumniPage() {
         <div className="module-stats-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <div className="module-stat"><span className="module-stat-value">{stats.total}</span><span className="module-stat-label"><Users size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Total Alumni</span></div>
           <div className="module-stat"><span className="module-stat-value" style={{ color: '#8b5cf6' }}>{stats.have_phone}</span><span className="module-stat-label"><Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Have Phone</span></div>
-          <div className="module-stat"><span className="module-stat-value" style={{ color: '#3b82f6' }}>{stats.have_email}</span><span className="module-stat-label"><Mail size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Have Email</span></div>
+          <div className="module-stat"><span className="module-stat-value" style={{ color: '#16a34a' }}>{stats.imessage}</span><span className="module-stat-label"><MessageSquare size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />iMessage</span></div>
+          <div className="module-stat"><span className="module-stat-value" style={{ color: '#6b7280' }}>{stats.sms}</span><span className="module-stat-label"><Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />SMS</span></div>
+        </div>
+        <div className="module-stats-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginTop: '-8px' }}>
+          <div className="module-stat"><span className="module-stat-value" style={{ color: '#d97706' }}>{stats.unverified}</span><span className="module-stat-label"><AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Unverified</span></div>
           <div className="module-stat"><span className="module-stat-value" style={{ color: '#10b981' }}>{stats.contacted}</span><span className="module-stat-label"><UserCheck size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Contacted</span></div>
+          <div className="module-stat"><span className="module-stat-value" style={{ color: '#2563eb' }}>{stats.responded}</span><span className="module-stat-label"><MessageCircle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Responded</span></div>
+          <div className="module-stat"><span className="module-stat-value" style={{ color: '#16a34a' }}>{stats.signed_up}</span><span className="module-stat-label"><CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Signed Up</span></div>
         </div>
 
         {/* Tab Navigation */}
@@ -345,6 +460,12 @@ export default function AlumniPage() {
                     <option value="all">All Status</option>
                     {Object.entries(OUTREACH_STATUS_CONFIG).map(([key, cfg]) => (<option key={key} value={key}>{cfg.label}</option>))}
                   </select>
+                  <select className="module-filter-select" value={imessageFilter} onChange={(e) => setImessageFilter(e.target.value as typeof imessageFilter)}>
+                    <option value="all">All Numbers</option>
+                    <option value="imessage">iMessage Only</option>
+                    <option value="sms">SMS Only</option>
+                    <option value="unverified">Unverified Only</option>
+                  </select>
                 </div>
                 {selected.size > 0 && (
                   <>
@@ -354,6 +475,9 @@ export default function AlumniPage() {
                   </>
                 )}
                 {selected.size === 0 && <button className="module-filter-btn" onClick={exportCSV} disabled={contacts.length === 0}><Download size={16} /> Export CSV</button>}
+                <button className="module-filter-btn" onClick={() => setVerifyConfirm(true)} disabled={verifying || stats.unverified === 0} style={{ color: '#d97706', borderColor: '#fde68a' }}>
+                  {verifying ? <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Verifying...</> : <><Zap size={16} /> Verify iMessage ({stats.unverified})</>}
+                </button>
                 <button className="module-primary-btn" onClick={() => setShowImportModal(true)}><Upload size={18} /> Import CSV</button>
               </div>
             </div>
@@ -369,6 +493,7 @@ export default function AlumniPage() {
                       <th style={{ width: '40px' }}><input type="checkbox" checked={contacts.length > 0 && selected.size === contacts.length} onChange={toggleSelectAll} /></th>
                       <SortHeader field="first_name">Name</SortHeader>
                       <SortHeader field="phone_primary">Phone</SortHeader>
+                      <th style={{ whiteSpace: 'nowrap', width: '50px' }}>Type</th>
                       <th style={{ whiteSpace: 'nowrap' }}>Phone 2</th>
                       <SortHeader field="email">Email</SortHeader>
                       <SortHeader field="year">Year</SortHeader>
@@ -381,10 +506,22 @@ export default function AlumniPage() {
                           <td><input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggleSelect(contact.id)} /></td>
                           <td style={{ fontWeight: 500 }}>{contact.first_name} {contact.last_name}</td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{formatPhone(contact.phone_primary)}</td>
+                          <td>
+                            {contact.is_imessage === true && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, color: '#16a34a', backgroundColor: '#dcfce7' }}>iMsg</span>}
+                            {contact.is_imessage === false && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', backgroundColor: '#f3f4f6' }}>SMS</span>}
+                            {contact.is_imessage === null && contact.phone_primary && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, color: '#d97706', backgroundColor: '#fef3c7' }}>?</span>}
+                          </td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#8b5cf6' }}>{formatPhone(contact.phone_secondary)}</td>
                           <td>{contact.email || '—'}</td>
                           <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{contact.year || '—'}</td>
-                          <td><StatusBadge status={contact.outreach_status} /></td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                              <StatusBadge status={contact.outreach_status} />
+                              {contact.response_classification && (
+                                <span style={{ display: 'inline-flex', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, color: '#6b7280', backgroundColor: '#f3f4f6' }}>{contact.response_classification}</span>
+                              )}
+                            </div>
+                          </td>
                           <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{formatDate(contact.created_at)}</td>
                         </tr>
                       ))}
@@ -425,6 +562,16 @@ export default function AlumniPage() {
               </div>
             ) : (
               <>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <button className="module-primary-btn" onClick={() => { setSendSchool(chapter?.school || ''); setSendFraternity(chapter?.fraternity || ''); setSendResult(null); setShowSendModal(true); }} disabled={sending}>
+                    <Send size={16} /> Send Next Batch
+                  </button>
+                  <button className="module-filter-btn" onClick={handlePollResponses} disabled={polling} style={{ color: '#2563eb', borderColor: '#bfdbfe' }}>
+                    {polling ? <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Checking...</> : <><MessageCircle size={16} /> Check Responses</>}
+                  </button>
+                </div>
+
                 {/* Summary Stats */}
                 <div className="module-stats-row" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: '20px' }}>
                   <div className="module-stat">
@@ -722,6 +869,127 @@ export default function AlumniPage() {
       )}
 
       <ConfirmModal isOpen={deleteConfirm} title="Delete Contacts" message={`Are you sure you want to delete ${selected.size} selected contact${selected.size > 1 ? 's' : ''}? This cannot be undone.`} confirmText="Delete" cancelText="Cancel" variant="danger" onConfirm={bulkDelete} onCancel={() => setDeleteConfirm(false)} />
+
+      {/* Verify iMessage Confirm */}
+      <ConfirmModal
+        isOpen={verifyConfirm}
+        title="Verify iMessage Eligibility"
+        message={`This will check ${stats.unverified} unverified phone numbers for iMessage eligibility via Linq. Continue?`}
+        confirmText="Verify"
+        cancelText="Cancel"
+        variant="default"
+        onConfirm={handleVerifyIMessage}
+        onCancel={() => setVerifyConfirm(false)}
+      />
+
+      {/* Send Batch Modal */}
+      {showSendModal && (
+        <ModalOverlay className="module-modal-overlay" onClose={() => setShowSendModal(false)}>
+          <div className="module-modal module-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="module-modal-header">
+              <h2>Send Next Batch</h2>
+              <button className="module-modal-close" onClick={() => setShowSendModal(false)}><X size={20} /></button>
+            </div>
+            <div className="module-modal-body">
+              {sendResult ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>
+                  <CheckCircle2 size={40} style={{ color: '#16a34a', marginBottom: '12px' }} />
+                  <h3 style={{ fontSize: '1.125rem', marginBottom: '8px' }}>Sent {sendResult.sent} Touch {sendTouch} Messages</h3>
+                  {sendResult.per_line.filter(l => l.sent > 0).length > 0 && (
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                      {sendResult.per_line.filter(l => l.sent > 0).map(l => (
+                        <div key={l.line} style={{ padding: '12px 16px', background: '#f0fdf4', borderRadius: '8px', textAlign: 'center' }}>
+                          <div style={{ fontWeight: 700, fontSize: '1.25rem', color: '#16a34a' }}>{l.sent}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{l.label} ({l.remaining} left)</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {sendResult.errors.length > 0 && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: '#fef2f2', borderRadius: '8px', fontSize: '0.8125rem', textAlign: 'left', maxHeight: '150px', overflowY: 'auto' }}>
+                      <strong>{sendResult.errors.length} errors:</strong>
+                      {sendResult.errors.slice(0, 10).map((e, i) => <div key={i} style={{ color: '#991b1b', marginTop: '4px' }}>{e.message}</div>)}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="module-form-group">
+                    <label>Touch Number</label>
+                    <select value={sendTouch} onChange={e => setSendTouch(Number(e.target.value) as 1 | 2 | 3)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', background: 'white' }}>
+                      <option value={1}>Touch 1 — Verify</option>
+                      <option value={2}>Touch 2 — Pitch + Link</option>
+                      <option value={3}>Touch 3 — Check-in</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="module-form-group">
+                      <label>School</label>
+                      <input type="text" value={sendSchool} onChange={e => setSendSchool(e.target.value)} placeholder="e.g. University of Alabama" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem' }} />
+                    </div>
+                    <div className="module-form-group">
+                      <label>Fraternity</label>
+                      <input type="text" value={sendFraternity} onChange={e => setSendFraternity(e.target.value)} placeholder="e.g. Phi Delta Theta" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem' }} />
+                    </div>
+                  </div>
+                  {sendTouch === 2 && (
+                    <div className="module-form-group">
+                      <label>Signup Link</label>
+                      <input type="text" value={sendSignupLink} onChange={e => setSendSignupLink(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem' }} />
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="module-form-group">
+                      <label>Sender Name</label>
+                      <select value={sendSenderName} onChange={e => setSendSenderName(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', background: 'white' }}>
+                        {SENDING_LINES.map(l => <option key={l.number} value={l.label}>{l.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="module-form-group">
+                      <label>Batch Size</label>
+                      <input type="number" value={sendBatchSize} onChange={e => setSendBatchSize(Number(e.target.value))} min={1} max={150} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem' }} />
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px 16px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Message Preview:</div>
+                    <div style={{ fontSize: '0.8125rem', color: '#6b7280', lineHeight: 1.5 }}>
+                      {sendTouch === 1 && `Hey is this {first_name} {last_name}? My name is ${sendSenderName}, and I am checking to verify your phone number for the ${sendSchool || '{school}'} ${sendFraternity || '{fraternity}'} alumni list.`}
+                      {sendTouch === 2 && `Hey {first_name}, following up — we partnered with ${sendSchool || '{school}'} ${sendFraternity || '{fraternity}'} to launch Trailblaize, a free platform that connects actives and alumni. Here's the signup link if you're interested: ${sendSignupLink || '{signup_link}'}`}
+                      {sendTouch === 3 && `Hey {first_name}, just checking back in — did you get a chance to sign up? Happy to answer any questions.`}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="module-modal-footer">
+              <button className="module-cancel-btn" onClick={() => setShowSendModal(false)}>{sendResult ? 'Close' : 'Cancel'}</button>
+              {!sendResult && (
+                <button className="module-primary-btn" onClick={handleSendBatch} disabled={sending || (sendTouch <= 2 && (!sendSchool || !sendFraternity)) || (sendTouch === 2 && !sendSignupLink)}>
+                  {sending ? 'Sending...' : `Send Touch ${sendTouch}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 10000,
+          padding: '14px 20px', borderRadius: '10px', maxWidth: '440px',
+          background: toast.type === 'success' ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${toast.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          color: toast.type === 'success' ? '#166534' : '#991b1b',
+          fontSize: '0.875rem', fontWeight: 500,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          display: 'flex', alignItems: 'center', gap: '10px',
+        }}>
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {toast.message}
+          <button onClick={() => setToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', marginLeft: 'auto', color: 'inherit' }}><X size={14} /></button>
+        </div>
+      )}
     </div>
   );
 }

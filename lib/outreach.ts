@@ -19,6 +19,7 @@ export async function autoAssignQueue(chapterId: string): Promise<{ assigned: nu
       .select('id')
       .eq('chapter_id', chapterId)
       .not('phone_primary', 'is', null)
+      .eq('is_imessage', true)
       .order('created_at', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
     if (!data || data.length === 0) break;

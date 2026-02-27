@@ -650,12 +650,13 @@ export const GREEK_ORGANIZATIONS = [...FRATERNITIES, ...SORORITIES].sort();
 // Alumni Contact Types
 // ============================================
 
-export type OutreachStatus = 'not_contacted' | 'verified' | 'pitched' | 'signed_up' | 'wrong_number' | 'opted_out';
+export type OutreachStatus = 'not_contacted' | 'verified' | 'pitched' | 'responded' | 'signed_up' | 'wrong_number' | 'opted_out';
 
 export const OUTREACH_STATUS_CONFIG: Record<OutreachStatus, { label: string; color: string; bg: string }> = {
   not_contacted: { label: 'Not Contacted', color: '#6b7280', bg: '#f3f4f6' },
   verified: { label: 'Verified', color: '#2563eb', bg: '#dbeafe' },
   pitched: { label: 'Pitched', color: '#d97706', bg: '#fef3c7' },
+  responded: { label: 'Responded', color: '#2563eb', bg: '#dbeafe' },
   signed_up: { label: 'Signed Up', color: '#16a34a', bg: '#dcfce7' },
   wrong_number: { label: 'Wrong Number', color: '#dc2626', bg: '#fee2e2' },
   opted_out: { label: 'Opted Out', color: '#4b5563', bg: '#e5e7eb' },
@@ -672,6 +673,14 @@ export interface AlumniContact {
   year: number | null;
   outreach_status: OutreachStatus;
   is_imessage: boolean | null;
+  linq_chat_id: string | null;
+  assigned_line: number | null;
+  touch1_sent_at: string | null;
+  touch2_sent_at: string | null;
+  touch3_sent_at: string | null;
+  last_response_at: string | null;
+  response_text: string | null;
+  response_classification: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -689,10 +698,12 @@ export interface AlumniImportSummary {
 // ============================================
 
 export const SENDING_LINES = [
-  { number: 1, label: 'Owen', daily_limit: 50 },
-  { number: 2, label: 'Adam', daily_limit: 50 },
-  { number: 3, label: 'Ford', daily_limit: 50 },
+  { number: 1, label: 'Owen', daily_limit: 50, phone: '+16462408056' },
+  { number: 2, label: 'Adam', daily_limit: 50, phone: '+16462668785' },
+  { number: 3, label: 'Ford', daily_limit: 50, phone: '+16462442696' },
 ] as const;
+
+export const LINQ_API_BASE = 'https://api.linqapp.com/api/partner/v3';
 
 export type QueueStatus = 'pending' | 'sent' | 'failed';
 

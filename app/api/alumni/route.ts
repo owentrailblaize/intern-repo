@@ -40,6 +40,15 @@ export async function GET(request: NextRequest) {
       query = query.eq('outreach_status', status);
     }
 
+    const imessageFilter = searchParams.get('imessage_filter');
+    if (imessageFilter === 'imessage') {
+      query = query.eq('is_imessage', true);
+    } else if (imessageFilter === 'sms') {
+      query = query.eq('is_imessage', false);
+    } else if (imessageFilter === 'unverified') {
+      query = query.not('phone_primary', 'is', null).is('is_imessage', null);
+    }
+
     const validSortColumns = ['first_name', 'last_name', 'email', 'phone_primary', 'phone_secondary', 'year', 'outreach_status', 'created_at'];
     const col = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
     query = query.order(col, { ascending: sortDir === 'asc' })
@@ -134,7 +143,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const allowedFields = ['first_name', 'last_name', 'phone_primary', 'phone_secondary', 'email', 'year', 'outreach_status'];
+    const allowedFields = [
+      'first_name', 'last_name', 'phone_primary', 'phone_secondary', 'email', 'year',
+      'outreach_status', 'is_imessage', 'linq_chat_id', 'assigned_line',
+      'touch1_sent_at', 'touch2_sent_at', 'touch3_sent_at',
+      'last_response_at', 'response_text', 'response_classification',
+    ];
     const sanitized: Record<string, unknown> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {
