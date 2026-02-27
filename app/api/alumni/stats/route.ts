@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, SENDING_LINES } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   if (!supabase) {
@@ -74,6 +74,89 @@ export async function GET(request: NextRequest) {
       .eq('chapter_id', chapterId)
       .eq('outreach_status', 'signed_up');
 
+    // Touch-ready counts for Control Panel
+    const { count: touch1Ready } = await supabase
+      .from('alumni_contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('chapter_id', chapterId)
+      .eq('is_imessage', true)
+      .eq('outreach_status', 'not_contacted')
+      .is('touch1_sent_at', null);
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Touch 2 due: touch1 sent, touch2 not sent, and either confirmed or 2+ days since touch1
+    const { data: touch2Candidates } = await supabase
+      .from('alumni_contacts')
+      .select('id, response_classification, touch1_sent_at', { count: 'exact' })
+      .eq('chapter_id', chapterId)
+      .eq('is_imessage', true)
+      .not('touch1_sent_at', 'is', null)
+      .is('touch2_sent_at', null);
+
+    const touch2Due = (touch2Candidates || []).filter(c =>
+      c.response_classification === 'confirmed' || (c.touch1_sent_at && c.touch1_sent_at < twoDaysAgo)
+    ).length;
+
+    // Touch 3 due: touch2 sent, touch3 not sent, 2+ days since touch2, not terminal status
+    const { data: touch3Candidates } = await supabase
+      .from('alumni_contacts')
+      .select('id, touch2_sent_at')
+      .eq('chapter_id', chapterId)
+      .eq('is_imessage', true)
+      .not('touch2_sent_at', 'is', null)
+      .is('touch3_sent_at', null)
+      .not('outreach_status', 'in', '("signed_up","wrong_number","opted_out")');
+
+    const touch3Due = (touch3Candidates || []).filter(c =>
+      c.touch2_sent_at && c.touch2_sent_at < twoDaysAgo
+    ).length;
+
+    // Responses to check: contacts with chat ID, not terminal, eligible for polling
+    const { count: responsesToCheck } = await supabase
+      .from('alumni_contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('chapter_id', chapterId)
+      .not('linq_chat_id', 'is', null)
+      .not('outreach_status', 'in', '("signed_up","wrong_number","opted_out")');
+
+    // Per-line today counts
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStr = todayStart.toISOString();
+
+    const lineToday: { number: number; label: string; daily_limit: number; sent_today: number }[] = [];
+    for (const line of SENDING_LINES) {
+      // Count any touch sent today on this line
+      const { count: t1 } = await supabase
+        .from('alumni_contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('chapter_id', chapterId)
+        .eq('assigned_line', line.number)
+        .gte('touch1_sent_at', todayStr);
+
+      const { count: t2 } = await supabase
+        .from('alumni_contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('chapter_id', chapterId)
+        .eq('assigned_line', line.number)
+        .gte('touch2_sent_at', todayStr);
+
+      const { count: t3 } = await supabase
+        .from('alumni_contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('chapter_id', chapterId)
+        .eq('assigned_line', line.number)
+        .gte('touch3_sent_at', todayStr);
+
+      lineToday.push({
+        number: line.number,
+        label: line.label,
+        daily_limit: line.daily_limit,
+        sent_today: (t1 ?? 0) + (t2 ?? 0) + (t3 ?? 0),
+      });
+    }
+
     return NextResponse.json({
       data: {
         total: total ?? 0,
@@ -85,6 +168,11 @@ export async function GET(request: NextRequest) {
         unverified: unverifiedCount ?? 0,
         responded: respondedCount ?? 0,
         signed_up: signedUpCount ?? 0,
+        touch1_ready: touch1Ready ?? 0,
+        touch2_due: touch2Due,
+        touch3_due: touch3Due,
+        responses_to_check: responsesToCheck ?? 0,
+        line_today: lineToday,
       },
       error: null,
     });

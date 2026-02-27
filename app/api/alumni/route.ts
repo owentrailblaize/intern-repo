@@ -49,7 +49,29 @@ export async function GET(request: NextRequest) {
       query = query.not('phone_primary', 'is', null).is('is_imessage', null);
     }
 
-    const validSortColumns = ['first_name', 'last_name', 'email', 'phone_primary', 'phone_secondary', 'year', 'outreach_status', 'created_at'];
+    const lineFilter = searchParams.get('line_filter');
+    if (lineFilter && lineFilter !== 'all') {
+      query = query.eq('assigned_line', parseInt(lineFilter));
+    }
+
+    const touchFilter = searchParams.get('touch_filter');
+    if (touchFilter === 'needs_touch1') {
+      query = query.eq('is_imessage', true).eq('outreach_status', 'not_contacted').is('touch1_sent_at', null);
+    } else if (touchFilter === 'needs_touch2') {
+      query = query.not('touch1_sent_at', 'is', null).is('touch2_sent_at', null);
+    } else if (touchFilter === 'needs_touch3') {
+      query = query.not('touch2_sent_at', 'is', null).is('touch3_sent_at', null);
+    } else if (touchFilter === 'complete') {
+      query = query.not('touch3_sent_at', 'is', null);
+    } else if (touchFilter === 'no_response') {
+      query = query.not('touch1_sent_at', 'is', null).is('last_response_at', null);
+    }
+
+    const validSortColumns = [
+      'first_name', 'last_name', 'email', 'phone_primary', 'phone_secondary',
+      'year', 'outreach_status', 'created_at', 'assigned_line',
+      'touch1_sent_at', 'last_response_at',
+    ];
     const col = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
     query = query.order(col, { ascending: sortDir === 'asc' })
       .range(offset, offset + limit - 1);
